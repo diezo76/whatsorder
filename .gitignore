@@ -61,3 +61,6 @@ temp/
 .cache/
 .parcel-cache/
 .turbo/
+
+# TypeScript
+*.tsbuildinfo
