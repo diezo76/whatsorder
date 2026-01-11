@@ -1,5 +1,6 @@
 'use client';
 
+// Analytics Dashboard Page
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { toast } from 'react-hot-toast';
