@@ -178,7 +178,7 @@ export const getRevenueChart = async (req: AuthRequest, res: Response) => {
         }
       });
 
-      const revenue = orders.reduce((sum, order) => sum + order.total, 0);
+      const revenue = orders.reduce((sum: number, order: any) => sum + order.total, 0);
       const orderCount = orders.length;
 
       data.push({

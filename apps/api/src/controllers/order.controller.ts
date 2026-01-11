@@ -3,8 +3,20 @@ import { z } from 'zod';
 import { prisma } from '@/utils/prisma';
 import { AuthRequest } from '@/middleware/auth.middleware';
 import { getIoInstance, broadcastOrderUpdate } from '@/utils/socket';
-import { OrderStatus } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { sendOrderNotification } from '@/services/whatsapp.service';
+
+// Enum OrderStatus (identique à celui de Prisma)
+enum OrderStatus {
+  PENDING = 'PENDING',
+  CONFIRMED = 'CONFIRMED',
+  PREPARING = 'PREPARING',
+  READY = 'READY',
+  OUT_FOR_DELIVERY = 'OUT_FOR_DELIVERY',
+  DELIVERED = 'DELIVERED',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED'
+}
 
 // Schémas de validation Zod
 const updateStatusSchema = z.object({
@@ -120,7 +132,7 @@ export class OrderController {
           select: { id: true },
         });
 
-        const customerIds = matchingCustomers.map((c) => c.id);
+        const customerIds = matchingCustomers.map((c: any) => c.id);
 
         // Ajouter les conditions de recherche
         where.OR = [

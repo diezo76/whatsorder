@@ -121,7 +121,7 @@ export async function parseOrderFromMessage(req: AuthRequest, res: Response) {
     });
 
     // Charge le menu du restaurant (avec cache)
-    let menuItems = getCachedMenu(restaurantId);
+    let menuItems: any[] | null = getCachedMenu(restaurantId);
     
     if (!menuItems) {
       menuItems = await prisma.menuItem.findMany({
@@ -145,7 +145,9 @@ export async function parseOrderFromMessage(req: AuthRequest, res: Response) {
         }
       });
       
-      setCachedMenu(restaurantId, menuItems);
+      if (menuItems) {
+        setCachedMenu(restaurantId, menuItems);
+      }
     }
 
     // Vérifier si menuItems est vide
