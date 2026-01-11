@@ -93,11 +93,11 @@ export class ConversationController {
       });
 
       // Formater la réponse
-      const formattedConversations = conversations.map((conv) => ({
+      const formattedConversations = conversations.map((conv: any) => ({
         id: conv.id,
         customer: conv.customer,
         lastMessage: conv.messages[0] || null,
-        unreadCount: conv._count.messages,
+        unreadCount: conv._count?.messages || 0,
         lastMessageAt: conv.lastMessageAt,
         isActive: conv.isActive,
         whatsappPhone: conv.whatsappPhone,

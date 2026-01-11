@@ -52,8 +52,8 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
     });
 
     // Calculer les KPIs
-    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
-    const previousRevenue = previousOrders.reduce((sum, order) => sum + order.total, 0);
+    const totalRevenue = orders.reduce((sum: number, order: any) => sum + order.total, 0);
+    const previousRevenue = previousOrders.reduce((sum: number, order: any) => sum + order.total, 0);
     const revenueChange = calculatePercentageChange(totalRevenue, previousRevenue);
 
     const totalOrders = orders.length;
@@ -87,11 +87,11 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
       : '0';
 
     // Temps moyen de traitement (PENDING → DELIVERED)
-    const completedOrders = orders.filter(o => 
+    const completedOrders = orders.filter((o: any) => 
       o.status === 'DELIVERED' && o.completedAt
     );
     const avgProcessingTime = completedOrders.length > 0
-      ? completedOrders.reduce((sum, order) => {
+      ? completedOrders.reduce((sum: number, order: any) => {
           const duration = order.completedAt!.getTime() - order.createdAt.getTime();
           return sum + duration;
         }, 0) / completedOrders.length
@@ -237,7 +237,7 @@ export const getTopItems = async (req: AuthRequest, res: Response) => {
     // Grouper par item
     const itemStats = new Map<string, any>();
 
-    orderItems.forEach(item => {
+    orderItems.forEach((item: any) => {
       const key = item.menuItemId;
       if (!itemStats.has(key)) {
         itemStats.set(key, {
@@ -300,7 +300,7 @@ export const getOrdersByStatus = async (req: AuthRequest, res: Response) => {
       _count: true
     });
 
-    const statusData = orders.map(item => ({
+    const statusData = orders.map((item: any) => ({
       status: item.status,
       count: item._count
     }));
@@ -351,7 +351,7 @@ export const getDeliveryTypes = async (req: AuthRequest, res: Response) => {
       }
     });
 
-    const data = orders.map(item => ({
+    const data = orders.map((item: any) => ({
       type: item.deliveryType,
       count: item._count,
       revenue: item._sum.total || 0

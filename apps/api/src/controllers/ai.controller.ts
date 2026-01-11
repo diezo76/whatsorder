@@ -148,6 +148,14 @@ export async function parseOrderFromMessage(req: AuthRequest, res: Response) {
       setCachedMenu(restaurantId, menuItems);
     }
 
+    // Vérifier si menuItems est vide
+    if (!menuItems || menuItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No menu items found'
+      });
+    }
+
     // Récupère les infos du restaurant
     const restaurant = await prisma.restaurant.findUnique({
       where: { id: restaurantId },
@@ -179,8 +187,10 @@ export async function parseOrderFromMessage(req: AuthRequest, res: Response) {
     });
 
     // Enrichit les items avec les infos du menu
-    const enrichedItems = parsed.items.map(item => {
-      const menuItem = menuItems.find(m => m.id === item.matchedMenuItemId);
+    const enrichedItems = parsed.items
+      .filter((item: any) => item.matchedMenuItemId)
+      .map((item: any) => {
+        const menuItem = menuItems.find((mi: any) => mi.id === item.matchedMenuItemId);
       return {
         ...item,
         menuItem: menuItem ? {
@@ -412,7 +422,7 @@ export async function createOrderFromParsed(req: AuthRequest, res: Response) {
     }
 
     // Utilise une transaction pour garantir la cohérence
-    const order = await prisma.$transaction(async (tx) => {
+    const order = await prisma.$transaction(async (tx: any) => {
       // Calcule les totaux
       let subtotal = 0;
       const orderItems: any[] = [];
