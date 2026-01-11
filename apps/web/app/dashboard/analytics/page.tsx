@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { format, subDays } from 'date-fns';
-import { fr } from 'date-fns/locale';
 import { api } from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import {
@@ -14,8 +12,7 @@ import {
   Clock,
   Target,
   Download,
-  RefreshCw,
-  Calendar
+  RefreshCw
 } from 'lucide-react';
 import RevenueChart from '@/components/analytics/RevenueChart';
 import TopItemsChart from '@/components/analytics/TopItemsChart';
