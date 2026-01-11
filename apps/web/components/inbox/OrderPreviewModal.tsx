@@ -11,7 +11,6 @@ import {
   StickyNote,
   AlertTriangle,
   Truck,
-  ShoppingBag,
 } from 'lucide-react';
 
 // ==========================================

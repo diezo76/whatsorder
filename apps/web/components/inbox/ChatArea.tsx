@@ -138,9 +138,9 @@ export default function ChatArea({
       
       // Vérifie si clarification nécessaire
       if (parsed.needsClarification) {
-        toast.error('Commande incomplète', {
-          description: parsed.clarificationQuestions?.[0] || 'Informations manquantes'
-        });
+        toast.error(
+          `Commande incomplète: ${parsed.clarificationQuestions?.[0] || 'Informations manquantes'}`
+        );
       }
       
       // Vérifie si des items ont été trouvés
@@ -165,13 +165,11 @@ export default function ChatArea({
       console.error('Error parsing with AI:', error);
       
       if (error.response?.status === 503) {
-        toast.error('Service IA non disponible', {
-          description: 'Configuration OpenAI manquante'
-        });
+        toast.error('Service IA non disponible: Configuration OpenAI manquante');
       } else {
-        toast.error('Erreur lors du parsing IA', {
-          description: error.response?.data?.message || 'Une erreur est survenue'
-        });
+        toast.error(
+          `Erreur lors du parsing IA: ${error.response?.data?.message || 'Une erreur est survenue'}`
+        );
       }
     } finally {
       setParsingAI(false);
@@ -206,9 +204,9 @@ export default function ChatArea({
       
     } catch (error: any) {
       console.error('Error creating order:', error);
-      toast.error('Erreur lors de la création de la commande', {
-        description: error.response?.data?.message || 'Une erreur est survenue'
-      });
+      toast.error(
+        `Erreur lors de la création de la commande: ${error.response?.data?.message || 'Une erreur est survenue'}`
+      );
       throw error; // Re-throw pour que le modal gère le loading
     }
   };

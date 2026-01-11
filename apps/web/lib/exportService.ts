@@ -144,7 +144,7 @@ export async function exportRevenueCSV(data: RevenueData[], period: string) {
 // Export Rapport Complet (toutes les données)
 export async function exportCompleteReport(
   stats: any,
-  orders: Order[],
+  _orders: Order[],
   topItems: TopItem[],
   revenueData: RevenueData[],
   period: string

@@ -69,27 +69,8 @@ const isValidEmail = (email: string): boolean => {
 };
 
 export default function SettingsGeneralTab({ formData, onChange }: SettingsGeneralTabProps) {
-  const [debouncedValues, setDebouncedValues] = useState<Record<string, string>>({});
-
-  // Debounce pour les inputs text (300ms)
-  useEffect(() => {
-    const timers: Record<string, NodeJS.Timeout> = {};
-
-    return () => {
-      Object.values(timers).forEach((timer) => clearTimeout(timer));
-    };
-  }, []);
-
   const handleTextChange = (field: string, value: string) => {
     onChange(field, value);
-  };
-
-  const handleDebouncedChange = (field: string, value: string) => {
-    const timer = setTimeout(() => {
-      onChange(field, value);
-    }, 300);
-
-    return () => clearTimeout(timer);
   };
 
   const logoUrlValid = isValidUrl(formData.logo);

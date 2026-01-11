@@ -169,10 +169,6 @@ export default function CheckoutModal({
     }
   };
 
-  // Formatage du prix
-  const formatPrice = (price: number) => {
-    return `${price.toFixed(2)} EGP`;
-  };
 
   // Rendu de l'indicateur d'étapes
   const renderStepIndicator = () => {

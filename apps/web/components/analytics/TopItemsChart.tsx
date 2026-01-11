@@ -7,7 +7,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   Cell
 } from 'recharts';
@@ -116,7 +115,7 @@ export default function TopItemsChart({ items, loading }: TopItemsChartProps) {
           radius={[8, 8, 0, 0]}
           name="Quantité"
         >
-          {chartData.map((entry, index) => (
+          {chartData.map((_, index) => (
             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
           ))}
         </Bar>

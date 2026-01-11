@@ -106,7 +106,6 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [showCreateForm, setShowCreateForm] = useState<boolean>(false);
 
   // Détection des changements
   const hasChanges = useMemo(() => {

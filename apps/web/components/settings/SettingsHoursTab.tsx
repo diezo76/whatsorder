@@ -87,7 +87,7 @@ export default function SettingsHoursTab({ openingHours, onChange }: SettingsHou
     }
   };
 
-  const validateHours = (day: string, open: string, close: string): boolean => {
+  const validateHours = (_day: string, open: string, close: string): boolean => {
     if (!open || !close) return true; // Vide est valide si fermé
     const openTime = new Date(`2000-01-01T${open}:00`);
     const closeTime = new Date(`2000-01-01T${close}:00`);

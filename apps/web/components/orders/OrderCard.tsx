@@ -51,6 +51,7 @@ interface Order {
 interface OrderCardProps {
   order: Order;
   onClick: () => void;
+  isNew?: boolean;
 }
 
 // Fonction helper pour formater le temps
