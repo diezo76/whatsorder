@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Building2, Image as ImageIcon, Phone, ChevronDown } from 'lucide-react';
 
 interface RestaurantFormData {
