@@ -1,0 +1,31 @@
+{
+  "name": "whatsorder-clone",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Système de commande restaurant via WhatsApp",
+  "scripts": {
+    "dev": "pnpm --filter web dev & pnpm --filter api dev",
+    "build": "pnpm --filter web build && pnpm --filter api build",
+    "start": "pnpm --filter web start & pnpm --filter api start",
+    "test": "pnpm --recursive test",
+    "test:coverage": "pnpm --recursive test:coverage",
+    "test:e2e": "pnpm --filter api test:e2e",
+    "lint": "pnpm --recursive lint",
+    "typecheck": "pnpm --recursive typecheck",
+    "prisma:generate": "pnpm --filter api prisma:generate",
+    "prisma:migrate": "pnpm --filter api prisma:migrate",
+    "prisma:studio": "pnpm --filter api prisma:studio",
+    "db:seed": "pnpm --filter api db:seed",
+    "logs:api": "pnpm --filter api logs",
+    "logs:jobs": "pnpm --filter api logs:jobs"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0"
+}

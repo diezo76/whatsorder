@@ -1,0 +1,11 @@
+{
+  "name": "@whatsorder/config",
+  "version": "0.1.0",
+  "main": "./tsconfig.base.json",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

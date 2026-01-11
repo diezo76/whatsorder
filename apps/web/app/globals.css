@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Couleurs primaires */
+  --color-primary: #25D366;
+  --color-primary-dark: #1EA952;
+  --color-secondary: #128C7E;
+  --color-secondary-dark: #0E7065;
+  --color-accent: #34B7F1;
+  --color-accent-dark: #2A92C1;
+  
+  /* Couleurs de texte */
+  --foreground-rgb: 15, 23, 42; /* slate-900 */
+  --foreground-muted-rgb: 100, 116, 139; /* slate-500 */
+  
+  /* Couleurs de fond */
+  --background-rgb: 255, 255, 255;
+  --background-muted-rgb: 248, 250, 252; /* slate-50 */
+  
+  /* Bordures */
+  --border-rgb: 226, 232, 240; /* slate-200 */
+}
+
+.dark {
+  --foreground-rgb: 248, 250, 252; /* slate-50 */
+  --foreground-muted-rgb: 148, 163, 184; /* slate-400 */
+  --background-rgb: 15, 23, 42; /* slate-900 */
+  --background-muted-rgb: 30, 41, 59; /* slate-800 */
+  --border-rgb: 51, 65, 85; /* slate-700 */
+}
+
+@layer base {
+  html {
+    @apply antialiased;
+  }
+  
+  body {
+    @apply bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-50;
+    color: rgb(var(--foreground-rgb));
+    background-color: rgb(var(--background-rgb));
+  }
+  
+  * {
+    @apply border-slate-200 dark:border-slate-700;
+  }
+}
+
+@layer components {
+  /* Utilitaires personnalisées pour le dashboard */
+  .text-muted {
+    @apply text-slate-500 dark:text-slate-400;
+  }
+  
+  .bg-muted {
+    @apply bg-slate-50 dark:bg-slate-800;
+  }
+  
+  .border-muted {
+    @apply border-slate-200 dark:border-slate-700;
+  }
+}
