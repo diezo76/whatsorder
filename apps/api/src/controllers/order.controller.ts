@@ -3,10 +3,9 @@ import { z } from 'zod';
 import { prisma } from '@/utils/prisma';
 import { AuthRequest } from '@/middleware/auth.middleware';
 import { getIoInstance, broadcastOrderUpdate } from '@/utils/socket';
-import { Prisma } from '@prisma/client';
 import { sendOrderNotification } from '@/services/whatsapp.service';
 
-// Enum OrderStatus (identique à celui de Prisma)
+// Définir l'enum OrderStatus manuellement (identique à celui de Prisma)
 enum OrderStatus {
   PENDING = 'PENDING',
   CONFIRMED = 'CONFIRMED',
