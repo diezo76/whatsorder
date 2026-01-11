@@ -166,7 +166,6 @@ export default function SettingsPage() {
         if (error.response?.status === 404) {
           const errorMessage = error.response?.data?.error || 'Aucun restaurant associé à votre compte';
           setError(errorMessage);
-          setShowCreateForm(true); // Afficher le formulaire de création
           toast.error(errorMessage);
         } else if (error.response?.status === 401) {
           const errorMessage = 'Session expirée. Veuillez vous reconnecter.';
@@ -327,7 +326,6 @@ export default function SettingsPage() {
               <button
                 onClick={() => {
                   setError(null);
-                  setShowCreateForm(false);
                   // Recharger la page pour réessayer
                   window.location.reload();
                 }}
