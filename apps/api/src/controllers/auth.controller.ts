@@ -66,6 +66,14 @@ export class AuthController {
       res.status(500).json({ error: error.message || 'Failed to get user' });
     }
   }
+
+  async health(_req: Request, res: Response) {
+    res.json({
+      status: 'ok',
+      service: 'auth',
+      timestamp: new Date().toISOString(),
+    });
+  }
 }
 
 export const authController = new AuthController();
