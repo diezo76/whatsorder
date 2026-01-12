@@ -170,9 +170,9 @@ async function main() {
   // 5. Créer un client exemple
   const customer = await prisma.customer.upsert({
     where: {
-      restaurantId_phone: {
-        restaurantId: restaurant.id,
+      phone_restaurantId: {
         phone: '+201234567890',
+        restaurantId: restaurant.id,
       },
     },
     update: {},
