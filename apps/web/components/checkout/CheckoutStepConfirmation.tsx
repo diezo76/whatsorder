@@ -1,10 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { User, Truck, ShoppingBag, UtensilsCrossed, MessageCircle, Info, Loader2 } from 'lucide-react';
+import { User, Truck, ShoppingBag, UtensilsCrossed, MessageCircle, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { CartItem } from '@/store/cartStore';
-import { api } from '@/lib/api';
 import { DeliveryType } from './CheckoutStepDelivery';
 
 interface Restaurant {
@@ -120,7 +118,6 @@ export default function CheckoutStepConfirmation({
   onConfirm,
   onPrev,
 }: CheckoutStepConfirmationProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const deliveryFee = getDeliveryFee(formData.deliveryType);
   const total = cartTotal + deliveryFee;
   const DeliveryIcon = getDeliveryIcon(formData.deliveryType);
@@ -155,59 +152,32 @@ export default function CheckoutStepConfirmation({
   };
 
   // Gestion du clic sur le bouton WhatsApp
-  const handleWhatsAppClick = async () => {
-    if (!restaurant.id && !restaurant.slug) {
-      toast.error('Informations du restaurant manquantes');
+  const handleWhatsAppClick = () => {
+    // Vérifier que le numéro WhatsApp existe
+    if (!restaurant.whatsappNumber) {
+      toast.error('Numéro WhatsApp du restaurant non configuré');
       return;
     }
 
-    setIsSubmitting(true);
-
     try {
-      // Préparer les données de la commande
-      const orderData = {
-        items: cartItems.map((item) => ({
-          menuItemId: item.id,
-          quantity: item.quantity,
-          notes: item.customization || undefined,
-        })),
-        customerName: formData.customerName,
-        customerPhone: formData.customerPhone,
-        customerEmail: formData.customerEmail || undefined,
-        deliveryType: formData.deliveryType,
-        deliveryAddress: formData.deliveryType === 'DELIVERY' ? formData.deliveryAddress : undefined,
-        customerNotes: formData.notes || undefined,
-        paymentMethod: 'CASH',
-      };
-
-      // Créer la commande via l'API
-      const restaurantId = restaurant.id || restaurant.slug;
-      const response = await api.post(`/restaurants/${restaurantId}/orders`, orderData);
-
-      if (response.data?.order) {
-        toast.success('Commande créée avec succès !');
-        
-        // Générer le message WhatsApp
-        const message = generateWhatsAppMessage(restaurant, formData, cartItems, cartTotal);
-        const normalizedNumber = normalizeWhatsAppNumber(restaurant.whatsappNumber);
-        const whatsappUrl = `https://wa.me/${normalizedNumber}?text=${encodeURIComponent(message)}`;
-        
-        // Ouvrir WhatsApp dans un nouvel onglet
-        window.open(whatsappUrl, '_blank');
-        
-        // Appeler onConfirm pour fermer le modal et vider le panier
+      // Générer le message WhatsApp
+      const message = generateWhatsAppMessage(restaurant, formData, cartItems, cartTotal);
+      const normalizedNumber = normalizeWhatsAppNumber(restaurant.whatsappNumber);
+      const whatsappUrl = `https://wa.me/${normalizedNumber}?text=${encodeURIComponent(message)}`;
+      
+      // Ouvrir WhatsApp dans un nouvel onglet
+      window.open(whatsappUrl, '_blank');
+      
+      // Afficher un message de succès
+      toast.success('Redirection vers WhatsApp...');
+      
+      // Appeler onConfirm pour fermer le modal et vider le panier après un court délai
+      setTimeout(() => {
         onConfirm();
-      } else {
-        throw new Error('Réponse API invalide');
-      }
+      }, 500);
     } catch (error: any) {
-      console.error('Erreur lors de la création de la commande:', error);
-      toast.error(
-        error.response?.data?.error || 
-        'Erreur lors de la création de la commande. Veuillez réessayer.'
-      );
-    } finally {
-      setIsSubmitting(false);
+      console.error('Erreur lors de l\'ouverture de WhatsApp:', error);
+      toast.error('Erreur lors de l\'ouverture de WhatsApp. Veuillez réessayer.');
     }
   };
 
@@ -332,20 +302,10 @@ export default function CheckoutStepConfirmation({
       <div className="space-y-3">
         <button
           onClick={handleWhatsAppClick}
-          disabled={isSubmitting}
-          className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-4 px-6 rounded-lg text-lg font-semibold transition-colors flex items-center justify-center gap-2"
+          className="w-full bg-green-600 hover:bg-green-700 text-white py-4 px-6 rounded-lg text-lg font-semibold transition-colors flex items-center justify-center gap-2"
         >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="w-6 h-6 animate-spin" />
-              <span>Création de la commande...</span>
-            </>
-          ) : (
-            <>
-              <MessageCircle className="w-6 h-6" />
-              <span>Envoyer sur WhatsApp</span>
-            </>
-          )}
+          <MessageCircle className="w-6 h-6" />
+          <span>Envoyer sur WhatsApp</span>
         </button>
         
         {/* Bouton Retour */}

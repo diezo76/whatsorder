@@ -21,14 +21,13 @@ export class PublicController {
               id: true,
               email: true,
               name: true,
-              phone: true,
               avatar: true,
               role: true,
               isActive: true,
               lastLoginAt: true,
               createdAt: true,
               updatedAt: true,
-              // Exclure password explicitement
+              // Exclure password et phone explicitement (phone peut ne pas exister dans certaines versions)
             },
           },
         },
@@ -41,7 +40,12 @@ export class PublicController {
       res.json(restaurant);
     } catch (error: any) {
       console.error('Error fetching restaurant:', error);
-      res.status(500).json({ error: error.message || 'Failed to fetch restaurant' });
+      console.error('Error stack:', error.stack);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      res.status(500).json({ 
+        error: error.message || 'Failed to fetch restaurant',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   }
 
