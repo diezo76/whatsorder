@@ -44,10 +44,10 @@ async function main() {
   // 2. Créer Admin User
   const hashedPassword = await bcrypt.hash('Admin123!', 10);
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@whatsorder.com' },
+    where: { email: 'admin@whataybo.com' },
     update: {},
     create: {
-      email: 'admin@whatsorder.com',
+      email: 'admin@whataybo.com',
       password: hashedPassword,
       name: 'Admin User',
       role: 'OWNER',
@@ -62,10 +62,10 @@ async function main() {
   // 3. Créer Staff User
   const staffPassword = await bcrypt.hash('Staff123!', 10);
   const staff = await prisma.user.upsert({
-    where: { email: 'staff@whatsorder.com' },
+    where: { email: 'staff@whataybo.com' },
     update: {},
     create: {
-      email: 'staff@whatsorder.com',
+      email: 'staff@whataybo.com',
       password: staffPassword,
       name: 'Staff User',
       role: 'STAFF',
@@ -796,8 +796,8 @@ async function main() {
   console.log('🎉 Seed completed!');
   console.log('');
   console.log('Test accounts:');
-  console.log('  Admin: admin@whatsorder.com / Admin123!');
-  console.log('  Staff: staff@whatsorder.com / Staff123!');
+  console.log('  Admin: admin@whataybo.com / Admin123!');
+  console.log('  Staff: staff@whataybo.com / Staff123!');
   console.log('');
   console.log('Menu created:');
   console.log('  - 5 Categories');

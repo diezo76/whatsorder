@@ -1,4 +1,4 @@
-# 🍽️ WhatsOrder Clone - Système de Commande Restaurant WhatsApp
+# 🍽️ Whataybo - Système de Commande Restaurant WhatsApp
 
 Application SaaS permettant aux restaurants de recevoir des commandes via WhatsApp avec interface client, dashboard admin et automatisation complète.
 

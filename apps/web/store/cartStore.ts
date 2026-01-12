@@ -193,7 +193,7 @@ export const useCartStore = create<CartStore>()(
       },
     }),
     {
-      name: 'whatsorder-cart', // Clé pour localStorage
+      name: 'whataybo-cart', // Clé pour localStorage
       partialize: (state) => ({
         // Persiste uniquement 'items'
         items: state.items,

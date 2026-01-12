@@ -89,7 +89,7 @@ export default function Sidebar() {
           <span className="text-xl font-bold text-white">W</span>
         </div>
         <div>
-          <h1 className="text-lg font-bold text-white">WhatsOrder</h1>
+          <h1 className="text-lg font-bold text-white">Whataybo</h1>
           <p className="text-xs text-slate-400">Dashboard</p>
         </div>
       </div>

@@ -4,7 +4,7 @@ import { AuthProviderWrapper } from '@/components/providers/AuthProviderWrapper'
 import { Toaster } from 'sonner'
 
 export const metadata: Metadata = {
-  title: 'WhatsOrder - Système de Commande Restaurant',
+  title: 'Whataybo - Système de Commande Restaurant',
   description: 'Recevez des commandes via WhatsApp',
 }
 

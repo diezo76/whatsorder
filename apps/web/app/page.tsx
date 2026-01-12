@@ -44,7 +44,7 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <MessageSquare className="w-8 h-8 text-orange-500" />
-            <span className="text-xl md:text-2xl font-bold text-gray-900">WhatsOrder</span>
+            <span className="text-xl md:text-2xl font-bold text-gray-900">Whataybo</span>
           </div>
           
           {/* Desktop Navigation */}
@@ -150,7 +150,7 @@ export default function LandingPage() {
               <div className="relative z-10 rounded-2xl overflow-hidden shadow-2xl border-8 border-white">
                 <img 
                   src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&h=600&fit=crop" 
-                  alt="WhatsOrder Dashboard"
+                  alt="Whataybo Dashboard"
                   className="w-full h-auto"
                 />
               </div>
@@ -288,7 +288,7 @@ export default function LandingPage() {
           {/* Header */}
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Découvrez WhatsOrder en action
+              Découvrez Whataybo en action
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               Une interface intuitive conçue pour les restaurateurs égyptiens
@@ -538,7 +538,7 @@ export default function LandingPage() {
                 ))}
               </div>
               <p className="text-gray-700 mb-6 leading-relaxed">
-                "WhatsOrder a transformé notre façon de gérer les commandes. 
+                "Whataybo a transformé notre façon de gérer les commandes. 
                 L'IA comprend parfaitement l'arabe et le français. 
                 Un gain de temps incroyable !"
               </p>
@@ -607,7 +607,7 @@ export default function LandingPage() {
             Prêt à simplifier vos commandes ?
           </h2>
           <p className="text-xl mb-8 opacity-90">
-            Rejoignez +500 restaurants qui utilisent WhatsOrder chaque jour
+            Rejoignez +500 restaurants qui utilisent Whataybo chaque jour
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link 
@@ -618,7 +618,7 @@ export default function LandingPage() {
               <ArrowRight className="w-5 h-5" />
             </Link>
             <a 
-              href="mailto:contact@whatsorder.com" 
+              href="mailto:contact@whataybo.com" 
               className="px-8 py-4 border-2 border-white text-white rounded-lg hover:bg-white hover:text-orange-500 transition flex items-center justify-center gap-2 text-lg font-semibold"
             >
               Nous contacter
@@ -635,7 +635,7 @@ export default function LandingPage() {
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <MessageSquare className="w-6 h-6 text-orange-500" />
-                <span className="text-xl font-bold text-white">WhatsOrder</span>
+                <span className="text-xl font-bold text-white">Whataybo</span>
               </div>
               <p className="text-sm leading-relaxed">
                 La solution complète pour gérer vos commandes WhatsApp. 
@@ -679,7 +679,7 @@ export default function LandingPage() {
           {/* Bottom bar */}
           <div className="pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-sm">
-              © 2026 WhatsOrder. Tous droits réservés.
+              © 2026 Whataybo. Tous droits réservés.
             </p>
             <div className="flex gap-6">
               <a href="#" className="hover:text-orange-500 transition">

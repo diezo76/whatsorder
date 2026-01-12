@@ -34,7 +34,7 @@ app.use(express.json());
 // Routes
 app.get('/', (_req, res) => {
   res.json({
-    service: 'WhatsOrder API',
+    service: 'Whataybo API',
     version: '1.0.0',
     status: 'running',
     timestamp: new Date().toISOString(),
@@ -115,7 +115,7 @@ app.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    service: 'whatsorder-api'
+    service: 'whataybo-api'
   });
 });
 

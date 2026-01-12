@@ -1,8 +1,7 @@
-// apps/web/hooks/useRealtimeConversations.ts
 'use client';
 
-import { useEffect, useState } from 'react';
-import { supabase, checkSupabaseConfig } from '@/lib/supabase/client';
+import { useEffect, useState, useRef } from 'react';
+import { supabase } from '@/lib/supabase/client';
 
 export interface Conversation {
   id: string;
@@ -10,12 +9,6 @@ export interface Conversation {
   lastMessageAt: string;
   customerId: string;
   restaurantId: string;
-  customer?: {
-    id: string;
-    name: string;
-    phone: string;
-  };
-  unreadCount?: number;
 }
 
 interface UseRealtimeConversationsProps {
@@ -30,24 +23,21 @@ export function useRealtimeConversations({
   onNewConversation,
 }: UseRealtimeConversationsProps) {
   const [isConnected, setIsConnected] = useState(false);
+  
+  // Utiliser useRef pour éviter les reconnexions en boucle
+  const onConversationUpdateRef = useRef(onConversationUpdate);
+  const onNewConversationRef = useRef(onNewConversation);
+
+  // Mettre à jour les refs quand les callbacks changent
+  useEffect(() => {
+    onConversationUpdateRef.current = onConversationUpdate;
+    onNewConversationRef.current = onNewConversation;
+  }, [onConversationUpdate, onNewConversation]);
 
   useEffect(() => {
-    // Vérifier la configuration Supabase
-    if (!checkSupabaseConfig()) {
-      setIsConnected(false);
-      return;
-    }
+    if (!restaurantId) return;
 
-    if (!restaurantId) {
-      setIsConnected(false);
-      return;
-    }
-
-    const channel = supabase.channel(`conversations:${restaurantId}`, {
-      config: {
-        broadcast: { self: true },
-      },
-    });
+    const channel = supabase.channel(`conversations:${restaurantId}`);
 
     channel
       .on(
@@ -60,7 +50,7 @@ export function useRealtimeConversations({
         },
         (payload) => {
           console.log('🆕 New conversation:', payload.new);
-          onNewConversation?.(payload.new as Conversation);
+          onNewConversationRef.current?.(payload.new as Conversation);
         }
       )
       .on(
@@ -73,7 +63,7 @@ export function useRealtimeConversations({
         },
         (payload) => {
           console.log('✏️ Conversation updated:', payload.new);
-          onConversationUpdate?.(payload.new as Conversation);
+          onConversationUpdateRef.current?.(payload.new as Conversation);
         }
       )
       .subscribe((status) => {
@@ -82,10 +72,9 @@ export function useRealtimeConversations({
       });
 
     return () => {
-      console.log('🔌 Unsubscribing from conversations channel');
       supabase.removeChannel(channel);
     };
-  }, [restaurantId, onConversationUpdate, onNewConversation]);
+  }, [restaurantId]); // Seulement restaurantId dans les dépendances
 
   return { isConnected };
 }

@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  transpilePackages: ['@whatsorder/types', '@whatsorder/ui'],
+  transpilePackages: ['@whataybo/types', '@whataybo/ui'],
   
   // Désactiver le cache pour le développement
   headers: async () => {

@@ -1,5 +1,5 @@
 {
-  "name": "@whatsorder/config",
+  "name": "@whataybo/config",
   "version": "0.1.0",
   "main": "./tsconfig.base.json",
   "scripts": {

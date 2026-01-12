@@ -317,7 +317,7 @@ export default function SettingsPage() {
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <h3 className="font-semibold text-yellow-900 mb-2">Informations de connexion par défaut</h3>
               <ul className="text-sm text-yellow-800 space-y-1">
-                <li><strong>Email :</strong> admin@whatsorder.com</li>
+                <li><strong>Email :</strong> admin@whataybo.com</li>
                 <li><strong>Mot de passe :</strong> Admin123!</li>
               </ul>
             </div>
