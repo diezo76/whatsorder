@@ -111,8 +111,8 @@ export async function GET(request: Request) {
       ]);
 
       // Calcul des KPIs
-      const currentRevenue = currentOrders.reduce((sum, o) => sum + o.total, 0);
-      const previousRevenue = previousOrders.reduce((sum, o) => sum + o.total, 0);
+      const currentRevenue = currentOrders.reduce((sum: number, o) => sum + o.total, 0);
+      const previousRevenue = previousOrders.reduce((sum: number, o) => sum + o.total, 0);
       const revenueChange = previousRevenue > 0
         ? ((currentRevenue - previousRevenue) / previousRevenue) * 100
         : 0;
@@ -124,7 +124,7 @@ export async function GET(request: Request) {
         : 0;
 
       // Taux de conversion (commandes confirmées / total)
-      const confirmedCount = currentOrders.filter((o) =>
+      const confirmedCount = currentOrders.filter((o: { status: string }) =>
         ['CONFIRMED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED'].includes(o.status)
       ).length;
       const conversionRate = currentOrdersCount > 0
@@ -139,7 +139,7 @@ export async function GET(request: Request) {
       // Temps moyen de traitement (en minutes)
       let avgProcessingTime = 0;
       if (completedOrders.length > 0) {
-        const totalMinutes = completedOrders.reduce((sum, order) => {
+        const totalMinutes = completedOrders.reduce((sum: number, order) => {
           if (order.completedAt && order.createdAt) {
             const diff = order.completedAt.getTime() - order.createdAt.getTime();
             return sum + diff / (1000 * 60);
