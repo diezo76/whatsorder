@@ -5,6 +5,9 @@ import { prisma } from '@/lib/server/prisma';
 import { handleError } from '@/lib/server/errors-app';
 import { startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 
+// Marquer la route comme dynamique car elle utilise request.headers pour l'authentification
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/analytics/dashboard-stats?period=today|week|month
  */

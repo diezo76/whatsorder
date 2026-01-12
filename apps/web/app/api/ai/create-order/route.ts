@@ -4,6 +4,9 @@ import { withAuth } from '@/lib/server/auth-app';
 import { prisma } from '@/lib/server/prisma';
 import { handleError, AppError } from '@/lib/server/errors-app';
 
+// Marquer la route comme dynamique car elle utilise request.headers pour l'authentification
+export const dynamic = 'force-dynamic';
+
 /**
  * POST /api/ai/create-order
  * Créer une commande depuis un parsedOrder

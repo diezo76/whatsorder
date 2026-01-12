@@ -1,17 +1,18 @@
-import api from './api';
-
 export interface User {
   id: string;
   email: string;
   name: string | null;
-  firstName?: string | null; // Pour compatibilité avec le frontend
-  lastName?: string | null;  // Pour compatibilité avec le frontend
+  firstName?: string | null;
+  lastName?: string | null;
   role: string;
+  restaurantId?: string;
 }
 
 export interface AuthResponse {
+  success: boolean;
   user: User;
   token: string;
+  error?: string;
 }
 
 export interface RegisterInput {
@@ -20,6 +21,7 @@ export interface RegisterInput {
   firstName?: string;
   lastName?: string;
   phone?: string;
+  restaurantName?: string;
 }
 
 export interface LoginInput {
@@ -27,19 +29,46 @@ export interface LoginInput {
   password: string;
 }
 
+// Utilise les routes API locales de Next.js
 export const authApi = {
   register: async (input: RegisterInput): Promise<AuthResponse> => {
-    const response = await api.post<AuthResponse>('/auth/register', input);
-    return response.data;
+    const response = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw { response: { data } };
+    }
+    return data;
   },
 
   login: async (input: LoginInput): Promise<AuthResponse> => {
-    const response = await api.post<AuthResponse>('/auth/login', input);
-    return response.data;
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw { response: { data } };
+    }
+    return data;
   },
 
   me: async (): Promise<{ user: User }> => {
-    const response = await api.get<{ user: User }>('/auth/me');
-    return response.data;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const response = await fetch('/api/auth/me', {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw { response: { data } };
+    }
+    return data;
   },
 };

@@ -5,6 +5,9 @@ import { prisma } from '@/lib/server/prisma';
 import { handleError, AppError } from '@/lib/server/errors-app';
 import OpenAI from 'openai';
 
+// Marquer la route comme dynamique car elle utilise request.headers pour l'authentification
+export const dynamic = 'force-dynamic';
+
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 }) : null;
