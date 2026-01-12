@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "pnpm --filter web dev & pnpm --filter api dev",
     "build": "pnpm --filter web build && pnpm --filter api build",
+    "build:web": "cd apps/web && npm run build",
     "start": "pnpm --filter web start & pnpm --filter api start",
     "test": "pnpm --recursive test",
     "test:coverage": "pnpm --recursive test:coverage",
@@ -18,6 +19,11 @@
     "db:seed": "pnpm --filter api db:seed",
     "logs:api": "pnpm --filter api logs",
     "logs:jobs": "pnpm --filter api logs:jobs"
+  },
+  "dependencies": {
+    "next": "^14.0.4",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
