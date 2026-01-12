@@ -5,6 +5,12 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('token')?.value || 
                 request.headers.get('authorization')?.replace('Bearer ', '');
 
+  // IMPORTANT: Ne JAMAIS rediriger depuis la page d'accueil (/)
+  // La landing page doit toujours être accessible, même pour les utilisateurs connectés
+  if (request.nextUrl.pathname === '/') {
+    return NextResponse.next(); // Laisser passer sans redirection
+  }
+
   // Routes protégées - vérification basique du token
   // Note: Le token est stocké dans localStorage côté client, donc on vérifie seulement les cookies
   // La vraie vérification se fait côté client dans AuthContext

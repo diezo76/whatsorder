@@ -21,6 +21,9 @@ export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
+    // IMPORTANT: Empêcher toute redirection automatique depuis la landing page
+    // Cette page doit toujours s'afficher, même si l'utilisateur est connecté
+    
     // Smooth scroll pour les ancres
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
       anchor.addEventListener('click', (e) => {
