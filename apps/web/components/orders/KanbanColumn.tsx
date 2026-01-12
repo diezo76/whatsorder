@@ -112,7 +112,7 @@ export default function KanbanColumn({
         ${getBorderColor(column.color)}
         ${isOver ? 'ring-2 ring-orange-400 ring-offset-2' : ''}
         hover:shadow-md transition-all
-        w-80 flex-shrink-0
+        w-72 md:w-80 flex-shrink-0
       `}
     >
       {/* Header */}

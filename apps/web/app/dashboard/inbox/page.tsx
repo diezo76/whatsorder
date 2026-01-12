@@ -345,31 +345,52 @@ export default function InboxPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] bg-gray-50">
+    <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)] md:h-[calc(100vh-5rem)] bg-gray-50 overflow-hidden">
+      {/* Mobile: Liste OU Chat (pas les deux) */}
+      {/* Desktop: Les deux côte à côte */}
+      
       {/* Colonne gauche : Liste des conversations */}
-      <ConversationList
-        conversations={conversations}
-        selectedId={selectedConversation?.id || null}
-        onSelect={handleSelectConversation}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        filter={filter}
-        onFilterChange={setFilter}
-      />
+      <div className={`${selectedConversation ? 'hidden md:block' : 'block'} w-full md:w-80 flex-shrink-0`}>
+        <ConversationList
+          conversations={conversations}
+          selectedId={selectedConversation?.id || null}
+          onSelect={handleSelectConversation}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          filter={filter}
+          onFilterChange={setFilter}
+        />
+      </div>
 
       {/* Colonne centrale : Zone de chat */}
-      <ChatArea
-        conversation={selectedConversation}
-        messages={messages}
-        onSendMessage={handleSendMessage}
-        onToggleInfo={() => setShowCustomerInfo(!showCustomerInfo)}
-        loading={messagesLoading}
-        isConnected={socketConnected || messagesConnected}
-      />
+      <div className={`${selectedConversation ? 'flex' : 'hidden md:flex'} flex-1 flex-col`}>
+        {/* Bouton retour sur mobile */}
+        {selectedConversation && (
+          <button
+            onClick={() => setSelectedConversation(null)}
+            className="md:hidden flex items-center gap-2 p-3 bg-white border-b text-slate-700"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span>Retour</span>
+          </button>
+        )}
+        <ChatArea
+          conversation={selectedConversation}
+          messages={messages}
+          onSendMessage={handleSendMessage}
+          onToggleInfo={() => setShowCustomerInfo(!showCustomerInfo)}
+          loading={messagesLoading}
+          isConnected={socketConnected || messagesConnected}
+        />
+      </div>
 
-      {/* Colonne droite : Infos client + notes (conditionnelle) */}
+      {/* Colonne droite : Infos client + notes (conditionnelle) - Desktop only */}
       {showCustomerInfo && selectedConversation && (
-        <CustomerInfo conversation={selectedConversation} onClose={() => setShowCustomerInfo(false)} />
+        <div className="hidden md:block">
+          <CustomerInfo conversation={selectedConversation} onClose={() => setShowCustomerInfo(false)} />
+        </div>
       )}
     </div>
   );

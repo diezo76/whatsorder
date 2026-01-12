@@ -201,7 +201,7 @@ export default function ConversationList({
   }, [conversations]);
 
   return (
-    <div className="w-80 bg-white border-r flex flex-col h-full">
+    <div className="w-full md:w-80 bg-white border-r flex flex-col h-full flex-shrink-0">
       {/* Header fixe */}
       <div className="p-4 border-b">
         <div className="flex items-center justify-between mb-4">
