@@ -320,7 +320,7 @@ export default function ChatArea({
       )}
 
       {/* Messages Area (scrollable) */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div id="chat-messages" className="flex-1 overflow-y-auto p-4">
         <div ref={messagesEndRef} className="space-y-4">
           {loading ? (
             <div className="flex justify-center py-8">

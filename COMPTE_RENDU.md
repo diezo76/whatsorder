@@ -1,4 +1,102 @@
-# 📋 Compte Rendu - Composant OrderPreviewModal
+# 📋 Compte Rendu - Modifications Application
+
+---
+
+## 📅 Modification récente - Guide de Test Realtime
+
+**Date** : 11 janvier 2026  
+**Agent** : Composer (Cursor AI)  
+**Statut** : ✅ Guide de test realtime créé pour validation locale
+
+### 🎯 Objectif
+Créer un guide de test complet pour valider les fonctionnalités realtime (messages inbox et kanban commandes) avec 2 onglets en local.
+
+### ✅ Modifications Effectuées
+
+**Fichier créé** : `GUIDE_TEST_REALTIME.md`
+
+**Contenu du guide** :
+- ✅ Section prérequis (services, configuration Supabase, démarrage)
+- ✅ Test 1 : Realtime Messages Inbox (étapes détaillées, vérifications, critères de succès)
+- ✅ Test 2 : Realtime Kanban Commandes (étapes détaillées, vérifications, critères de succès)
+- ✅ Section dépannage complète (problèmes courants et solutions)
+- ✅ Checklist de test complète
+- ✅ Notes techniques sur l'architecture realtime
+- ✅ Documentation du flux de données
+
+### 📝 Détails Techniques
+
+**Architecture Realtime** :
+- Utilise Supabase Realtime pour les mises à jour en temps réel
+- Hooks utilisés :
+  - `useRealtimeMessages` : Canal `messages:{conversationId}`, écoute INSERT/UPDATE sur `Message`
+  - `useRealtimeOrders` : Canal `orders:{restaurantId}`, écoute INSERT/UPDATE/DELETE sur `Order`
+  - `useRealtimeConversations` : Canal `conversations:{restaurantId}`, écoute INSERT/UPDATE sur `Conversation`
+
+**Flux de données** :
+```
+Backend API → PostgreSQL → Supabase Realtime → Frontend Hook → UI Update
+```
+
+**Tests à effectuer** :
+1. **Test Inbox** : Ouvrir 2 onglets, envoyer un message dans l'onglet 1, vérifier qu'il apparaît dans l'onglet 2
+2. **Test Kanban** : Ouvrir 2 onglets, drag & drop une commande dans l'onglet 1, vérifier que le kanban se met à jour dans l'onglet 2
+
+### 🔍 Fichiers Impactés
+- `GUIDE_TEST_REALTIME.md` : Nouveau fichier de documentation
+
+### ⚠️ Notes pour le prochain agent
+- Le guide de test est prêt à être utilisé pour valider les fonctionnalités realtime
+- Assurez-vous que Supabase est configuré avec RLS activé sur les tables `Message` et `Order`
+- Les variables d'environnement `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_ANON_KEY` doivent être configurées
+- Consultez la section "Dépannage" du guide en cas de problème
+
+---
+
+## 📅 Modification récente - Espacement Header Inbox
+
+**Date** : 11 janvier 2026  
+**Agent** : Composer (Cursor AI)  
+**Statut** : ✅ Espacement ajouté entre le header et l'onglet inbox
+
+### 🎯 Objectif
+Ajouter un espacement (padding-top) entre le header fixe et le contenu de la page inbox pour améliorer la lisibilité et l'esthétique.
+
+### ✅ Modifications Effectuées
+
+**Fichier modifié** : `apps/web/app/dashboard/inbox/page.tsx`
+
+**Changements** :
+- ✅ Ajout de `pt-24` (padding-top de 96px) sur le conteneur principal de la page inbox
+- ✅ Ajustement de la hauteur de `h-[calc(100vh-4rem)]` à `h-[calc(100vh-10rem)]` pour tenir compte du padding-top supplémentaire
+- ✅ L'espacement correspond maintenant à celui utilisé sur la page dashboard pour une cohérence visuelle
+
+**Ligne modifiée** (ligne 348) :
+```tsx
+// Avant :
+<div className="flex h-[calc(100vh-4rem)] bg-gray-50">
+
+// Après :
+<div className="flex h-[calc(100vh-10rem)] bg-gray-50 pt-24">
+```
+
+### 📝 Détails Techniques
+- Le header (TopBar) a une hauteur de 64px (`h-16` = 4rem)
+- Le padding-top de 96px (`pt-24` = 6rem) crée un espacement visuel confortable
+- La hauteur totale soustraite est de 10rem (4rem header + 6rem padding-top)
+- Cette modification assure que le contenu de l'inbox ne chevauche pas le header fixe
+
+### 🔍 Fichiers Impactés
+- `apps/web/app/dashboard/inbox/page.tsx` : Modification du conteneur principal
+
+### ⚠️ Notes pour le prochain agent
+- La page inbox utilise maintenant le même espacement que la page dashboard (`pt-24`)
+- Si d'autres pages nécessitent un espacement similaire, utiliser `pt-24` pour maintenir la cohérence
+- La hauteur calculée `h-[calc(100vh-10rem)]` doit être ajustée si le padding-top change
+
+---
+
+## 📅 Composant OrderPreviewModal
 
 **Date** : 11 janvier 2026  
 **Agent** : Composer (Cursor AI)  

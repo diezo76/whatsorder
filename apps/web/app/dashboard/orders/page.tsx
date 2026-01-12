@@ -14,6 +14,8 @@ import {
 } from '@dnd-kit/core';
 import { api } from '@/lib/api';
 import { useSocket } from '@/hooks/useSocket';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
 import KanbanColumn from '@/components/orders/KanbanColumn';
 import OrderCard from '@/components/orders/OrderCard';
 import OrderDetailsModal from '@/components/orders/OrderDetailsModal';
@@ -87,9 +89,12 @@ export default function OrdersPage() {
     search: '',
   });
 
-  // Hook Socket.io
+  // Auth hook pour obtenir restaurantId
+  const { user } = useAuth();
+
+  // Hook Socket.io (gardé pour compatibilité)
   const {
-    isConnected,
+    isConnected: socketConnected,
     onOrderStatusChanged,
     onOrderAssigned,
     onOrderCancelled,
@@ -101,6 +106,73 @@ export default function OrdersPage() {
     offOrderUpdated,
     offNewOrder,
   } = useSocket();
+
+  // Hook Realtime Supabase pour les commandes
+  const { isConnected: ordersConnected } = useRealtimeOrders({
+    restaurantId: user?.restaurantId || '',
+    onNewOrder: (order) => {
+      console.log('🆕 New order received via Supabase Realtime:', order);
+      
+      // Vérifie si la commande n'existe pas déjà
+      setOrders((prev) => {
+        const exists = prev.some((o) => o.id === order.id);
+        if (exists) return prev;
+        return [order, ...prev];
+      });
+
+      // Ajoute au badge "Nouveau"
+      setNewOrders((prev) => new Set(prev).add(order.id));
+
+      // Retire le badge après 30 secondes
+      setTimeout(() => {
+        setNewOrders((prev) => {
+          const next = new Set(prev);
+          next.delete(order.id);
+          return next;
+        });
+      }, 30000);
+
+      // Notification toast
+      toast.success(`Nouvelle commande : ${order.orderNumber}`, {
+        duration: 5000,
+        icon: '🔔',
+      });
+    },
+    onOrderUpdate: (order) => {
+      console.log('✏️ Order updated via Supabase Realtime:', order);
+      
+      // Debounce: annule le timeout précédent si existe
+      const existingTimeout = updateTimeoutRef.current.get(order.id);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+      }
+
+      // Ajoute à la liste des animating
+      setAnimatingOrders((prev) => new Set(prev).add(order.id));
+
+      // Retire après 1 seconde
+      const timeout = setTimeout(() => {
+        setAnimatingOrders((prev) => {
+          const next = new Set(prev);
+          next.delete(order.id);
+          return next;
+        });
+        updateTimeoutRef.current.delete(order.id);
+      }, 1000);
+
+      updateTimeoutRef.current.set(order.id, timeout);
+
+      // Mettre à jour la commande dans la liste
+      setOrders((prev) =>
+        prev.map((o) => (o.id === order.id ? { ...o, ...order } : o))
+      );
+
+      // Toast notification
+      toast.success(`Commande ${order.orderNumber} : ${order.status}`, {
+        duration: 3000,
+      });
+    },
+  });
 
   // Ref pour éviter les updates multiples simultanés
   const updateTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
@@ -365,19 +437,29 @@ export default function OrdersPage() {
   // Gérer le changement de statut
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     try {
-      await api.patch(`/orders/${orderId}/status`, { status: newStatus });
+      const response = await api.put(`/orders/${orderId}`, { status: newStatus });
 
-      // Mettre à jour localement
-      setOrders((prev) =>
-        prev.map((order) =>
-          order.id === orderId ? { ...order, status: newStatus } : order
-        )
-      );
+      // Mettre à jour localement avec la réponse du serveur
+      if (response.data?.order) {
+        setOrders((prev) =>
+          prev.map((order) =>
+            order.id === orderId ? response.data.order : order
+          )
+        );
+      } else {
+        // Fallback si la structure de réponse est différente
+        setOrders((prev) =>
+          prev.map((order) =>
+            order.id === orderId ? { ...order, status: newStatus } : order
+          )
+        );
+      }
 
       toast.success('Statut mis à jour');
     } catch (error: any) {
       console.error('Error updating status:', error);
-      toast.error('Erreur lors de la mise à jour');
+      const errorMessage = error.response?.data?.error || 'Erreur lors de la mise à jour';
+      toast.error(errorMessage);
     }
   };
 
@@ -410,11 +492,20 @@ export default function OrdersPage() {
 
     // Appel API
     try {
-      await api.patch(`/orders/${orderId}/status`, { status: newStatus });
+      const response = await api.put(`/orders/${orderId}`, { status: newStatus });
+      
+      // Mettre à jour avec la réponse du serveur pour s'assurer de la cohérence
+      if (response.data?.order) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === orderId ? response.data.order : o))
+        );
+      }
+      
       toast.success('Statut mis à jour');
     } catch (error: any) {
       console.error('Error updating status:', error);
-      toast.error('Erreur lors de la mise à jour');
+      const errorMessage = error.response?.data?.error || 'Erreur lors de la mise à jour';
+      toast.error(errorMessage);
 
       // Rollback en cas d'erreur
       setOrders((prev) =>
@@ -431,15 +522,15 @@ export default function OrdersPage() {
           <h1 className="text-2xl font-bold">Commandes</h1>
 
           <div className="flex items-center gap-3">
-            {/* Indicateur connexion Socket.io */}
+            {/* Indicateur connexion Realtime */}
             <div className="flex items-center gap-2 text-xs">
               <div
                 className={`w-2 h-2 rounded-full ${
-                  isConnected ? 'bg-green-500' : 'bg-red-500'
+                  socketConnected || ordersConnected ? 'bg-green-500' : 'bg-red-500'
                 }`}
               />
               <span className="text-gray-600">
-                {isConnected ? 'Temps réel actif' : 'Déconnecté'}
+                {socketConnected || ordersConnected ? 'Temps réel actif' : 'Déconnecté'}
               </span>
             </div>
 

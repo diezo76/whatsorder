@@ -143,10 +143,13 @@ export async function POST(request: Request) {
         subtotal += itemTotal;
 
         return {
+          name: menuItem.name,
           menuItemId: menuItem.id,
           quantity: item.quantity,
-          variant: item.variant || null,
-          modifiers: item.modifiers || [],
+          customization: item.variant || item.modifiers ? {
+            variant: item.variant || null,
+            modifiers: item.modifiers || [],
+          } : null,
           notes: item.notes || null,
           unitPrice: menuItem.price,
           subtotal: itemTotal,

@@ -7,6 +7,9 @@ import ConversationList, { Conversation } from '@/components/inbox/ConversationL
 import ChatArea, { Message } from '@/components/inbox/ChatArea';
 import CustomerInfo from '@/components/inbox/CustomerInfo';
 import { useSocket } from '@/hooks/useSocket';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRealtimeMessages } from '@/hooks/useRealtimeMessages';
+import { useRealtimeConversations } from '@/hooks/useRealtimeConversations';
 
 type FilterType = 'all' | 'unread' | 'archived';
 
@@ -20,9 +23,12 @@ export default function InboxPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filter, setFilter] = useState<FilterType>('all');
 
-  // Socket.io hook
+  // Auth hook pour obtenir restaurantId
+  const { user } = useAuth();
+
+  // Socket.io hook (gardé pour compatibilité)
   const {
-    isConnected,
+    isConnected: socketConnected,
     joinConversation,
     leaveConversation,
     onNewMessage,
@@ -32,6 +38,116 @@ export default function InboxPage() {
     markAsRead,
     emitTyping: _emitTyping, // TODO: Utiliser pour typing indicator
   } = useSocket();
+
+  // Hook Realtime Supabase pour les conversations
+  const { isConnected: conversationsConnected } = useRealtimeConversations({
+    restaurantId: user?.restaurantId || '',
+    onNewConversation: (conversation) => {
+      console.log('🆕 New conversation received via Supabase Realtime');
+      toast.success('Nouvelle conversation !');
+      // Recharger les conversations
+      loadConversations();
+    },
+    onConversationUpdate: (conversation) => {
+      console.log('✏️ Conversation updated via Supabase Realtime');
+      // Mettre à jour la conversation dans la liste
+      setConversations((prev) =>
+        prev
+          .map((c) => (c.id === conversation.id ? { ...c, ...conversation } : c))
+          .sort(
+            (a, b) =>
+              new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+          )
+      );
+    },
+  });
+
+  // Hook Realtime Supabase pour les messages
+  const { isConnected: messagesConnected } = useRealtimeMessages({
+    conversationId: selectedConversation?.id || '',
+    onNewMessage: (message) => {
+      console.log('🆕 New message received via Supabase Realtime');
+      
+      // Si c'est pour la conversation active, ajoute à messages
+      if (selectedConversation && message.conversationId === selectedConversation.id) {
+        setMessages((prev) => [...prev, message]);
+
+        // Son notification pour messages entrants
+        if (message.direction === 'inbound') {
+          try {
+            const audio = new Audio('/sounds/message.mp3');
+            audio.play().catch(() => console.log('🔇 Audio blocked'));
+          } catch (error) {
+            console.log('🔇 Audio not available:', error);
+          }
+        }
+
+        // Scroll vers le bas
+        setTimeout(() => {
+          const chatContainer = document.getElementById('chat-messages');
+          if (chatContainer) {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+          }
+        }, 100);
+      }
+
+      // Met à jour la conversation dans la liste (lastMessage)
+      setConversations((prev) =>
+        prev
+          .map((conv) =>
+            conv.id === message.conversationId
+              ? {
+                  ...conv,
+                  lastMessage: {
+                    id: message.id,
+                    content: message.content,
+                    createdAt: message.createdAt,
+                    direction: message.direction,
+                  },
+                  lastMessageAt: message.createdAt,
+                  unreadCount:
+                    message.direction === 'inbound' && conv.id !== selectedConversation?.id
+                      ? conv.unreadCount + 1
+                      : conv.unreadCount,
+                }
+              : conv
+          )
+          .sort(
+            (a, b) =>
+              new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+          )
+      );
+    },
+    onMessageUpdate: (message) => {
+      console.log('✏️ Message updated via Supabase Realtime (read status)');
+      setMessages((prev) =>
+        prev.map((m) => (m.id === message.id ? message : m))
+      );
+    },
+  });
+
+  // Fonction pour charger les conversations
+  const loadConversations = useCallback(async () => {
+    try {
+      const response = await api.get<{
+        conversations: Conversation[];
+        total: number;
+        page: number;
+        limit: number;
+        hasMore: boolean;
+      }>('/conversations');
+
+      // Trier par lastMessageAt DESC (plus récentes en premier)
+      const sorted = response.data.conversations.sort(
+        (a, b) =>
+          new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+      );
+      setConversations(sorted);
+    } catch (error: any) {
+      console.error('Erreur lors du chargement des conversations:', error);
+      toast.error('Erreur lors du chargement des conversations');
+    }
+  }, []);
 
   // Fonction pour charger les messages
   const loadMessages = useCallback(async (conversationId: string) => {
@@ -57,30 +173,10 @@ export default function InboxPage() {
 
   // Fetch initial des conversations
   useEffect(() => {
-    const fetchConversations = async () => {
-      try {
-        const response = await api.get<{
-          conversations: Conversation[];
-          total: number;
-          page: number;
-          limit: number;
-          hasMore: boolean;
-        }>('/conversations');
-
-        // Trier par lastMessageAt DESC (plus récentes en premier)
-        const sorted = response.data.conversations.sort(
-          (a, b) =>
-            new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
-        );
-        setConversations(sorted);
-      } catch (error: any) {
-        console.error('Erreur lors du chargement des conversations:', error);
-        toast.error('Erreur lors du chargement des conversations');
-      }
-    };
-
-    fetchConversations();
-  }, []);
+    if (user?.restaurantId) {
+      loadConversations();
+    }
+  }, [user?.restaurantId, loadConversations]);
 
   // Fonction pour sélectionner une conversation
   const handleSelectConversation = useCallback(
@@ -111,7 +207,7 @@ export default function InboxPage() {
       return;
     }
 
-    if (!isConnected) {
+    if (!socketConnected && !messagesConnected) {
       // Charge les messages même si pas connecté
       loadMessages(selectedConversation.id);
       return;
@@ -131,7 +227,8 @@ export default function InboxPage() {
     };
   }, [
     selectedConversation,
-    isConnected,
+    socketConnected,
+    messagesConnected,
     joinConversation,
     leaveConversation,
     markAsRead,
@@ -248,7 +345,7 @@ export default function InboxPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] bg-gray-50">
+    <div className="flex h-[calc(100vh-10rem)] bg-gray-50 pt-24">
       {/* Colonne gauche : Liste des conversations */}
       <ConversationList
         conversations={conversations}
@@ -267,7 +364,7 @@ export default function InboxPage() {
         onSendMessage={handleSendMessage}
         onToggleInfo={() => setShowCustomerInfo(!showCustomerInfo)}
         loading={messagesLoading}
-        isConnected={isConnected}
+        isConnected={socketConnected || messagesConnected}
       />
 
       {/* Colonne droite : Infos client + notes (conditionnelle) */}

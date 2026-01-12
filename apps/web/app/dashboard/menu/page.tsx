@@ -90,12 +90,12 @@ export default function MenuPage() {
         
         // Fetch categories et items en parallèle
         const [categoriesResponse, itemsResponse] = await Promise.all([
-          api.get<Category[]>('/menu/categories'),
-          api.get<MenuItem[]>('/menu/items'),
+          api.get<{ success: boolean; categories: Category[] }>('/menu/categories'),
+          api.get<{ success: boolean; items: MenuItem[] }>('/menu/items'),
         ]);
 
-        setCategories(categoriesResponse.data);
-        setItems(itemsResponse.data);
+        setCategories(categoriesResponse.data.categories || []);
+        setItems(itemsResponse.data.items || []);
       } catch (error: any) {
         console.error('Erreur lors du chargement des données:', error);
         // TODO: Afficher une notification d'erreur
@@ -165,12 +165,12 @@ export default function MenuPage() {
   // Fonction pour recharger les données
   const refreshData = async () => {
     try {
-      const [categoriesResponse, itemsResponse] = await Promise.all([
-        api.get<Category[]>('/menu/categories'),
-        api.get<MenuItem[]>('/menu/items'),
-      ]);
-      setCategories(categoriesResponse.data);
-      setItems(itemsResponse.data);
+        const [categoriesResponse, itemsResponse] = await Promise.all([
+          api.get<{ success: boolean; categories: Category[] }>('/menu/categories'),
+          api.get<{ success: boolean; items: MenuItem[] }>('/menu/items'),
+        ]);
+      setCategories(categoriesResponse.data.categories || []);
+      setItems(itemsResponse.data.items || []);
     } catch (error: any) {
       console.error('Erreur lors du rechargement des données:', error);
       toast.error('Erreur lors du rechargement des données');
@@ -183,8 +183,8 @@ export default function MenuPage() {
 
   const handleCreateItem = async (data: ItemFormData) => {
     try {
-      const response = await api.post<MenuItem>('/menu/items', data);
-      setItems((prev) => [...prev, response.data]);
+      const response = await api.post<{ success: boolean; item: MenuItem }>('/menu/items', data);
+      setItems((prev) => [...prev, response.data.item]);
       toast.success('Item créé ✅');
       setIsItemModalOpen(false);
       setEditingItem(null);
@@ -209,9 +209,9 @@ export default function MenuPage() {
     if (!editingItem) return;
 
     try {
-      const response = await api.put<MenuItem>(`/menu/items/${editingItem.id}`, data);
+      const response = await api.put<{ success: boolean; item: MenuItem }>(`/menu/items/${editingItem.id}`, data);
       setItems((prev) =>
-        prev.map((item) => (item.id === editingItem.id ? response.data : item))
+        prev.map((item) => (item.id === editingItem.id ? response.data.item : item))
       );
       toast.success('Item modifié ✅');
       setIsItemModalOpen(false);
@@ -265,8 +265,8 @@ export default function MenuPage() {
 
   const handleCreateCategory = async (data: CategoryFormData) => {
     try {
-      const response = await api.post<Category>('/menu/categories', data);
-      setCategories((prev) => [...prev, response.data]);
+      const response = await api.post<{ success: boolean; category: Category }>('/menu/categories', data);
+      setCategories((prev) => [...prev, response.data.category]);
       toast.success('Catégorie créée ✅');
       setIsCategoryModalOpen(false);
       setEditingCategory(null);
@@ -282,9 +282,9 @@ export default function MenuPage() {
     if (!editingCategory) return;
 
     try {
-      const response = await api.put<Category>(`/menu/categories/${editingCategory.id}`, data);
+      const response = await api.put<{ success: boolean; category: Category }>(`/menu/categories/${editingCategory.id}`, data);
       setCategories((prev) =>
-        prev.map((cat) => (cat.id === editingCategory.id ? response.data : cat))
+        prev.map((cat) => (cat.id === editingCategory.id ? response.data.category : cat))
       );
       toast.success('Catégorie modifiée ✅');
       setIsCategoryModalOpen(false);
