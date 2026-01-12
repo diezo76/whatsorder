@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -38,6 +38,7 @@
     "react-hot-toast": "^2.6.0",
     "recharts": "^3.6.0",
     "socket.io-client": "^4.8.3",
+    "sonner": "^2.0.7",
     "zod": "^4.3.5",
     "zustand": "^5.0.9"
   },
