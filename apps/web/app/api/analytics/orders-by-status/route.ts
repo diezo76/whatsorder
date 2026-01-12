@@ -41,7 +41,7 @@ export async function GET(request: Request) {
         },
       });
 
-      const data = statusData.map((item) => ({
+      const data = statusData.map((item: { status: string; _count: { id: number } }) => ({
         status: item.status,
         count: item._count.id,
       }));

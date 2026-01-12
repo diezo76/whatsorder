@@ -45,7 +45,7 @@ export async function GET(request: Request) {
         },
       });
 
-      const result = data.map((item) => ({
+      const result = data.map((item: { deliveryType: string; _count: { id: number }; _sum: { total: number | null } }) => ({
         type: item.deliveryType,
         count: item._count.id,
         revenue: item._sum.total || 0,
