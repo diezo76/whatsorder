@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase/client';
+import { supabase, checkSupabaseConfig } from '@/lib/supabase/client';
 
 export interface Message {
   id: string;
@@ -29,6 +29,12 @@ export function useRealtimeMessages({
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
+    // Vérifier la configuration Supabase
+    if (!checkSupabaseConfig()) {
+      setIsConnected(false);
+      return;
+    }
+
     if (!conversationId) {
       setIsConnected(false);
       return;

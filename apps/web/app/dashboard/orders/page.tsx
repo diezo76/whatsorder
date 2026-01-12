@@ -110,65 +110,65 @@ export default function OrdersPage() {
   // Hook Realtime Supabase pour les commandes
   const { isConnected: ordersConnected } = useRealtimeOrders({
     restaurantId: user?.restaurantId || '',
-    onNewOrder: (order) => {
-      console.log('🆕 New order received via Supabase Realtime:', order);
+    onNewOrder: (realtimeOrder) => {
+      console.log('🆕 New order received via Supabase Realtime:', realtimeOrder);
       
-      // Vérifie si la commande n'existe pas déjà
-      setOrders((prev) => {
-        const exists = prev.some((o) => o.id === order.id);
-        if (exists) return prev;
-        return [order, ...prev];
-      });
+      // Recharger les commandes pour obtenir les données complètes
+      loadOrders();
 
       // Ajoute au badge "Nouveau"
-      setNewOrders((prev) => new Set(prev).add(order.id));
+      setNewOrders((prev) => new Set(prev).add(realtimeOrder.id));
 
       // Retire le badge après 30 secondes
       setTimeout(() => {
         setNewOrders((prev) => {
           const next = new Set(prev);
-          next.delete(order.id);
+          next.delete(realtimeOrder.id);
           return next;
         });
       }, 30000);
 
       // Notification toast
-      toast.success(`Nouvelle commande : ${order.orderNumber}`, {
+      toast.success(`Nouvelle commande : ${realtimeOrder.orderNumber}`, {
         duration: 5000,
         icon: '🔔',
       });
     },
-    onOrderUpdate: (order) => {
-      console.log('✏️ Order updated via Supabase Realtime:', order);
+    onOrderUpdate: (realtimeOrder) => {
+      console.log('✏️ Order updated via Supabase Realtime:', realtimeOrder);
       
       // Debounce: annule le timeout précédent si existe
-      const existingTimeout = updateTimeoutRef.current.get(order.id);
+      const existingTimeout = updateTimeoutRef.current.get(realtimeOrder.id);
       if (existingTimeout) {
         clearTimeout(existingTimeout);
       }
 
       // Ajoute à la liste des animating
-      setAnimatingOrders((prev) => new Set(prev).add(order.id));
+      setAnimatingOrders((prev) => new Set(prev).add(realtimeOrder.id));
 
       // Retire après 1 seconde
       const timeout = setTimeout(() => {
         setAnimatingOrders((prev) => {
           const next = new Set(prev);
-          next.delete(order.id);
+          next.delete(realtimeOrder.id);
           return next;
         });
-        updateTimeoutRef.current.delete(order.id);
+        updateTimeoutRef.current.delete(realtimeOrder.id);
       }, 1000);
 
-      updateTimeoutRef.current.set(order.id, timeout);
+      updateTimeoutRef.current.set(realtimeOrder.id, timeout);
 
-      // Mettre à jour la commande dans la liste
+      // Mettre à jour uniquement le statut de la commande existante
       setOrders((prev) =>
-        prev.map((o) => (o.id === order.id ? { ...o, ...order } : o))
+        prev.map((o) => 
+          o.id === realtimeOrder.id 
+            ? { ...o, status: realtimeOrder.status } 
+            : o
+        )
       );
 
       // Toast notification
-      toast.success(`Commande ${order.orderNumber} : ${order.status}`, {
+      toast.success(`Commande ${realtimeOrder.orderNumber} : ${realtimeOrder.status}`, {
         duration: 3000,
       });
     },

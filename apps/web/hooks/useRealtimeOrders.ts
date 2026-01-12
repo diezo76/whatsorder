@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase/client';
+import { supabase, checkSupabaseConfig } from '@/lib/supabase/client';
 
 export interface Order {
   id: string;
@@ -29,6 +29,12 @@ export function useRealtimeOrders({
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
+    // Vérifier la configuration Supabase
+    if (!checkSupabaseConfig()) {
+      setIsConnected(false);
+      return;
+    }
+
     if (!restaurantId) {
       setIsConnected(false);
       return;
