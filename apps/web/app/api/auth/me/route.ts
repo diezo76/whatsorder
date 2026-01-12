@@ -69,21 +69,12 @@ export async function GET(request: Request) {
       );
     }
 
-    if (!user.isActive) {
-      return NextResponse.json(
-        { success: false, error: 'Account is disabled' },
-        { status: 403 }
-      );
-    }
-
     return NextResponse.json({
       success: true,
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
-        firstName: user.firstName,
-        lastName: user.lastName,
         role: user.role,
         restaurantId: user.restaurantId,
         restaurant: user.restaurant,

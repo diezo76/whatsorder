@@ -47,14 +47,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Vérifier si l'utilisateur est actif
-    if (!user.isActive) {
-      return NextResponse.json(
-        { success: false, error: 'Account is disabled' },
-        { status: 403 }
-      );
-    }
-
     // Générer le token JWT
     const token = jwt.sign(
       {
@@ -74,8 +66,6 @@ export async function POST(request: Request) {
         id: user.id,
         email: user.email,
         name: user.name,
-        firstName: user.firstName,
-        lastName: user.lastName,
         role: user.role,
         restaurantId: user.restaurantId,
       },

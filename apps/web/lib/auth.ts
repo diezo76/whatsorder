@@ -1,9 +1,7 @@
 export interface User {
   id: string;
   email: string;
-  name: string | null;
-  firstName?: string | null;
-  lastName?: string | null;
+  name: string;
   role: string;
   restaurantId?: string;
 }
@@ -18,8 +16,7 @@ export interface AuthResponse {
 export interface RegisterInput {
   email: string;
   password: string;
-  firstName?: string;
-  lastName?: string;
+  name?: string;
   phone?: string;
   restaurantName?: string;
 }

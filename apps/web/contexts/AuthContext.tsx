@@ -7,7 +7,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, firstName?: string, lastName?: string) => Promise<void>;
+  register: (email: string, password: string, name?: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -42,12 +42,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Vérifier que le token est toujours valide
         authApi.me()
           .then(({ user }) => {
-            const adaptedUser = {
-              ...user,
-              name: user.name || (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || user.email),
-            };
-            setUser(adaptedUser);
-            localStorage.setItem('user', JSON.stringify(adaptedUser));
+            setUser(user);
+            localStorage.setItem('user', JSON.stringify(user));
           })
           .catch(() => {
             // Token invalide, déconnecter
@@ -65,40 +61,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const { user, token } = await authApi.login({ email, password });
-    // Adapter le format pour compatibilité
-    const adaptedUser = {
-      ...user,
-      name: user.name || (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || user.email),
-    };
     if (typeof window !== 'undefined') {
       localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(adaptedUser));
+      localStorage.setItem('user', JSON.stringify(user));
     }
-    setUser(adaptedUser);
+    setUser(user);
   };
 
   const register = async (
     email: string,
     password: string,
-    firstName?: string,
-    lastName?: string
+    name?: string
   ) => {
     const { user, token } = await authApi.register({
       email,
       password,
-      firstName,
-      lastName,
+      name,
     });
-    // Adapter le format pour compatibilité
-    const adaptedUser = {
-      ...user,
-      name: user.name || (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || user.email),
-    };
     if (typeof window !== 'undefined') {
       localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(adaptedUser));
+      localStorage.setItem('user', JSON.stringify(user));
     }
-    setUser(adaptedUser);
+    setUser(user);
   };
 
   return (

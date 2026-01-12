@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, password, firstName, lastName, phone, restaurantName } = body;
+    const { email, password, name, firstName, lastName, phone, restaurantName } = body;
 
     if (!email || !password) {
       return NextResponse.json(
@@ -45,8 +45,11 @@ export async function POST(request: Request) {
     // Hash du mot de passe
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    // Construire le nom complet
+    const fullName = name || (firstName && lastName ? `${firstName} ${lastName}` : firstName || email.split('@')[0]);
+
     // Générer un slug unique pour le restaurant
-    const baseSlug = (restaurantName || `${firstName || 'user'}-restaurant`)
+    const baseSlug = (restaurantName || `${fullName}-restaurant`)
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
@@ -54,27 +57,24 @@ export async function POST(request: Request) {
 
     // Créer l'utilisateur et le restaurant en transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Créer le restaurant
+      // Créer le restaurant (phone est requis dans le schéma)
       const restaurant = await tx.restaurant.create({
         data: {
-          name: restaurantName || `${firstName || 'Mon'} Restaurant`,
+          name: restaurantName || `${fullName} Restaurant`,
           slug: uniqueSlug,
-          currency: 'EUR',
+          phone: phone || '0000000000', // Valeur par défaut si non fourni
+          currency: 'EGP',
         },
       });
 
-      // Créer l'utilisateur
+      // Créer l'utilisateur (schéma: name requis, pas firstName/lastName/isActive)
       const user = await tx.user.create({
         data: {
           email: email.toLowerCase(),
           password: hashedPassword,
-          firstName,
-          lastName,
-          name: firstName && lastName ? `${firstName} ${lastName}` : firstName || email.split('@')[0],
-          phone,
+          name: fullName,
           role: 'OWNER',
           restaurantId: restaurant.id,
-          isActive: true,
         },
       });
 
@@ -100,8 +100,6 @@ export async function POST(request: Request) {
         id: result.user.id,
         email: result.user.email,
         name: result.user.name,
-        firstName: result.user.firstName,
-        lastName: result.user.lastName,
         role: result.user.role,
         restaurantId: result.restaurant.id,
       },

@@ -11,8 +11,7 @@ const registerSchema = z.object({
   email: z.string().email('Email invalide'),
   password: z.string().min(6, 'Le mot de passe doit contenir au moins 6 caractères'),
   confirmPassword: z.string(),
-  firstName: z.string().min(2, 'Le prénom doit contenir au moins 2 caractères').optional(),
-  lastName: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').optional(),
+  name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Les mots de passe ne correspondent pas',
   path: ['confirmPassword'],
@@ -41,8 +40,7 @@ export default function RegisterPage() {
       await registerUser(
         data.email,
         data.password,
-        data.firstName,
-        data.lastName
+        data.name
       );
       router.push('/dashboard');
     } catch (err: any) {
@@ -73,35 +71,19 @@ export default function RegisterPage() {
             </div>
           )}
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
-                  Prénom
-                </label>
-                <input
-                  {...register('firstName')}
-                  type="text"
-                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
-                  placeholder="Prénom"
-                />
-                {errors.firstName && (
-                  <p className="mt-1 text-sm text-red-600">{errors.firstName.message}</p>
-                )}
-              </div>
-              <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
-                  Nom
-                </label>
-                <input
-                  {...register('lastName')}
-                  type="text"
-                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
-                  placeholder="Nom"
-                />
-                {errors.lastName && (
-                  <p className="mt-1 text-sm text-red-600">{errors.lastName.message}</p>
-                )}
-              </div>
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                Nom complet
+              </label>
+              <input
+                {...register('name')}
+                type="text"
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                placeholder="Votre nom complet"
+              />
+              {errors.name && (
+                <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+              )}
             </div>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
