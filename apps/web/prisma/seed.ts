@@ -13,14 +13,12 @@ async function main() {
     update: {},
     create: {
       name: 'Nile Bites',
-      nameAr: 'نايل بايتس',
       slug: 'nile-bites',
       description: 'Authentic Egyptian cuisine delivered to your door',
       phone: '+20 123 456 7890',
       address: 'Cairo, Egypt',
       currency: 'EGP',
       whatsappNumber: '+201234567890',
-      enableAiParsing: true,
     },
   });
 
@@ -168,21 +166,23 @@ async function main() {
   console.log('✅ Menu items created');
 
   // 5. Créer un client exemple
-  await prisma.customer.upsert({
+  const existingCustomer = await prisma.customer.findFirst({
     where: {
-      phone_restaurantId: {
-        phone: '+201234567890',
-        restaurantId: restaurant.id,
-      },
-    },
-    update: {},
-    create: {
       phone: '+201234567890',
-      name: 'Ahmed Mohamed',
-      email: 'ahmed@example.com',
       restaurantId: restaurant.id,
     },
   });
+
+  if (!existingCustomer) {
+    await prisma.customer.create({
+      data: {
+        phone: '+201234567890',
+        name: 'Ahmed Mohamed',
+        email: 'ahmed@example.com',
+        restaurantId: restaurant.id,
+      },
+    });
+  }
 
   console.log('✅ Sample customer created');
 

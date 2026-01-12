@@ -120,6 +120,7 @@ export async function POST(request: Request) {
           data: {
             restaurantId: req.user!.restaurantId,
             customerId,
+            whatsappPhone: customer.phone,
             isActive: true,
           },
           include: {
@@ -152,6 +153,7 @@ export async function POST(request: Request) {
         data: {
           restaurantId: req.user!.restaurantId,
           customerId: customer.id,
+          whatsappPhone: phone,
           isActive: true,
         },
         include: {
