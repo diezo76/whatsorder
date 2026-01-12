@@ -47,7 +47,8 @@ export async function POST(request: Request) {
 
       // Construire le contexte pour OpenAI
       const menuText = menuItems
-        .map((item) => `- ${item.name} (${item.nameAr || ''}) - ${item.price} EGP [ID: ${item.id}]`)
+        .map((item: { id: string; name: string; nameAr: string | null; price: number }) => 
+          `- ${item.name} (${item.nameAr || ''}) - ${item.price} EGP [ID: ${item.id}]`)
         .join('\n');
 
       const systemPrompt = `Tu es un assistant IA pour un restaurant égyptien.
