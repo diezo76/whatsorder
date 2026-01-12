@@ -324,7 +324,7 @@ export default function MenuPage() {
   return (
     <>
       <Toaster position="bottom-right" />
-      <div className="p-6 pt-24 max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Gestion du Menu</h1>

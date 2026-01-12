@@ -73,7 +73,7 @@ export default function TopBar() {
   };
 
   return (
-    <header className="fixed top-0 left-64 right-0 z-30 h-16 bg-white border-b border-slate-200 shadow-sm">
+    <header className="h-16 bg-white border-b border-slate-200 shadow-sm">
       <div className="flex items-center justify-between h-full px-6">
         {/* Titre de la page */}
         <div>

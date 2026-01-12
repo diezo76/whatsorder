@@ -345,7 +345,7 @@ export default function InboxPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-10rem)] bg-gray-50 pt-24">
+    <div className="flex h-[calc(100vh-8rem)] bg-gray-50">
       {/* Colonne gauche : Liste des conversations */}
       <ConversationList
         conversations={conversations}

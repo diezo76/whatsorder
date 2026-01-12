@@ -11,6 +11,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSidebar } from './DashboardLayout';
 
 interface NavItem {
   label: string;
@@ -54,6 +55,7 @@ const navItems: NavItem[] = [
 export default function Sidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const { closeSidebar } = useSidebar();
 
   const isActive = (href: string) => {
     if (!pathname) return false;
@@ -80,7 +82,7 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-slate-900 text-white flex flex-col border-r border-slate-800">
+    <aside className="h-screen w-full bg-slate-900 text-white flex flex-col border-r border-slate-800">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-6 border-b border-slate-800">
         <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary">
@@ -103,6 +105,12 @@ export default function Sidebar() {
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  onClick={() => {
+                    // Fermer la sidebar sur mobile après clic sur un lien
+                    if (window.innerWidth < 768) {
+                      closeSidebar();
+                    }
+                  }}
                   className={`
                     flex items-center gap-3 px-4 py-3 rounded-lg transition-colors
                     ${

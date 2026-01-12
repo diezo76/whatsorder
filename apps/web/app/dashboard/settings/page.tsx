@@ -281,7 +281,7 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="h-full pt-24 flex items-center justify-center">
+      <div className="h-full flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Chargement des paramètres...</p>
@@ -292,9 +292,9 @@ export default function SettingsPage() {
 
   if (error && error.includes('Aucun restaurant associé')) {
     return (
-      <div className="h-full pt-24">
+      <div className="h-full">
         <Toaster position="top-right" />
-        <div className="max-w-5xl mx-auto p-6">
+        <div className="max-w-5xl mx-auto">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
             <h2 className="text-2xl font-bold text-blue-900 mb-2">Aucun restaurant associé</h2>
             <p className="text-blue-700 mb-4">
@@ -342,9 +342,9 @@ export default function SettingsPage() {
 
   if (error) {
     return (
-      <div className="h-full pt-24">
+      <div className="h-full">
         <Toaster position="top-right" />
-        <div className="max-w-5xl mx-auto p-6">
+        <div className="max-w-5xl mx-auto">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6">
             <h2 className="text-xl font-semibold text-red-900 mb-2">Erreur de chargement</h2>
             <p className="text-red-700 mb-4">{error}</p>
@@ -370,10 +370,10 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="h-full pt-24">
+    <div className="h-full">
       <Toaster position="top-right" />
       
-      <div className="max-w-5xl mx-auto p-6">
+      <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
@@ -385,7 +385,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Bouton Enregistrer - Sticky Top */}
-        <div className={`sticky top-24 z-10 bg-white border-b border-gray-200 -mx-6 px-6 py-4 mb-6 transition-all ${hasChanges ? 'shadow-md' : 'shadow-none border-transparent opacity-60'}`}>
+        <div className={`sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4 mb-6 transition-all ${hasChanges ? 'shadow-md' : 'shadow-none border-transparent opacity-60'}`}>
           <div className="flex items-center justify-between">
             <div className="flex-1">
               {hasChanges && (

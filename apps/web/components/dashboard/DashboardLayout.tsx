@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, createContext, useContext } from 'react';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import { Menu, X } from 'lucide-react';
@@ -9,6 +9,15 @@ interface DashboardLayoutProps {
   children: ReactNode;
   title?: string;
 }
+
+// Contexte pour fermer la sidebar depuis les liens
+const SidebarContext = createContext<{
+  closeSidebar: () => void;
+}>({
+  closeSidebar: () => {},
+});
+
+export const useSidebar = () => useContext(SidebarContext);
 
 export default function DashboardLayout({
   children,
@@ -20,56 +29,70 @@ export default function DashboardLayout({
     setIsSidebarOpen(!isSidebarOpen);
   };
 
+  const closeSidebar = () => {
+    setIsSidebarOpen(false);
+  };
+
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      {/* Sidebar - Desktop: fixed, Mobile: overlay */}
-      <div
-        className={`
-          fixed left-0 top-0 z-50 h-screen transition-transform duration-300 ease-in-out
-          md:translate-x-0
-          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        `}
-      >
-        <Sidebar />
-      </div>
+    <SidebarContext.Provider value={{ closeSidebar }}>
+      <div className="min-h-screen bg-slate-50">
+        {/* ===== SIDEBAR DESKTOP - Toujours visible sur md+ ===== */}
+        <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 md:z-50">
+          <Sidebar />
+        </aside>
 
-      {/* Overlay pour mobile quand sidebar ouverte */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-          aria-hidden="true"
-        />
-      )}
+        {/* ===== SIDEBAR MOBILE - Overlay qui s'affiche quand ouverte ===== */}
+        {isSidebarOpen && (
+          <>
+            {/* Overlay sombre */}
+            <div
+              className="fixed inset-0 z-40 bg-black/60 md:hidden"
+              onClick={closeSidebar}
+              aria-hidden="true"
+            />
+            {/* Sidebar mobile */}
+            <aside className="fixed inset-y-0 left-0 z-50 w-64 md:hidden">
+              <Sidebar />
+            </aside>
+          </>
+        )}
 
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col md:ml-64 min-h-screen">
-        {/* TopBar avec burger menu */}
-        <div className="sticky top-0 z-30 flex-shrink-0">
-          <div className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-3">
-            <button
-              onClick={toggleSidebar}
-              className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
-              aria-label="Toggle sidebar"
-            >
-              {isSidebarOpen ? (
-                <X className="w-5 h-5 text-slate-700" />
-              ) : (
-                <Menu className="w-5 h-5 text-slate-700" />
-              )}
-            </button>
-            <h1 className="text-lg font-semibold text-slate-900">
-              {title || 'Dashboard'}
-            </h1>
+        {/* ===== CONTENU PRINCIPAL ===== */}
+        <div className="md:pl-64 flex flex-col min-h-screen">
+          {/* Header Mobile avec Burger Menu */}
+          <header className="sticky top-0 z-30 bg-white border-b border-slate-200 md:hidden">
+            <div className="flex items-center gap-3 px-4 py-3">
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="p-2 -ml-2 rounded-lg hover:bg-slate-100 transition-colors"
+                aria-label={isSidebarOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+              >
+                {isSidebarOpen ? (
+                  <X className="w-6 h-6 text-slate-700" />
+                ) : (
+                  <Menu className="w-6 h-6 text-slate-700" />
+                )}
+              </button>
+              <h1 className="text-lg font-semibold text-slate-900 truncate">
+                {title || 'Dashboard'}
+              </h1>
+            </div>
+          </header>
+
+          {/* TopBar Desktop */}
+          <div className="hidden md:block sticky top-0 z-30">
+            <TopBar />
           </div>
-          <TopBar />
-        </div>
 
-        {/* Content area */}
-        <main className="flex-1 overflow-auto p-6">
-          <div className="max-w-7xl mx-auto h-full">{children}</div>
-        </main>
+          {/* Zone de contenu */}
+          <main className="flex-1 p-4 md:p-6">
+            <div className="max-w-7xl mx-auto">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
+    </SidebarContext.Provider>
   );
 }

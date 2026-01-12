@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { RefreshCw, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
+import { toast as sonnerToast } from 'sonner';
 import {
   DndContext,
   DragEndEvent,
@@ -15,7 +17,6 @@ import {
 import { api } from '@/lib/api';
 import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
 import KanbanColumn from '@/components/orders/KanbanColumn';
 import OrderCard from '@/components/orders/OrderCard';
 import OrderDetailsModal from '@/components/orders/OrderDetailsModal';
@@ -107,70 +108,22 @@ export default function OrdersPage() {
     offNewOrder,
   } = useSocket();
 
-  // Hook Realtime Supabase pour les commandes
-  const { isConnected: ordersConnected } = useRealtimeOrders({
+  const { isConnected } = useRealtimeOrders({
     restaurantId: user?.restaurantId || '',
-    onNewOrder: (realtimeOrder) => {
-      console.log('🆕 New order received via Supabase Realtime:', realtimeOrder);
+    onNewOrder: (order) => {
+      console.log('🆕 New order received:', order);
+      sonnerToast.success(`Nouvelle commande : ${order.orderNumber}`);
       
-      // Recharger les commandes pour obtenir les données complètes
+      // Recharger les commandes
       loadOrders();
-
-      // Ajoute au badge "Nouveau"
-      setNewOrders((prev) => new Set(prev).add(realtimeOrder.id));
-
-      // Retire le badge après 30 secondes
-      setTimeout(() => {
-        setNewOrders((prev) => {
-          const next = new Set(prev);
-          next.delete(realtimeOrder.id);
-          return next;
-        });
-      }, 30000);
-
-      // Notification toast
-      toast.success(`Nouvelle commande : ${realtimeOrder.orderNumber}`, {
-        duration: 5000,
-        icon: '🔔',
-      });
     },
-    onOrderUpdate: (realtimeOrder) => {
-      console.log('✏️ Order updated via Supabase Realtime:', realtimeOrder);
+    onOrderUpdate: (order) => {
+      console.log('✏️ Order updated:', order);
       
-      // Debounce: annule le timeout précédent si existe
-      const existingTimeout = updateTimeoutRef.current.get(realtimeOrder.id);
-      if (existingTimeout) {
-        clearTimeout(existingTimeout);
-      }
-
-      // Ajoute à la liste des animating
-      setAnimatingOrders((prev) => new Set(prev).add(realtimeOrder.id));
-
-      // Retire après 1 seconde
-      const timeout = setTimeout(() => {
-        setAnimatingOrders((prev) => {
-          const next = new Set(prev);
-          next.delete(realtimeOrder.id);
-          return next;
-        });
-        updateTimeoutRef.current.delete(realtimeOrder.id);
-      }, 1000);
-
-      updateTimeoutRef.current.set(realtimeOrder.id, timeout);
-
-      // Mettre à jour uniquement le statut de la commande existante
+      // Mettre à jour la commande dans la liste
       setOrders((prev) =>
-        prev.map((o) => 
-          o.id === realtimeOrder.id 
-            ? { ...o, status: realtimeOrder.status } 
-            : o
-        )
+        prev.map((o) => (o.id === order.id ? { ...o, ...order } : o))
       );
-
-      // Toast notification
-      toast.success(`Commande ${realtimeOrder.orderNumber} : ${realtimeOrder.status}`, {
-        duration: 3000,
-      });
     },
   });
 
@@ -515,22 +468,22 @@ export default function OrdersPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)] pt-24">
+    <div className="flex flex-col h-full">
       {/* Header avec filtres */}
-      <div className="p-6 bg-white border-b">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold">Commandes</h1>
+      <div className="p-4 md:p-6 bg-white border-b">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+          <h1 className="text-xl md:text-2xl font-bold">Commandes</h1>
 
           <div className="flex items-center gap-3">
             {/* Indicateur connexion Realtime */}
             <div className="flex items-center gap-2 text-xs">
               <div
                 className={`w-2 h-2 rounded-full ${
-                  socketConnected || ordersConnected ? 'bg-green-500' : 'bg-red-500'
+                  socketConnected || isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
                 }`}
               />
               <span className="text-gray-600">
-                {socketConnected || ordersConnected ? 'Temps réel actif' : 'Déconnecté'}
+                {socketConnected || isConnected ? 'Temps réel actif' : 'Déconnecté'}
               </span>
             </div>
 
@@ -586,13 +539,21 @@ export default function OrdersPage() {
             onChange={(e) =>
               setFilters({ ...filters, search: e.target.value })
             }
-            className="border rounded-lg px-3 py-2 text-sm flex-1 max-w-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="border rounded-lg px-3 py-2 text-sm flex-1 w-full md:max-w-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
       </div>
 
       {/* Board Kanban */}
-      <div className="flex-1 overflow-x-auto p-6 bg-gray-50">
+      <div className="flex-1 overflow-x-auto p-4 md:p-6 bg-gray-50">
+        {/* Indicateur de connexion Realtime */}
+        <div className="mb-4 flex items-center gap-2 px-4 py-2 bg-white rounded-lg border">
+          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+          <span className="text-sm text-gray-600">
+            {isConnected ? 'Temps réel actif' : 'Déconnecté'}
+          </span>
+        </div>
+
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <Loader2 className="w-8 h-8 animate-spin text-gray-400" />

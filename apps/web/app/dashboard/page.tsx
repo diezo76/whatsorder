@@ -81,7 +81,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="h-full pt-24 p-6">
+    <div className="h-full">
       <h1 className="text-3xl font-bold text-slate-900 mb-6">
         Tableau de bord
       </h1>
