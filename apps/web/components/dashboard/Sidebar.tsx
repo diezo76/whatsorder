@@ -65,12 +65,12 @@ export default function Sidebar() {
 
   const getUserDisplayName = () => {
     if (!user) return 'Utilisateur';
-    return user.name || user.firstName || user.email?.split('@')[0] || 'Utilisateur';
+    return user.name || user.email?.split('@')[0] || 'Utilisateur';
   };
 
   const getUserInitials = () => {
     if (!user) return 'U';
-    const name = user.name || user.firstName || user.email?.split('@')[0] || 'U';
+    const name = user.name || user.email?.split('@')[0] || 'U';
     return name
       .split(' ')
       .map((n) => n[0])
