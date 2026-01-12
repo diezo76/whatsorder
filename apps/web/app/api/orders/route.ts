@@ -133,7 +133,7 @@ export async function POST(request: Request) {
       // Calculer le total
       let subtotal = 0;
       const orderItems = items.map((item: any) => {
-        const menuItem = menuItems.find((m) => m.id === item.menuItemId);
+        const menuItem = menuItems.find((m: { id: string }) => m.id === item.menuItemId);
         if (!menuItem) throw new AppError(`Item ${item.menuItemId} non trouvé`, 400);
 
         const itemTotal = menuItem.price * item.quantity;
