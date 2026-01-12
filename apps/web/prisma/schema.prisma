@@ -1,0 +1,213 @@
+// apps/web/prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ===== MODELS =====
+
+model Restaurant {
+  id               String         @id @default(uuid())
+  name             String
+  nameAr           String?
+  slug             String         @unique
+  description      String?
+  phone            String
+  address          String?
+  logo             String?
+  currency         String         @default("EGP")
+  whatsappNumber   String?
+  whatsappApiKey   String?
+  enableAiParsing  Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  users            User[]
+  customers        Customer[]
+  categories       Category[]
+  menuItems        MenuItem[]
+  orders           Order[]
+  conversations    Conversation[]
+
+  @@map("restaurants")
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  password     String
+  name         String
+  role         UserRole   @default(STAFF)
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  assignedOrders Order[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  OWNER
+  MANAGER
+  STAFF
+}
+
+model Customer {
+  id            String         @id @default(uuid())
+  phone         String
+  name          String
+  email         String?
+  restaurantId  String
+  restaurant    Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  orders        Order[]
+  conversations Conversation[]
+
+  @@unique([phone, restaurantId])
+  @@map("customers")
+}
+
+model Category {
+  id           String     @id @default(uuid())
+  name         String
+  nameAr       String?
+  slug         String
+  description  String?
+  sortOrder    Int        @default(0)
+  isActive     Boolean    @default(true)
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  items        MenuItem[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([restaurantId, slug])
+  @@map("categories")
+}
+
+model MenuItem {
+  id           String      @id @default(uuid())
+  name         String
+  nameAr       String?
+  slug         String
+  description  String?
+  descriptionAr String?
+  price        Float
+  image        String?
+  isAvailable  Boolean     @default(true)
+  isActive     Boolean     @default(true)
+  sortOrder    Int         @default(0)
+  categoryId   String
+  category     Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  restaurantId String
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  orderItems   OrderItem[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([categoryId, slug])
+  @@map("menu_items")
+}
+
+model Order {
+  id              String       @id @default(uuid())
+  orderNumber      String       @unique
+  status           OrderStatus  @default(PENDING)
+  deliveryType     DeliveryType @default(DELIVERY)
+  deliveryAddress  String?
+  customerNotes    String?
+  subtotal         Float
+  deliveryFee      Float        @default(0)
+  discount         Float        @default(0)
+  tax              Float        @default(0)
+  total            Float
+  paymentMethod    String       @default("CASH")
+  paymentStatus    String       @default("PENDING")
+  completedAt      DateTime?
+  cancelledAt      DateTime?
+  cancellationReason String?
+  customerId       String
+  customer         Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  restaurantId     String
+  restaurant       Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  assignedToId     String?
+  assignedTo       User?        @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  conversationId   String?
+  items            OrderItem[]
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  OUT_FOR_DELIVERY
+  DELIVERED
+  COMPLETED
+  CANCELLED
+}
+
+enum DeliveryType {
+  DELIVERY
+  PICKUP
+  DINE_IN
+}
+
+model OrderItem {
+  id           String   @id @default(uuid())
+  name         String
+  quantity     Int
+  unitPrice    Float
+  subtotal     Float
+  customization Json?
+  notes        String?
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId   String
+  menuItem     MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("order_items")
+}
+
+model Conversation {
+  id            String       @id @default(uuid())
+  whatsappPhone String?
+  isActive      Boolean      @default(true)
+  lastMessageAt DateTime     @default(now())
+  customerId    String
+  customer      Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  restaurantId  String
+  restaurant    Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  messages      Message[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  content        String
+  direction      String       // "inbound" | "outbound"
+  type           String       @default("text") // "text" | "image" | "document"
+  mediaUrl       String?
+  status         String       @default("sent") // "sent" | "delivered" | "read" | "failed"
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("messages")
+}
