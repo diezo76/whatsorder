@@ -2,6 +2,79 @@
 
 ---
 
+## 📅 Modification récente - Déploiement Production Realtime
+
+**Date** : 11 janvier 2026  
+**Agent** : Composer (Cursor AI)  
+**Statut** : ✅ Code commité, pushé et prêt pour déploiement Vercel
+
+### 🎯 Objectif
+Déployer les fonctionnalités realtime Supabase en production et créer un guide de déploiement complet.
+
+### ✅ Modifications Effectuées
+
+**Fichiers créés** :
+- ✅ `GUIDE_DEPLOIEMENT_PRODUCTION.md` : Guide complet de déploiement
+- ✅ `scripts/verify-production-realtime.sh` : Script de vérification production
+
+**Actions Git** :
+- ✅ Commit : `feat: Add Supabase Realtime for Inbox and Orders`
+- ✅ Push vers `origin/main` : Réussi
+- ✅ 29 fichiers modifiés/ajoutés (4049 insertions, 73 suppressions)
+
+**Contenu du guide de déploiement** :
+- ✅ Checklist pré-déploiement (Supabase, Vercel, RLS)
+- ✅ Configuration Supabase (activation Realtime, RLS)
+- ✅ Configuration Vercel (variables d'environnement)
+- ✅ Instructions de commit et push
+- ✅ Guide de tests en production
+- ✅ Section dépannage complète
+- ✅ Checklist complète de vérification
+
+### 📝 Détails Techniques
+
+**Commit effectué** :
+```bash
+git commit -m "feat: Add Supabase Realtime for Inbox and Orders
+- Add useRealtimeMessages hook for real-time message updates
+- Add useRealtimeOrders hook for real-time order updates  
+- Add useRealtimeConversations hook for conversation updates
+- Integrate realtime hooks in Inbox page
+- Integrate realtime hooks in Orders Kanban page
+- Add Supabase client configuration
+- Add realtime connection indicators
+- Update inbox page spacing (pt-24)
+- Add comprehensive test guide (GUIDE_TEST_REALTIME.md)
+- Add deployment guide (GUIDE_DEPLOIEMENT_PRODUCTION.md)"
+```
+
+**Push réussi** :
+- Branche : `main`
+- Remote : `origin` (https://github.com/diezo76/whatsorder.git)
+- Commit hash : `ed2033e`
+
+**Prochaines étapes** :
+1. Vercel va auto-déployer en ~2-3 minutes
+2. Vérifier le déploiement dans Vercel Dashboard
+3. Tester en production avec 2 onglets
+4. Vérifier les indicateurs "Temps réel actif" (vert)
+
+### 🔍 Fichiers Impactés
+- `GUIDE_DEPLOIEMENT_PRODUCTION.md` : Nouveau guide de déploiement
+- `scripts/verify-production-realtime.sh` : Nouveau script de vérification
+- Tous les fichiers realtime commités et pushés
+
+### ⚠️ Notes pour le prochain agent
+- Le code est maintenant sur `main` et Vercel va auto-déployer
+- Vérifier que les variables d'environnement Supabase sont configurées dans Vercel :
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- Vérifier que Realtime est activé dans Supabase Dashboard pour les tables `messages`, `orders`, `conversations`
+- Consulter `GUIDE_DEPLOIEMENT_PRODUCTION.md` pour les instructions complètes de test
+- Utiliser `./scripts/verify-production-realtime.sh` pour vérifier la production
+
+---
+
 ## 📅 Modification récente - Guide de Test Realtime
 
 **Date** : 11 janvier 2026  
