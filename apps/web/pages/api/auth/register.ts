@@ -9,7 +9,8 @@ const registerSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(6),
-  restaurantName: z.string().min(2)
+  restaurantName: z.string().min(2),
+  phone: z.string().optional()
 });
 
 export default async function handler(
@@ -45,6 +46,7 @@ export default async function handler(
         slug: validatedData.restaurantName
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, '-'),
+        phone: validatedData.phone || '+20000000000',
         users: {
           create: {
             name: validatedData.name,
@@ -93,7 +95,7 @@ export default async function handler(
       return res.status(400).json({
         success: false,
         error: 'Validation error',
-        details: error.errors
+        details: error.issues
       });
     }
     return handleError(res, error);

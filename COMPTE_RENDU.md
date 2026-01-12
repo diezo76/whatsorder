@@ -11688,3 +11688,19 @@ pnpm prisma migrate dev
 
 **Statut Final** : ✅ Documentation complète créée, script de correction disponible  
 **Action Requise** : Exécuter le script et suivre les étapes pour résoudre le problème
+
+---
+
+## 🔒 Correction Sécurité - Protection des Secrets
+
+**Date** : 12 janvier 2026  
+**Problème** : GitHub a bloqué le push car le fichier `apps/api/.env.backup` contenait des secrets (clés API OpenAI)
+
+**Actions Correctives** :
+- ✅ Ajout de `.env.backup` et `.env.*` au `.gitignore`
+- ✅ Modification du script `fix-database-connection.sh` pour créer les sauvegardes dans `tmp/` (dossier ignoré)
+- ✅ Retrait du fichier `.env.backup` du commit précédent
+- ✅ Recréation du commit sans fichiers sensibles
+- ✅ Vérification que le fichier est bien ignoré par git
+
+**Résultat** : Le commit peut maintenant être poussé sans risque d'exposer des secrets

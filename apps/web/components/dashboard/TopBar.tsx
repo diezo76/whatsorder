@@ -47,6 +47,7 @@ export default function TopBar() {
   }, [isDropdownOpen]);
 
   const getPageTitle = () => {
+    if (!pathname) return 'Dashboard';
     return pageTitles[pathname] || 'Dashboard';
   };
 

@@ -56,6 +56,7 @@ export default function Sidebar() {
   const { user } = useAuth();
 
   const isActive = (href: string) => {
+    if (!pathname) return false;
     if (href === '/dashboard') {
       return pathname === '/dashboard';
     }

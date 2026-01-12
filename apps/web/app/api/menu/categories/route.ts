@@ -64,10 +64,17 @@ export async function POST(request: Request) {
         throw new AppError('Le nom est requis', 400);
       }
 
+      // Générer le slug à partir du nom
+      const slug = name.trim().toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+
       // Créer la catégorie
       const category = await prisma.category.create({
         data: {
           name: name.trim(),
+          slug,
           nameAr: nameAr?.trim() || null,
           description: description?.trim() || null,
           sortOrder: sortOrder || 0,
