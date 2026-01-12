@@ -111,8 +111,8 @@ export async function GET(request: Request) {
       ]);
 
       // Calcul des KPIs
-      const currentRevenue = currentOrders.reduce((sum: number, o) => sum + o.total, 0);
-      const previousRevenue = previousOrders.reduce((sum: number, o) => sum + o.total, 0);
+      const currentRevenue = currentOrders.reduce((sum: number, o: { total: number }) => sum + o.total, 0);
+      const previousRevenue = previousOrders.reduce((sum: number, o: { total: number }) => sum + o.total, 0);
       const revenueChange = previousRevenue > 0
         ? ((currentRevenue - previousRevenue) / previousRevenue) * 100
         : 0;
@@ -139,7 +139,7 @@ export async function GET(request: Request) {
       // Temps moyen de traitement (en minutes)
       let avgProcessingTime = 0;
       if (completedOrders.length > 0) {
-        const totalMinutes = completedOrders.reduce((sum: number, order) => {
+        const totalMinutes = completedOrders.reduce((sum: number, order: { createdAt: Date; completedAt: Date | null }) => {
           if (order.completedAt && order.createdAt) {
             const diff = order.completedAt.getTime() - order.createdAt.getTime();
             return sum + diff / (1000 * 60);
