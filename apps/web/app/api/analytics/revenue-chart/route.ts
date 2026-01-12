@@ -43,7 +43,7 @@ export async function GET(request: Request) {
         dataByDay[date] = { revenue: 0, orders: 0 };
       }
 
-      orders.forEach((order) => {
+      orders.forEach((order: { createdAt: Date; total: number }) => {
         const date = format(order.createdAt, 'yyyy-MM-dd');
         if (dataByDay[date]) {
           dataByDay[date].revenue += order.total;

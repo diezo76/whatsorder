@@ -64,7 +64,7 @@ export async function GET(request: Request) {
         };
       } = {};
 
-      orderItems.forEach((item) => {
+      orderItems.forEach((item: { menuItemId: string; quantity: number; subtotal: number; menuItem: { id: string; name: string; nameAr: string | null; image: string | null } | null }) => {
         if (!item.menuItem) return;
 
         const id = item.menuItemId;
