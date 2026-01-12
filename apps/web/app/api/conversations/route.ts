@@ -49,7 +49,7 @@ export async function GET(request: Request) {
 
       // Ajouter unreadCount (messages non lus)
       const conversationsWithUnread = await Promise.all(
-        conversations.map(async (conv) => {
+        conversations.map(async (conv: { id: string; messages: { id: string; content: string; type: string; createdAt: Date }[] }) => {
           const unreadCount = await prisma.message.count({
             where: {
               conversationId: conv.id,
