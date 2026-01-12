@@ -11704,3 +11704,207 @@ pnpm prisma migrate dev
 - ✅ Vérification que le fichier est bien ignoré par git
 
 **Résultat** : Le commit peut maintenant être poussé sans risque d'exposer des secrets
+
+---
+
+# 📋 Compte Rendu - Corrections Build Vercel & Configuration Monorepo
+
+**Date** : 12 janvier 2026  
+**Agent** : Composer (Cursor AI)  
+**Statut** : ⚠️ Configuration Vercel manuelle requise
+
+---
+
+## 🎯 Problème
+
+Erreurs de build Vercel :
+```
+Module not found: Can't resolve '@/lib/api'
+Module not found: Can't resolve '@/components/public/RestaurantHeader'
+Module not found: Can't resolve '@/components/public/MenuCategory'
+```
+
+## 🔍 Cause Racine
+
+Le projet est un **monorepo** avec cette structure :
+```
+whatsorder/
+├── apps/
+│   └── web/          ← Next.js est ICI
+│       ├── app/
+│       ├── components/
+│       ├── lib/
+│       └── package.json
+└── package.json      ← Racine du monorepo
+```
+
+Vercel essaie de builder depuis la racine `/` au lieu de `/apps/web`, donc les chemins `@/*` ne peuvent pas être résolus.
+
+---
+
+## ✅ Corrections Effectuées
+
+### 1. Fichiers de Configuration Créés/Modifiés
+
+**`apps/web/tsconfig.json`** - Rendu autonome (sans dépendance externe)
+- Supprimé l'extension `../../packages/config/tsconfig.base.json`
+- Ajouté `"baseUrl": "."` pour la résolution des chemins
+- Conservé `"paths": { "@/*": ["./*"] }`
+
+**`apps/web/vercel.json`** - Configuration pour build
+```json
+{
+  "installCommand": "npm install --legacy-peer-deps",
+  "buildCommand": "npm run build"
+}
+```
+
+**`vercel.json`** (racine) - Minimal
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2
+}
+```
+
+### 2. Corrections TypeScript
+
+- **`apps/web/app/api/menu/categories/route.ts`** - Génération automatique du `slug`
+- **`apps/web/components/dashboard/Sidebar.tsx`** - Vérification `pathname` null
+- **`apps/web/components/dashboard/TopBar.tsx`** - Vérification `pathname` null
+- **`apps/web/pages/api/auth/*.ts`** - Changé `error.errors` → `error.issues` (Zod v4)
+- **`apps/web/pages/api/auth/register.ts`** - Ajout champ `phone` requis
+- **`apps/web/prisma/seed.ts`** - Suppression variables inutilisées
+
+### 3. Commits Effectués
+
+```bash
+d5cc65f - fix: Utiliser npm au lieu de pnpm sur Vercel
+893e0ee - fix: tsconfig.json autonome + vercel.json corrigé pour monorepo
+2901ee7 - fix: Configuration Vercel pour monorepo - Root Directory = apps/web
+79ff5e0 - fix: Corriger toutes les erreurs TypeScript pour le build Vercel
+```
+
+---
+
+## ⚠️ ACTION REQUISE - Configuration Vercel Manuelle
+
+### Le build échoue toujours car le Root Directory n'est PAS configuré
+
+**Vous DEVEZ faire ceci sur Vercel Dashboard :**
+
+### Étapes à Suivre :
+
+1. **Allez sur https://vercel.com/dashboard**
+
+2. **Cliquez sur votre projet "whatsorder"**
+
+3. **Cliquez sur l'onglet "Settings" (en haut)**
+
+4. **Dans le menu à gauche, cliquez "General"**
+
+5. **Scrollez jusqu'à trouver "Root Directory"**
+
+6. **Changez de `.` (ou vide) à `apps/web`**
+
+7. **Cliquez "Save"** (très important !)
+
+8. **Retournez dans "Deployments"**
+
+9. **Cliquez "Redeploy"**
+
+10. **Décochez "Use existing Build Cache"**
+
+11. **Cliquez "Redeploy"**
+
+---
+
+## 📊 Vérification
+
+### Le build local fonctionne ✅
+
+```bash
+cd apps/web
+npm install --legacy-peer-deps
+npm run build
+# ✅ Build réussi
+```
+
+### Les fichiers sont sur GitHub ✅
+
+```bash
+git show origin/main:apps/web/lib/api.ts          # ✅ Existe
+git show origin/main:apps/web/components/public/  # ✅ Existe
+```
+
+### Le tsconfig.json est correct ✅
+
+```json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    }
+  }
+}
+```
+
+---
+
+## 🆘 Si le Problème Persiste
+
+### Option A : Supprimer et Recréer le Projet
+
+1. **Vercel Dashboard** → Settings → Advanced → Delete Project
+2. **Reconnectez votre repo GitHub**
+3. **Lors de l'import, spécifiez :**
+   - Framework Preset : **Next.js**
+   - Root Directory : **`apps/web`** ← IMPORTANT !
+4. **Ajoutez les variables d'environnement :**
+   ```
+   DATABASE_URL=...
+   DIRECT_URL=...
+   NEXT_PUBLIC_API_URL=...
+   ```
+
+### Option B : Vérifier les Logs Vercel
+
+Si après avoir configuré le Root Directory ça ne marche pas :
+
+1. Allez dans **Deployments**
+2. Cliquez sur le déploiement qui a échoué
+3. Regardez les logs détaillés
+4. Cherchez si `apps/web` est mentionné dans les chemins
+5. Si non, le Root Directory n'est toujours pas pris en compte
+
+---
+
+## 📝 Checklist de Configuration Vercel
+
+- [ ] Root Directory configuré sur `apps/web`
+- [ ] Framework détecté : Next.js
+- [ ] Install Command : `npm install --legacy-peer-deps` (ou auto-détecté)
+- [ ] Build Command : `npm run build` (ou auto-détecté)
+- [ ] Variables d'environnement ajoutées
+- [ ] Cache du build vidé avant redéploiement
+
+---
+
+## 💡 Pourquoi le Root Directory est CRUCIAL ?
+
+Sans Root Directory configuré, Vercel :
+- ❌ Cherche `package.json` à la racine (trouve le mauvais)
+- ❌ Cherche `node_modules/@/lib/api` (n'existe pas)
+- ❌ Ne trouve pas `apps/web/lib/api.ts`
+
+Avec Root Directory = `apps/web`, Vercel :
+- ✅ Entre dans `apps/web/`
+- ✅ Trouve `apps/web/package.json`
+- ✅ Résout `@/lib/api` → `apps/web/lib/api.ts`
+- ✅ Build réussit
+
+---
+
+**Statut Final** : ✅ Code corrigé et poussé | ⚠️ Configuration Vercel requise  
+**Prochaine Action** : Configurer Root Directory sur Vercel Dashboard
