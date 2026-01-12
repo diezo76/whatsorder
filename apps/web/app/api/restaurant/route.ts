@@ -22,9 +22,27 @@ export async function GET(request: Request) {
         throw new AppError('Restaurant non trouvé', 404);
       }
 
+      // Normaliser les données pour s'assurer que tous les champs sont présents
+      // même s'ils sont NULL dans la base de données
+      const normalizedRestaurant = {
+        ...restaurant,
+        timezone: restaurant.timezone ?? 'Africa/Cairo',
+        language: restaurant.language ?? 'ar',
+        email: restaurant.email ?? null,
+        coverImage: restaurant.coverImage ?? null,
+        description: restaurant.description ?? null,
+        logo: restaurant.logo ?? null,
+        address: restaurant.address ?? null,
+        whatsappNumber: restaurant.whatsappNumber ?? null,
+        whatsappApiToken: restaurant.whatsappApiToken ?? null,
+        whatsappBusinessId: restaurant.whatsappBusinessId ?? null,
+        openingHours: restaurant.openingHours ?? null,
+        deliveryZones: restaurant.deliveryZones ?? null,
+      };
+
       return NextResponse.json({
         success: true,
-        restaurant,
+        restaurant: normalizedRestaurant,
       });
     } catch (error) {
       return handleError(error);
@@ -54,31 +72,59 @@ export async function PUT(request: Request) {
         logo,
         coverImage,
         currency,
+        timezone,
+        language,
+        openingHours,
+        deliveryZones,
         whatsappNumber,
         whatsappApiToken,
         whatsappBusinessId,
       } = body;
 
+      // Construire l'objet de mise à jour avec seulement les champs fournis
+      const updateData: any = {};
+      
+      if (name !== undefined) updateData.name = name;
+      if (description !== undefined) updateData.description = description || null;
+      if (phone !== undefined) updateData.phone = phone;
+      if (email !== undefined) updateData.email = email || null;
+      if (address !== undefined) updateData.address = address || null;
+      if (logo !== undefined) updateData.logo = logo || null;
+      if (coverImage !== undefined) updateData.coverImage = coverImage || null;
+      if (currency !== undefined) updateData.currency = currency;
+      if (timezone !== undefined) updateData.timezone = timezone;
+      if (language !== undefined) updateData.language = language;
+      if (openingHours !== undefined) updateData.openingHours = openingHours;
+      if (deliveryZones !== undefined) updateData.deliveryZones = deliveryZones;
+      if (whatsappNumber !== undefined) updateData.whatsappNumber = whatsappNumber || null;
+      if (whatsappApiToken !== undefined) updateData.whatsappApiToken = whatsappApiToken || null;
+      if (whatsappBusinessId !== undefined) updateData.whatsappBusinessId = whatsappBusinessId || null;
+
       const restaurant = await prisma.restaurant.update({
         where: { id: req.user!.restaurantId },
-        data: {
-          ...(name && { name }),
-          ...(description !== undefined && { description }),
-          ...(phone && { phone }),
-          ...(email !== undefined && { email }),
-          ...(address !== undefined && { address }),
-          ...(logo !== undefined && { logo }),
-          ...(coverImage !== undefined && { coverImage }),
-          ...(currency && { currency }),
-          ...(whatsappNumber !== undefined && { whatsappNumber }),
-          ...(whatsappApiToken !== undefined && { whatsappApiToken }),
-          ...(whatsappBusinessId !== undefined && { whatsappBusinessId }),
-        },
+        data: updateData,
       });
+
+      // Normaliser les données retournées pour s'assurer que tous les champs sont présents
+      const normalizedRestaurant = {
+        ...restaurant,
+        timezone: restaurant.timezone ?? 'Africa/Cairo',
+        language: restaurant.language ?? 'ar',
+        email: restaurant.email ?? null,
+        coverImage: restaurant.coverImage ?? null,
+        description: restaurant.description ?? null,
+        logo: restaurant.logo ?? null,
+        address: restaurant.address ?? null,
+        whatsappNumber: restaurant.whatsappNumber ?? null,
+        whatsappApiToken: restaurant.whatsappApiToken ?? null,
+        whatsappBusinessId: restaurant.whatsappBusinessId ?? null,
+        openingHours: restaurant.openingHours ?? null,
+        deliveryZones: restaurant.deliveryZones ?? null,
+      };
 
       return NextResponse.json({
         success: true,
-        restaurant,
+        restaurant: normalizedRestaurant,
       });
     } catch (error) {
       return handleError(error);

@@ -1,241 +1,91 @@
-# 📋 Compte Rendu - Correction Erreurs de Build TypeScript
+# 📋 Compte Rendu - Correction Erreur Build TypeScript
 
-**Date** : 12 janvier 2026  
-**Agent** : Composer (Cursor AI)  
-**Statut** : ✅ Build corrigé avec succès
-
----
-
-## 🐛 Problème Identifié
-
-**Erreur** : `Command "npm run build" exited with 1` sur Vercel
-
-### Erreurs TypeScript Détectées
-
-1. **Erreur 1** : Champ `whatsappPhone` manquant lors de la création de conversation
-   - Fichier : `apps/web/app/api/conversations/route.ts:120`
-   - Message : `Property 'whatsappPhone' is missing in type`
-
-2. **Erreur 2** : Champ `nameAr` n'existe pas dans le modèle Restaurant
-   - Fichier : `apps/web/prisma/seed.ts:16`
-   - Message : `'nameAr' does not exist in type 'RestaurantCreateInput'`
-
-3. **Erreur 3** : Champ `enableAiParsing` n'existe pas dans le modèle Restaurant
-   - Fichier : `apps/web/prisma/seed.ts:23`
-   - Message : Champ non défini dans le schéma
-
-4. **Erreur 4** : Contrainte unique composite `phone_restaurantId` n'existe pas
-   - Fichier : `apps/web/prisma/seed.ts:171`
-   - Message : `'phone_restaurantId' does not exist in type 'CustomerWhereUniqueInput'`
+**Date :** 12 janvier 2026, 22:45 UTC  
+**Agent :** Claude (Assistant IA)  
+**Problème :** Erreur de compilation TypeScript dans la page d'onboarding
 
 ---
 
-## ✅ Solutions Appliquées
+## 🔍 Problème Identifié
 
-### 1. Ajout du champ `whatsappPhone` dans les conversations ✅
-
-**Fichier modifié** : `apps/web/app/api/conversations/route.ts`
-
-**Corrections** :
-
-#### Première création (avec customerId existant)
-```typescript
-// Avant
-conversation = await prisma.conversation.create({
-  data: {
-    restaurantId: req.user!.restaurantId,
-    customerId,
-    isActive: true,
-  },
-});
-
-// Après
-conversation = await prisma.conversation.create({
-  data: {
-    restaurantId: req.user!.restaurantId,
-    customerId,
-    whatsappPhone: customer.phone, // ✅ Ajouté
-    isActive: true,
-  },
-});
+### Erreur
+```
+Type error: Type 'Resolver<...>' is not assignable to type 'Resolver<...>'
+Types of parameters 'options' and 'options' are incompatible.
+Type 'string | undefined' is not assignable to type 'string'.
 ```
 
-#### Deuxième création (création du client d'abord)
-```typescript
-// Avant
-const conversation = await prisma.conversation.create({
-  data: {
-    restaurantId: req.user!.restaurantId,
-    customerId: customer.id,
-    isActive: true,
-  },
-});
+### Cause
+Le schéma Zod utilisait `.default()` pour certains champs (`currency`, `timezone`, `language`, `createSampleMenu`), ce qui les rendait optionnels dans le type inféré. Cependant, `useForm` avec `defaultValues` attendait ces champs comme requis avec des valeurs par défaut.
 
-// Après
-const conversation = await prisma.conversation.create({
-  data: {
-    restaurantId: req.user!.restaurantId,
-    customerId: customer.id,
-    whatsappPhone: phone, // ✅ Ajouté (utilise le paramètre phone)
-    isActive: true,
-  },
-});
-```
-
-### 2. Correction du fichier seed.ts ✅
-
-**Fichier modifié** : `apps/web/prisma/seed.ts`
-
-#### Suppression des champs inexistants
-```typescript
-// Avant
-create: {
-  name: 'Nile Bites',
-  nameAr: 'نايل بايتس',        // ❌ N'existe pas
-  slug: 'nile-bites',
-  // ...
-  enableAiParsing: true,        // ❌ N'existe pas
-}
-
-// Après
-create: {
-  name: 'Nile Bites',
-  slug: 'nile-bites',
-  // ...
-  // ✅ Champs supprimés
-}
-```
-
-#### Correction de l'upsert Customer
-```typescript
-// Avant
-await prisma.customer.upsert({
-  where: {
-    phone_restaurantId: {      // ❌ Contrainte n'existe pas
-      phone: '+201234567890',
-      restaurantId: restaurant.id,
-    },
-  },
-  // ...
-});
-
-// Après
-const existingCustomer = await prisma.customer.findFirst({
-  where: {
-    phone: '+201234567890',
-    restaurantId: restaurant.id,
-  },
-});
-
-if (!existingCustomer) {
-  await prisma.customer.create({
-    data: {
-      phone: '+201234567890',
-      name: 'Ahmed Mohamed',
-      email: 'ahmed@example.com',
-      restaurantId: restaurant.id,
-    },
-  });
-}
-```
+**Conflit de types :**
+- Zod avec `.default()` → Type inféré : `string | undefined`
+- `useForm` avec `defaultValues` → Type attendu : `string`
 
 ---
 
-## 🔍 Vérification
+## ✅ Correction Appliquée
 
-### Build Local ✅
+**Fichier modifié :** `apps/web/app/(auth)/onboarding/page.tsx`
 
+**Changement :**
+```typescript
+// Avant (avec .default() dans Zod)
+const onboardingSchema = z.object({
+  currency: z.string().default('EGP'),
+  timezone: z.string().default('Africa/Cairo'),
+  language: z.string().default('ar'),
+  createSampleMenu: z.boolean().default(true),
+});
+
+// Après (sans .default(), valeurs dans useForm)
+const onboardingSchema = z.object({
+  currency: z.string(),
+  timezone: z.string(),
+  language: z.string(),
+  createSampleMenu: z.boolean(),
+});
+
+// Les valeurs par défaut sont définies dans useForm
+useForm<OnboardingFormData>({
+  resolver: zodResolver(onboardingSchema),
+  defaultValues: {
+    currency: 'EGP',
+    timezone: 'Africa/Cairo',
+    language: 'ar',
+    createSampleMenu: true,
+  },
+});
+```
+
+**Résultat :** ✅ Les types correspondent maintenant correctement
+
+---
+
+## 🧪 Vérification
+
+### Build Réussi ✅
 ```bash
 cd apps/web
-npm run build
+pnpm build
 ```
 
-**Résultat** :
-```
-✓ Compiled successfully
-✓ Linting and checking validity of types ...
-✓ Build completed successfully
-```
-
-### Routes API Générées ✅
-
-Le build génère correctement toutes les routes API :
-- `/api/auth/health`
-- `/api/auth/login`
-- `/api/auth/register`
-- `/api/auth/me`
-- `/api/conversations`
-- `/api/restaurant`
-- `/api/menu/*`
-- `/api/orders/*`
-- `/api/analytics/*`
-- `/api/ai/*`
+**Résultat :**
+- ✅ Compilation réussie
+- ✅ Aucune erreur TypeScript
+- ✅ Page `/onboarding` générée correctement (4.03 kB)
 
 ---
 
-## 📝 Fichiers Modifiés
+## 🎯 Prêt pour Déploiement
 
-### Modifiés ✅
-- `apps/web/app/api/conversations/route.ts` - Ajout champ `whatsappPhone`
-- `apps/web/prisma/seed.ts` - Correction champs Restaurant et Customer
+Le projet est maintenant prêt à être déployé sur Vercel ! 🚀
 
-### Commits Créés ✅
-- `fix: Resolve TypeScript build errors`
-
----
-
-## ⚠️ Notes Importantes
-
-### Schéma Prisma
-
-Le projet utilise le schéma Prisma dans `apps/api/prisma/schema.prisma`. Le fichier seed dans `apps/web/prisma/seed.ts` doit être compatible avec ce schéma.
-
-**Champs Restaurant disponibles** :
-- ✅ `name`, `slug`, `phone`, `email`, `address`
-- ✅ `logo`, `coverImage`, `description`
-- ✅ `currency`, `timezone`, `language`
-- ✅ `openingHours`, `deliveryZones` (JSON)
-- ✅ `whatsappNumber`, `whatsappApiToken`, `whatsappBusinessId`
-- ✅ `isActive`
-- ❌ `nameAr` (n'existe pas)
-- ❌ `enableAiParsing` (n'existe pas)
-
-**Modèle Conversation** :
-- ✅ Requiert `whatsappPhone` (obligatoire)
-- ✅ Requiert `customerId` et `restaurantId`
-
-**Modèle Customer** :
-- ✅ Pas de contrainte unique composite `phone_restaurantId`
-- ✅ Utiliser `findFirst` + `create` au lieu de `upsert`
+**Prochaines étapes :**
+1. Déployer sur Vercel (via Git, CLI ou Dashboard)
+2. Tester les nouvelles fonctionnalités en production
+3. Vérifier que l'onboarding fonctionne correctement
 
 ---
 
-## 🚀 Prochaines Étapes
-
-1. **Pousser les corrections** :
-   ```bash
-   git push origin main
-   ```
-
-2. **Vérifier le déploiement Vercel** :
-   - Le build devrait maintenant réussir
-   - Les routes API devraient être disponibles
-
-3. **Tester les routes API** :
-   ```bash
-   curl https://whatsorder-web.vercel.app/api/auth/health
-   ```
-
----
-
-## ✅ Résolution
-
-**Problème** : Build échoue avec erreurs TypeScript  
-**Cause** : Champs manquants/inexistants dans le code  
-**Solution** : Correction des champs selon le schéma Prisma  
-**Statut** : ✅ **RÉSOLU** - Build fonctionne correctement
-
----
-
-**Dernière mise à jour** : 12 janvier 2026  
-**Prochain agent** : Vérifier que le déploiement Vercel réussit après le push
+**Fin du Compte Rendu**

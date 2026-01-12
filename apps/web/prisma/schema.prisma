@@ -18,11 +18,19 @@ model Restaurant {
   slug             String         @unique
   description      String?
   phone            String
+  email            String?
   address          String?
   logo             String?
+  coverImage       String?
   currency         String         @default("EGP")
+  timezone         String         @default("Africa/Cairo")
+  language         String         @default("ar")
+  openingHours     Json?
+  deliveryZones    Json?
   whatsappNumber   String?
   whatsappApiKey   String?
+  whatsappApiToken String?
+  whatsappBusinessId String?
   enableAiParsing  Boolean        @default(true)
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt

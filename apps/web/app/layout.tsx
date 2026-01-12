@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { AuthProviderWrapper } from '@/components/providers/AuthProviderWrapper'
 import { Toaster } from 'sonner'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 
 export const metadata: Metadata = {
   title: 'Whataybo - Gestion de Commandes WhatsApp pour Restaurants',
@@ -52,6 +53,7 @@ export default function RootLayout({
       <body>
         <AuthProviderWrapper>{children}</AuthProviderWrapper>
         <Toaster position="top-right" />
+        <SpeedInsights />
       </body>
     </html>
   )

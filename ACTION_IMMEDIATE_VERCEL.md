@@ -1,128 +1,67 @@
-# 🚀 Action Immédiate : Configuration Vercel
+# ⚡ ACTION IMMÉDIATE - Vérifier Vercel
 
-## ✅ URLs Prêtes à Copier-Coller
+## 🚨 Le problème persiste : Redirection vers /login
 
-### DATABASE_URL
-```
-postgresql://postgres.rvndgopsysdyycelmfuu:Siinadiiezo29@aws-1-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true
-```
-
-### DIRECT_URL
-```
-postgresql://postgres.rvndgopsysdyycelmfuu:Siinadiiezo29@aws-1-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true
-```
-
----
-
-## 📝 Instructions Pas à Pas
+## ✅ ACTION À FAIRE MAINTENANT
 
 ### 1. Ouvrir Vercel Dashboard
+
 👉 **https://vercel.com/dashboard**
 
-### 2. Sélectionner le Projet
-👉 Cliquez sur **"whatsorder-web"**
+### 2. Aller dans Settings → Redirects
 
-### 3. Aller dans Settings
-👉 Menu gauche → **"Settings"**
+1. Cliquez sur votre projet
+2. **Settings** (en haut)
+3. **Redirects** (menu de gauche)
 
-### 4. Ouvrir Environment Variables
-👉 Cliquez sur **"Environment Variables"**
+### 3. Chercher et Supprimer
 
-### 5. Ajouter DATABASE_URL
+**Cherchez** dans la liste :
+- ❌ Source: `/` → Destination: `/login`
+- ❌ Source: `/` → Destination: `/dashboard`
+- ❌ Tout redirect qui touche `/`
 
-1. Cliquez sur **"Add New"**
-2. **Key:** `DATABASE_URL`
-3. **Value:** Copiez-collez exactement :
-   ```
-   postgresql://postgres.rvndgopsysdyycelmfuu:Siinadiiezo29@aws-1-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true
-   ```
-4. **Environments:** ✅ **Production** (cochez uniquement Production)
-5. Cliquez sur **"Save"**
+**Si vous trouvez un redirect** :
+1. Cliquez sur les **3 points** (⋯) à droite
+2. Cliquez sur **"Delete"**
+3. **Confirmez**
 
-### 6. Ajouter DIRECT_URL
+### 4. Redéployer
 
-1. Cliquez sur **"Add New"**
-2. **Key:** `DIRECT_URL`
-3. **Value:** Copiez-collez exactement :
-   ```
-   postgresql://postgres.rvndgopsysdyycelmfuu:Siinadiiezo29@aws-1-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true
-   ```
-4. **Environments:** ✅ **Production** (cochez uniquement Production)
-5. Cliquez sur **"Save"**
+**Option A - Via Vercel** :
+1. Allez dans **"Deployments"**
+2. Cliquez sur les **3 points** du dernier déploiement
+3. Cliquez sur **"Redeploy"**
 
-### 7. Vérifier les Autres Variables
-
-Assurez-vous que ces variables existent pour **Production** :
-
-- ✅ `JWT_SECRET` (doit être défini)
-- ✅ `NODE_ENV=production`
-- ✅ `NEXT_PUBLIC_SUPABASE_URL` (si utilisé)
-- ✅ `NEXT_PUBLIC_SUPABASE_ANON_KEY` (si utilisé)
-- ✅ `OPENAI_API_KEY` (si utilisé)
-
-### 8. Redéployer
-
-1. Menu gauche → **"Deployments"**
-2. Cliquez sur le **dernier déploiement**
-3. Cliquez sur **"..."** (trois points)
-4. Cliquez sur **"Redeploy"**
-5. **Décochez** "Use existing Build Cache"
-6. Cliquez sur **"Redeploy"**
-
-### 9. Attendre le Redéploiement
-
-⏱️ **Temps estimé:** 2-3 minutes
-
-### 10. Tester
-
+**Option B - Via Git** :
 ```bash
-cd "/Users/diezowee/whatsapp order"
-./test-production.sh https://whatsorder-web-diiezos-projects.vercel.app
+git add .
+git commit -m "fix: Remove redirects and ensure landing page displays"
+git push origin main
 ```
 
----
+### 5. Vider le Cache et Tester
 
-## ✅ Résultat Attendu
+1. **Videz le cache** : `Ctrl+Shift+R` (ou `Cmd+Shift+R`)
+2. **Testez** : `https://whataybo.com`
+3. **La landing page devrait s'afficher** ✅
 
-Après configuration et redéploiement :
+## 🔍 Si vous ne trouvez PAS de redirect
 
-```
-📋 Test: Health Check
-  ✅ OK (200)
+**Faites ceci** :
 
-📋 Test: Login
-  ✅ Login réussi
-  Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
+1. **Redéployez** pour forcer le cache à se vider
+2. **Videz complètement le cache** du navigateur
+3. **Testez en navigation privée**
+4. **Vérifiez le code source** (Ctrl+U) - cherchez "LandingPage"
 
----
+## 📸 Screenshot à Prendre
 
-## 🆘 Si ça ne fonctionne toujours pas
+**Prenez un screenshot de** :
+- **Settings → Redirects** (pour voir s'il y a des redirects)
 
-1. **Vérifiez les logs Vercel:**
-   - Deployments → Latest → Runtime Logs
-   - Cherchez les erreurs Prisma/Database
-
-2. **Vérifiez que les URLs sont correctes:**
-   - Doivent contenir `pooler.supabase.com`
-   - Doivent contenir le port `6543`
-   - Doivent contenir `?pgbouncer=true`
-
-3. **Vérifiez le mot de passe:**
-   - Le mot de passe dans l'URL doit être exactement: `Siinadiiezo29`
-   - Pas d'espaces avant/après
+Cela m'aidera à identifier le problème si ça ne fonctionne toujours pas.
 
 ---
 
-## 📋 Checklist
-
-- [ ] DATABASE_URL ajoutée dans Vercel (Production)
-- [ ] DIRECT_URL ajoutée dans Vercel (Production)
-- [ ] Les deux URLs utilisent le pooler (port 6543)
-- [ ] Redéploiement effectué
-- [ ] Tests exécutés
-- [ ] Login fonctionne
-
----
-
-**Temps total estimé:** 5 minutes ⏱️
+**Le code a été corrigé, mais si Vercel a un redirect configuré, il prendra le dessus. Vous DEVEZ le supprimer dans Vercel.**

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { 
   MessageSquare, 
   Zap, 
@@ -28,7 +29,7 @@ export default function LandingPage() {
     // Empêcher toute tentative de redirection vers /login depuis cette page
     if (typeof window !== 'undefined') {
       // Vérifier que nous sommes bien sur la page d'accueil
-      if (window.location.pathname === '/' && window.location.pathname !== '/login') {
+      if (window.location.pathname === '/') {
         // Ne rien faire - laisser la landing page s'afficher
       }
     }
@@ -160,9 +161,13 @@ export default function LandingPage() {
             {/* Right: Screenshot/Demo */}
             <div className="relative">
               <div className="relative z-10 rounded-2xl overflow-hidden shadow-2xl border-8 border-white">
-                <img 
+                <Image 
                   src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&h=600&fit=crop" 
                   alt="Whataybo Dashboard"
+                  width={800}
+                  height={600}
+                  quality={85}
+                  priority
                   className="w-full h-auto"
                 />
               </div>
@@ -330,9 +335,12 @@ export default function LandingPage() {
             <div className="relative group">
               <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-pink-500 rounded-2xl blur-xl opacity-0 group-hover:opacity-50 transition duration-300"></div>
               <div className="relative bg-white rounded-2xl overflow-hidden shadow-lg border-4 border-white">
-                <img 
+                <Image 
                   src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600&h=400&fit=crop" 
                   alt="Dashboard Analytics"
+                  width={600}
+                  height={400}
+                  quality={85}
                   className="w-full h-auto"
                 />
                 <div className="p-4 bg-white">
@@ -346,9 +354,12 @@ export default function LandingPage() {
             <div className="relative group">
               <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl blur-xl opacity-0 group-hover:opacity-50 transition duration-300"></div>
               <div className="relative bg-white rounded-2xl overflow-hidden shadow-lg border-4 border-white">
-                <img 
+                <Image 
                   src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&h=400&fit=crop" 
                   alt="Kanban Orders"
+                  width={600}
+                  height={400}
+                  quality={85}
                   className="w-full h-auto"
                 />
                 <div className="p-4 bg-white">
@@ -362,9 +373,12 @@ export default function LandingPage() {
             <div className="relative group">
               <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-teal-500 rounded-2xl blur-xl opacity-0 group-hover:opacity-50 transition duration-300"></div>
               <div className="relative bg-white rounded-2xl overflow-hidden shadow-lg border-4 border-white">
-                <img 
+                <Image 
                   src="https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=600&h=400&fit=crop" 
                   alt="WhatsApp Inbox"
+                  width={600}
+                  height={400}
+                  quality={85}
                   className="w-full h-auto"
                 />
                 <div className="p-4 bg-white">
@@ -378,9 +392,12 @@ export default function LandingPage() {
             <div className="relative group">
               <div className="absolute inset-0 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-2xl blur-xl opacity-0 group-hover:opacity-50 transition duration-300"></div>
               <div className="relative bg-white rounded-2xl overflow-hidden shadow-lg border-4 border-white">
-                <img 
+                <Image 
                   src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600&h=400&fit=crop" 
                   alt="Menu Management"
+                  width={600}
+                  height={400}
+                  quality={85}
                   className="w-full h-auto"
                 />
                 <div className="p-4 bg-white">

@@ -2,11 +2,16 @@
 
 import { ReactNode } from 'react';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import OnboardingGuard from '@/components/onboarding/OnboardingGuard';
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
 
 export default function Layout({ children }: DashboardLayoutProps) {
-  return <DashboardLayout>{children}</DashboardLayout>;
+  return (
+    <OnboardingGuard>
+      <DashboardLayout>{children}</DashboardLayout>
+    </OnboardingGuard>
+  );
 }

@@ -111,17 +111,19 @@ export default function SettingsPage() {
   const hasChanges = useMemo(() => {
     if (!restaurant) return false;
     
+    // Utiliser les mêmes valeurs par défaut que dans formData pour la comparaison
+    // Gérer les cas où les champs peuvent être undefined (API non déployée)
     const initialData: RestaurantFormData = {
-      name: restaurant.name,
+      name: restaurant.name || '',
       description: restaurant.description || '',
       logo: restaurant.logo || '',
       coverImage: restaurant.coverImage || '',
-      phone: restaurant.phone,
+      phone: restaurant.phone || '',
       email: restaurant.email || '',
       address: restaurant.address || '',
-      currency: restaurant.currency,
-      timezone: restaurant.timezone,
-      language: restaurant.language,
+      currency: restaurant.currency || 'EGP',
+      timezone: restaurant.timezone || 'Africa/Cairo',
+      language: restaurant.language || 'ar',
       openingHours: restaurant.openingHours as OpeningHours | null,
       deliveryZones: restaurant.deliveryZones as DeliveryZone[] | null,
       whatsappNumber: restaurant.whatsappNumber || '',
@@ -130,7 +132,20 @@ export default function SettingsPage() {
     };
 
     // Comparaison profonde pour détecter les changements
-    return !deepEqual(initialData, formData);
+    const hasChangesResult = !deepEqual(initialData, formData);
+    
+    // Log pour déboguer (à retirer en production)
+    if (hasChangesResult && typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+      console.log('🔍 Changements détectés:', {
+        initialData,
+        formData,
+        differences: Object.keys(initialData).filter(key => 
+          initialData[key as keyof RestaurantFormData] !== formData[key as keyof RestaurantFormData]
+        )
+      });
+    }
+    
+    return hasChangesResult;
   }, [restaurant, formData]);
 
   // Fetch des données au mount
@@ -138,26 +153,44 @@ export default function SettingsPage() {
     const fetchRestaurant = async () => {
       try {
         setLoading(true);
-        const response = await api.get<Restaurant>('/restaurant');
-        const data = response.data;
+        const response = await api.get<{ success: boolean; restaurant: Restaurant }>('/restaurant');
+        const data = response.data.restaurant || response.data;
         
-        setRestaurant(data);
+        // Normaliser les données pour s'assurer que tous les champs sont présents avec leurs valeurs par défaut
+        const restaurantData: Restaurant = {
+          ...data,
+          // S'assurer que les champs optionnels ont des valeurs par défaut si NULL/undefined
+          timezone: data.timezone ?? 'Africa/Cairo',
+          language: data.language ?? 'ar',
+          email: data.email ?? null,
+          coverImage: data.coverImage ?? null,
+          description: data.description ?? null,
+          logo: data.logo ?? null,
+          address: data.address ?? null,
+          whatsappNumber: data.whatsappNumber ?? null,
+          whatsappApiToken: data.whatsappApiToken ?? null,
+          whatsappBusinessId: data.whatsappBusinessId ?? null,
+          openingHours: data.openingHours ?? null,
+          deliveryZones: data.deliveryZones ?? null,
+        };
+        
+        setRestaurant(restaurantData);
         setFormData({
-          name: data.name,
-          description: data.description || '',
-          logo: data.logo || '',
-          coverImage: data.coverImage || '',
-          phone: data.phone,
-          email: data.email || '',
-          address: data.address || '',
-          currency: data.currency,
-          timezone: data.timezone,
-          language: data.language,
-          openingHours: data.openingHours as OpeningHours | null,
-          deliveryZones: data.deliveryZones as DeliveryZone[] | null,
-          whatsappNumber: data.whatsappNumber || '',
-          whatsappApiToken: data.whatsappApiToken || '',
-          whatsappBusinessId: data.whatsappBusinessId || '',
+          name: restaurantData.name,
+          description: restaurantData.description || '',
+          logo: restaurantData.logo || '',
+          coverImage: restaurantData.coverImage || '',
+          phone: restaurantData.phone,
+          email: restaurantData.email || '',
+          address: restaurantData.address || '',
+          currency: restaurantData.currency,
+          timezone: restaurantData.timezone || 'Africa/Cairo',
+          language: restaurantData.language || 'ar',
+          openingHours: restaurantData.openingHours as OpeningHours | null,
+          deliveryZones: restaurantData.deliveryZones as DeliveryZone[] | null,
+          whatsappNumber: restaurantData.whatsappNumber || '',
+          whatsappApiToken: restaurantData.whatsappApiToken || '',
+          whatsappBusinessId: restaurantData.whatsappBusinessId || '',
         });
       } catch (error: any) {
         console.error('Erreur lors du chargement des paramètres:', error);
@@ -190,10 +223,15 @@ export default function SettingsPage() {
 
   // Fonction handleSave
   const handleSave = async () => {
-    if (!hasChanges) return;
+    if (!hasChanges) {
+      console.warn('⚠️ Tentative de sauvegarde sans changements détectés');
+      toast.error('Aucune modification détectée');
+      return;
+    }
 
     try {
       setSaving(true);
+      console.log('💾 Début de la sauvegarde...', { restaurant, formData });
 
       // Préparer les données pour l'API (ne pas envoyer les champs vides comme chaînes vides)
       const updateData: any = {};
@@ -206,8 +244,11 @@ export default function SettingsPage() {
       if (formData.email !== (restaurant?.email || '')) updateData.email = formData.email || null;
       if (formData.address !== (restaurant?.address || '')) updateData.address = formData.address || null;
       if (formData.currency !== restaurant?.currency) updateData.currency = formData.currency;
-      if (formData.timezone !== restaurant?.timezone) updateData.timezone = formData.timezone;
-      if (formData.language !== restaurant?.language) updateData.language = formData.language;
+      // Comparer avec les valeurs normalisées (utiliser || pour gérer undefined)
+      const restaurantTimezone = restaurant?.timezone || 'Africa/Cairo';
+      const restaurantLanguage = restaurant?.language || 'ar';
+      if (formData.timezone !== restaurantTimezone) updateData.timezone = formData.timezone;
+      if (formData.language !== restaurantLanguage) updateData.language = formData.language;
       if (JSON.stringify(formData.openingHours) !== JSON.stringify(restaurant?.openingHours)) {
         updateData.openingHours = formData.openingHours;
       }
@@ -224,32 +265,50 @@ export default function SettingsPage() {
         updateData.whatsappBusinessId = formData.whatsappBusinessId || null;
       }
 
-      const response = await api.put<Restaurant>('/restaurant', updateData);
-      const updatedRestaurant = response.data;
+      const response = await api.put<{ success: boolean; restaurant: Restaurant }>('/restaurant', updateData);
+      const data = response.data.restaurant || response.data;
+      
+      // Normaliser les données retournées pour s'assurer que tous les champs sont présents
+      const updatedRestaurant: Restaurant = {
+        ...data,
+        timezone: data.timezone ?? 'Africa/Cairo',
+        language: data.language ?? 'ar',
+        email: data.email ?? null,
+        coverImage: data.coverImage ?? null,
+        description: data.description ?? null,
+        logo: data.logo ?? null,
+        address: data.address ?? null,
+        whatsappNumber: data.whatsappNumber ?? null,
+        whatsappApiToken: data.whatsappApiToken ?? null,
+        whatsappBusinessId: data.whatsappBusinessId ?? null,
+        openingHours: data.openingHours ?? null,
+        deliveryZones: data.deliveryZones ?? null,
+      };
 
+      // Mettre à jour le state restaurant AVANT de mettre à jour formData
       setRestaurant(updatedRestaurant);
+      
+      // Mettre à jour le formData avec les données sauvegardées pour synchroniser l'état
+      const updatedFormData = {
+        name: updatedRestaurant.name,
+        description: updatedRestaurant.description || '',
+        logo: updatedRestaurant.logo || '',
+        coverImage: updatedRestaurant.coverImage || '',
+        phone: updatedRestaurant.phone,
+        email: updatedRestaurant.email || '',
+        address: updatedRestaurant.address || '',
+        currency: updatedRestaurant.currency,
+        timezone: updatedRestaurant.timezone || 'Africa/Cairo',
+        language: updatedRestaurant.language || 'ar',
+        openingHours: updatedRestaurant.openingHours as OpeningHours | null,
+        deliveryZones: updatedRestaurant.deliveryZones as DeliveryZone[] | null,
+        whatsappNumber: updatedRestaurant.whatsappNumber || '',
+        whatsappApiToken: updatedRestaurant.whatsappApiToken || '',
+        whatsappBusinessId: updatedRestaurant.whatsappBusinessId || '',
+      };
+      
+      setFormData(updatedFormData);
       toast.success('Paramètres enregistrés ✅');
-
-      // Recharger les données après succès
-      const refreshResponse = await api.get<Restaurant>('/restaurant');
-      setRestaurant(refreshResponse.data);
-      setFormData({
-        name: refreshResponse.data.name,
-        description: refreshResponse.data.description || '',
-        logo: refreshResponse.data.logo || '',
-        coverImage: refreshResponse.data.coverImage || '',
-        phone: refreshResponse.data.phone,
-        email: refreshResponse.data.email || '',
-        address: refreshResponse.data.address || '',
-        currency: refreshResponse.data.currency,
-        timezone: refreshResponse.data.timezone,
-        language: refreshResponse.data.language,
-        openingHours: refreshResponse.data.openingHours as OpeningHours | null,
-        deliveryZones: refreshResponse.data.deliveryZones as DeliveryZone[] | null,
-        whatsappNumber: refreshResponse.data.whatsappNumber || '',
-        whatsappApiToken: refreshResponse.data.whatsappApiToken || '',
-        whatsappBusinessId: refreshResponse.data.whatsappBusinessId || '',
-      });
     } catch (error: any) {
       console.error('Erreur lors de la sauvegarde:', error);
       

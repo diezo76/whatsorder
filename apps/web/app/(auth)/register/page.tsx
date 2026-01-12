@@ -42,7 +42,8 @@ export default function RegisterPage() {
         data.password,
         data.name
       );
-      router.push('/dashboard');
+      // Rediriger vers l'onboarding pour configurer rapidement le restaurant
+      router.push('/onboarding');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Erreur lors de l\'inscription');
     } finally {
