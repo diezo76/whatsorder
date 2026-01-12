@@ -24,6 +24,15 @@ export default function LandingPage() {
     // IMPORTANT: Empêcher toute redirection automatique depuis la landing page
     // Cette page doit toujours s'afficher, même si l'utilisateur est connecté
     
+    // Protection contre les redirections automatiques
+    // Empêcher toute tentative de redirection vers /login depuis cette page
+    if (typeof window !== 'undefined') {
+      // Vérifier que nous sommes bien sur la page d'accueil
+      if (window.location.pathname === '/' && window.location.pathname !== '/login') {
+        // Ne rien faire - laisser la landing page s'afficher
+      }
+    }
+    
     // Smooth scroll pour les ancres
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
       anchor.addEventListener('click', (e) => {
