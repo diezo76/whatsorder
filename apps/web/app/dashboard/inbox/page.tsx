@@ -65,15 +65,27 @@ export default function InboxPage() {
   // Hook Realtime Supabase pour les messages
   const { isConnected: messagesConnected } = useRealtimeMessages({
     conversationId: selectedConversation?.id || '',
-    onNewMessage: (message) => {
+    onNewMessage: (realtimeMessage) => {
       console.log('🆕 New message received via Supabase Realtime');
       
       // Si c'est pour la conversation active, ajoute à messages
-      if (selectedConversation && message.conversationId === selectedConversation.id) {
-        setMessages((prev) => [...prev, message]);
+      if (selectedConversation && realtimeMessage.conversationId === selectedConversation.id) {
+        // Mapper le message du hook vers le format attendu par ChatArea
+        const mappedMessage: Message = {
+          id: realtimeMessage.id,
+          content: realtimeMessage.content,
+          direction: realtimeMessage.type === 'INCOMING' ? 'inbound' : 'outbound',
+          type: 'text', // Par défaut, peut être amélioré avec les attachments
+          conversationId: realtimeMessage.conversationId,
+          createdAt: realtimeMessage.createdAt,
+          status: realtimeMessage.isRead ? 'read' : 'delivered',
+          mediaUrl: realtimeMessage.attachments?.[0] || null,
+        };
+        
+        setMessages((prev) => [...prev, mappedMessage]);
 
         // Son notification pour messages entrants
-        if (message.direction === 'inbound') {
+        if (mappedMessage.direction === 'inbound') {
           try {
             const audio = new Audio('/sounds/message.mp3');
             audio.play().catch(() => console.log('🔇 Audio blocked'));
@@ -89,39 +101,50 @@ export default function InboxPage() {
             chatContainer.scrollTop = chatContainer.scrollHeight;
           }
         }, 100);
-      }
 
-      // Met à jour la conversation dans la liste (lastMessage)
-      setConversations((prev) =>
-        prev
-          .map((conv) =>
-            conv.id === message.conversationId
-              ? {
-                  ...conv,
-                  lastMessage: {
-                    id: message.id,
-                    content: message.content,
-                    createdAt: message.createdAt,
-                    direction: message.direction,
-                  },
-                  lastMessageAt: message.createdAt,
-                  unreadCount:
-                    message.direction === 'inbound' && conv.id !== selectedConversation?.id
-                      ? conv.unreadCount + 1
-                      : conv.unreadCount,
-                }
-              : conv
-          )
-          .sort(
-            (a, b) =>
-              new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
-          )
-      );
+        // Met à jour la conversation dans la liste (lastMessage)
+        setConversations((prev) =>
+          prev
+            .map((conv) =>
+              conv.id === mappedMessage.conversationId
+                ? {
+                    ...conv,
+                    lastMessage: {
+                      id: mappedMessage.id,
+                      content: mappedMessage.content,
+                      createdAt: mappedMessage.createdAt,
+                      direction: mappedMessage.direction,
+                    },
+                    lastMessageAt: mappedMessage.createdAt,
+                    unreadCount:
+                      mappedMessage.direction === 'inbound' && conv.id !== selectedConversation?.id
+                        ? conv.unreadCount + 1
+                        : conv.unreadCount,
+                  }
+                : conv
+            )
+            .sort(
+              (a, b) =>
+                new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+            )
+        );
+      }
     },
-    onMessageUpdate: (message) => {
+    onMessageUpdate: (realtimeMessage) => {
       console.log('✏️ Message updated via Supabase Realtime (read status)');
+      // Mapper le message du hook vers le format attendu par ChatArea
+      const mappedMessage: Message = {
+        id: realtimeMessage.id,
+        content: realtimeMessage.content,
+        direction: realtimeMessage.type === 'INCOMING' ? 'inbound' : 'outbound',
+        type: 'text',
+        conversationId: realtimeMessage.conversationId,
+        createdAt: realtimeMessage.createdAt,
+        status: realtimeMessage.isRead ? 'read' : 'delivered',
+        mediaUrl: realtimeMessage.attachments?.[0] || null,
+      };
       setMessages((prev) =>
-        prev.map((m) => (m.id === message.id ? message : m))
+        prev.map((m) => (m.id === mappedMessage.id ? mappedMessage : m))
       );
     },
   });

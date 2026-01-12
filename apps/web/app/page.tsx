@@ -23,12 +23,15 @@ export default function LandingPage() {
   useEffect(() => {
     // Smooth scroll pour les ancres
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-      anchor.addEventListener('click', function (e) {
+      anchor.addEventListener('click', (e) => {
         e.preventDefault();
-        const target = document.querySelector(this.getAttribute('href') || '');
-        if (target) {
-          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          setMobileMenuOpen(false); // Fermer le menu mobile après clic
+        const href = anchor.getAttribute('href');
+        if (href) {
+          const target = document.querySelector(href);
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            setMobileMenuOpen(false); // Fermer le menu mobile après clic
+          }
         }
       });
     });
