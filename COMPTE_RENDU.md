@@ -1,3 +1,177 @@
+# 📋 Compte Rendu - Corrections Bouton WhatsApp et Création Commande
+
+**Date** : 11 janvier 2026  
+**Agent** : Composer (Cursor AI)  
+**Statut** : ✅ Corrections appliquées pour le bouton WhatsApp et la création de commande
+
+---
+
+## 🎯 Objectif
+
+Corriger les problèmes suivants :
+1. Le bouton "Confirmer et envoyer sur WhatsApp" ne redirige pas vers WhatsApp
+2. Un client est créé dans l'app sans commande ni message visible
+
+---
+
+## ✅ Modifications Effectuées
+
+### 1. Correction de la Redirection WhatsApp (`CheckoutStepConfirmation.tsx`)
+
+**Problème identifié** : `window.open()` appelé après une requête async peut être bloqué par les bloqueurs de popup du navigateur.
+
+**Solution appliquée** :
+- ✅ Remplacement de `window.open(whatsappUrl, '_blank')` par `window.location.href = whatsappUrl`
+- ✅ Ajout de validation de l'URL WhatsApp avant redirection
+- ✅ Ajout de logs de débogage détaillés
+- ✅ Suppression de l'appel `onConfirm()` après redirection (la page sera redirigée)
+
+**Fichier modifié** : `apps/web/components/checkout/CheckoutStepConfirmation.tsx`
+
+**Lignes modifiées** : 232-263
+
+**Détails techniques** :
+```typescript
+// Validation de l'URL WhatsApp
+if (!whatsappUrl.startsWith('https://wa.me/')) {
+  console.error('URL WhatsApp invalide:', whatsappUrl);
+  throw new Error('URL WhatsApp invalide');
+}
+
+// Logs de débogage
+console.log('📱 Redirection WhatsApp:', {
+  orderNumber,
+  normalizedNumber,
+  whatsappUrl: whatsappUrl.substring(0, 100) + '...',
+  messageLength: message.length,
+});
+
+// Utiliser window.location.href au lieu de window.open
+window.location.href = whatsappUrl;
+```
+
+### 2. Amélioration de la Transaction Backend (`public.controller.ts`)
+
+**Problème identifié** : Le client était créé avant la validation des items, donc restait en base de données même si la commande échouait.
+
+**Solution appliquée** :
+- ✅ Déplacement de la création/mise à jour du client dans la transaction de création de commande
+- ✅ Validation des items AVANT toute création (client ou commande)
+- ✅ Utilisation de `prisma.$transaction()` pour garantir l'atomicité
+- ✅ Si la commande échoue, le client n'est pas créé non plus
+
+**Fichier modifié** : `apps/api/src/controllers/public.controller.ts`
+
+**Lignes modifiées** : 182-377
+
+**Détails techniques** :
+```typescript
+// 1. Validation des items AVANT toute création
+const menuItems = await Promise.all(
+  data.items.map(async (item) => {
+    // Validation...
+  })
+);
+
+// 2. Création du client ET de la commande dans une transaction atomique
+const order = await prisma.$transaction(async (tx) => {
+  // Trouver ou créer le client dans la transaction
+  let customer = await tx.customer.findFirst(...);
+  if (!customer) {
+    customer = await tx.customer.create(...);
+  }
+  
+  // Créer la commande
+  const newOrder = await tx.order.create(...);
+  return newOrder;
+});
+```
+
+### 3. Amélioration de la Gestion d'Erreurs
+
+**Modifications** :
+- ✅ Ajout de logs détaillés à chaque étape (validation, recherche restaurant, création)
+- ✅ Messages d'erreur plus clairs avec codes HTTP appropriés
+- ✅ Logs de durée d'exécution pour le débogage
+- ✅ Logs structurés avec contexte (slug, téléphone, nombre d'items)
+
+**Fichier modifié** : `apps/api/src/controllers/public.controller.ts`
+
+**Exemples de logs ajoutés** :
+```typescript
+console.log('📥 [PUBLIC] Requête reçue pour créer une commande:', {...});
+console.log('🔍 Validation des données de la commande...');
+console.log('✅ Validation réussie');
+console.log(`🔍 Recherche du restaurant avec le slug: ${slug}...`);
+console.log(`✅ Restaurant trouvé: ${restaurant.name}`);
+console.log(`🔍 Validation de ${data.items.length} item(s)...`);
+console.log(`✅ ${menuItems.length} item(s) validé(s)`);
+console.log(`📝 Numéro de commande généré: ${orderNumber}`);
+console.log(`🔄 Début de la transaction...`);
+console.log(`👤 Création d'un nouveau client: ${data.customerName}`);
+console.log(`📦 Création de la commande ${orderNumber}...`);
+console.log(`✅ Commande ${orderNumber} créée avec succès`);
+console.log(`✅ Commande créée avec succès: ${orderNumber} (${duration}ms)`);
+```
+
+**Gestion d'erreurs améliorée** :
+```typescript
+catch (error: any) {
+  console.error('❌ Erreur lors de la création de la commande:', {
+    error: error.message,
+    stack: error.stack,
+    slug: req.params.slug,
+    customerPhone: req.body?.customerPhone,
+    itemsCount: req.body?.items?.length,
+    timestamp: new Date().toISOString(),
+  });
+
+  // Codes HTTP appropriés selon le type d'erreur
+  let statusCode = 500;
+  if (error.message.includes('non trouvé')) statusCode = 400;
+  if (error.message.includes('Restaurant non trouvé')) statusCode = 404;
+  // ...
+}
+```
+
+### 4. Vérification de la Structure de Réponse API
+
+**Vérification effectuée** :
+- ✅ Structure de réponse API : `{ success: true, order: {...}, restaurant: {...} }`
+- ✅ Utilisation frontend : `result.order?.orderNumber` et `result.order?.id`
+- ✅ ✅ Correspondance parfaite entre API et frontend
+
+---
+
+## 📝 Fichiers Modifiés
+
+1. **`apps/web/components/checkout/CheckoutStepConfirmation.tsx`**
+   - Lignes 232-263 : Correction redirection WhatsApp et ajout logs
+
+2. **`apps/api/src/controllers/public.controller.ts`**
+   - Lignes 182-377 : Déplacement création client dans transaction
+   - Lignes 390-430 : Amélioration gestion d'erreurs et logs
+
+---
+
+## 🔍 Tests à Effectuer
+
+1. ✅ Tester la redirection WhatsApp sur mobile et desktop
+2. ✅ Tester avec un item invalide (doit échouer sans créer de client)
+3. ✅ Vérifier les logs console pour déboguer
+4. ✅ Vérifier qu'un client n'est créé que si la commande réussit
+
+---
+
+## 📊 Résultats Attendus
+
+1. **Redirection WhatsApp** : La page redirige directement vers WhatsApp avec le message pré-rempli
+2. **Création atomique** : Le client et la commande sont créés ensemble ou pas du tout
+3. **Logs détaillés** : Tous les logs permettent de tracer chaque étape du processus
+4. **Gestion d'erreurs** : Messages clairs et codes HTTP appropriés
+
+---
+
 # 📋 Compte Rendu - Modifications Application
 
 ---

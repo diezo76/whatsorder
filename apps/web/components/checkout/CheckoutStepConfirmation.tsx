@@ -1,9 +1,11 @@
 'use client';
 
-import { User, Truck, ShoppingBag, UtensilsCrossed, MessageCircle, Info } from 'lucide-react';
+import { useState } from 'react';
+import { User, Truck, ShoppingBag, UtensilsCrossed, MessageCircle, Info, CreditCard, Wallet, Banknote, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { CartItem } from '@/store/cartStore';
+import { CartItem, useCartStore } from '@/store/cartStore';
 import { DeliveryType } from './CheckoutStepDelivery';
+import { PaymentMethod } from './CheckoutStepPayment';
 
 interface Restaurant {
   id?: string;
@@ -19,6 +21,7 @@ interface ConfirmationFormData {
   deliveryType: DeliveryType;
   deliveryAddress?: string;
   notes?: string;
+  paymentMethod: PaymentMethod;
 }
 
 interface CheckoutStepConfirmationProps {
@@ -58,6 +61,37 @@ const getDeliveryLabel = (type: DeliveryType): string => {
   }
 };
 
+// Fonction pour obtenir le libellé du mode de paiement
+const getPaymentLabel = (method: PaymentMethod): string => {
+  switch (method) {
+    case 'CASH':
+      return '💵 Espèces (à la livraison)';
+    case 'CARD':
+      return '💳 Carte (à la livraison)';
+    case 'STRIPE':
+      return '🔒 Carte bancaire (en ligne)';
+    case 'PAYPAL':
+      return '🅿️ PayPal';
+    default:
+      return method;
+  }
+};
+
+// Fonction pour obtenir l'icône du mode de paiement
+const getPaymentIcon = (method: PaymentMethod) => {
+  switch (method) {
+    case 'CASH':
+      return Banknote;
+    case 'CARD':
+    case 'STRIPE':
+      return CreditCard;
+    case 'PAYPAL':
+      return Wallet;
+    default:
+      return CreditCard;
+  }
+};
+
 // Fonction pour formater le prix
 const formatPrice = (price: number): string => {
   return `${price.toFixed(2)} EGP`;
@@ -73,24 +107,36 @@ const generateWhatsAppMessage = (
   restaurant: Restaurant,
   formData: ConfirmationFormData,
   cartItems: CartItem[],
-  cartTotal: number
+  cartTotal: number,
+  orderNumber?: string
 ): string => {
   const deliveryFee = getDeliveryFee(formData.deliveryType);
   const total = cartTotal + deliveryFee;
 
-  // Formatage des items de la commande
   const itemsText = cartItems
-    .map((item) => `• ${item.quantity}× ${item.name} - ${formatPrice(item.price * item.quantity)} EGP`)
+    .map((item) => {
+      const itemName = item.variantName 
+        ? `${item.menuItemName} (${item.variantName})`
+        : item.menuItemName;
+      const optionsText = item.selectedOptions && item.selectedOptions.length > 0
+        ? ` [${item.selectedOptions.map(opt => opt.optionName).join(', ')}]`
+        : '';
+      const itemTotal = item.totalPrice || (item.basePrice * item.quantity);
+      return `• ${item.quantity}× ${itemName}${optionsText} - ${formatPrice(itemTotal)} EGP`;
+    })
     .join(' • ');
 
-  // Formatage du type de livraison
   const deliveryTypeLabel = getDeliveryLabel(formData.deliveryType);
   const deliveryInfo = formData.deliveryType === 'DELIVERY' && formData.deliveryAddress
     ? `${deliveryTypeLabel}\n📍 Adresse: ${formData.deliveryAddress}`
     : deliveryTypeLabel;
 
-  // Construction du message selon le format demandé
   let message = `🍽️ Nouvelle Commande - ${restaurant.name}\n\n`;
+  
+  if (orderNumber) {
+    message += `📝 Numéro de commande: ${orderNumber}\n\n`;
+  }
+  
   message += `👤 Client Nom: ${formData.customerName} Tél: ${formData.customerPhone}\n`;
   
   if (formData.customerEmail) {
@@ -98,9 +144,8 @@ const generateWhatsAppMessage = (
   }
   
   message += `\n🚚 Livraison Type: ${deliveryInfo}\n`;
-  
+  message += `\n💳 Paiement: ${getPaymentLabel(formData.paymentMethod)}\n`;
   message += `\n📦 Commande ${itemsText}\n`;
-  
   message += `\n💰 Total: ${formatPrice(total)} EGP\n`;
   
   if (formData.notes) {
@@ -118,68 +163,274 @@ export default function CheckoutStepConfirmation({
   onConfirm,
   onPrev,
 }: CheckoutStepConfirmationProps) {
+  const [isProcessing, setIsProcessing] = useState(false);
   const deliveryFee = getDeliveryFee(formData.deliveryType);
   const total = cartTotal + deliveryFee;
   const DeliveryIcon = getDeliveryIcon(formData.deliveryType);
+  const PaymentIcon = getPaymentIcon(formData.paymentMethod);
+  
+  const clearCart = useCartStore((state) => state.clearCart);
 
-  // Fonction pour normaliser le numéro WhatsApp au format international
+  // Vérifier si le paiement est en ligne
+  const isOnlinePayment = formData.paymentMethod === 'STRIPE' || formData.paymentMethod === 'PAYPAL';
+
+  // Fonction pour normaliser le numéro WhatsApp
   const normalizeWhatsAppNumber = (number: string): string => {
-    // Enlever tous les espaces, tirets, parenthèses
     let cleaned = number.replace(/\s|-|\(|\)/g, '');
-    
-    // Si commence par +, garder tel quel
-    if (cleaned.startsWith('+')) {
-      return cleaned;
-    }
-    
-    // Si commence par 00, remplacer par +
-    if (cleaned.startsWith('00')) {
-      return '+' + cleaned.substring(2);
-    }
-    
-    // Si commence par 20 (code pays Égypte), ajouter +
-    if (cleaned.startsWith('20')) {
-      return '+' + cleaned;
-    }
-    
-    // Si commence par 0, remplacer par +20
-    if (cleaned.startsWith('0')) {
-      return '+20' + cleaned.substring(1);
-    }
-    
-    // Sinon, ajouter +20 par défaut
+    if (cleaned.startsWith('+')) return cleaned;
+    if (cleaned.startsWith('00')) return '+' + cleaned.substring(2);
+    if (cleaned.startsWith('20')) return '+' + cleaned;
+    if (cleaned.startsWith('0')) return '+20' + cleaned.substring(1);
     return '+20' + cleaned;
   };
 
-  // Gestion du clic sur le bouton WhatsApp
-  const handleWhatsAppClick = () => {
-    // Vérifier que le numéro WhatsApp existe
-    if (!restaurant.whatsappNumber) {
-      toast.error('Numéro WhatsApp du restaurant non configuré');
+  // Créer la commande dans la base de données
+  const createOrder = async () => {
+    const orderData = {
+      items: cartItems.map((item) => ({
+        menuItemId: item.menuItemId,
+        quantity: item.quantity,
+        unitPrice: item.basePrice,
+        customization: {
+          variant: item.variantName || null,
+          modifiers: item.selectedOptions?.map(opt => opt.optionName) || [],
+          notes: null,
+        },
+      })),
+      customerName: formData.customerName,
+      customerPhone: formData.customerPhone,
+      customerEmail: formData.customerEmail || '',
+      deliveryType: formData.deliveryType,
+      deliveryAddress: formData.deliveryAddress || '',
+      notes: formData.notes || '',
+      paymentMethod: formData.paymentMethod,
+    };
+
+    const endpoint = `/api/public/restaurants/${restaurant.slug}/orders`;
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(orderData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
+      const errorMessage = errorData.error || `Erreur ${response.status}`;
+      
+      if (errorMessage.includes('non trouvé') || errorMessage.includes('n\'appartient pas') || errorMessage.includes('supprimé')) {
+        clearCart();
+        toast.error('🛒 Votre panier contenait des articles obsolètes et a été vidé.', { duration: 6000 });
+        setTimeout(() => onConfirm(), 1500);
+        return null;
+      }
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  };
+
+  // Gestion du paiement en espèces/carte à la livraison (WhatsApp)
+  const handleCashPayment = async () => {
+    if (!restaurant.whatsappNumber || !restaurant.slug || cartItems.length === 0) {
+      toast.error('Configuration manquante');
       return;
     }
 
+    setIsProcessing(true);
+    toast.loading('Création de la commande...', { id: 'creating-order' });
+
     try {
-      // Générer le message WhatsApp
-      const message = generateWhatsAppMessage(restaurant, formData, cartItems, cartTotal);
+      const result = await createOrder();
+      if (!result) return;
+
+      const orderNumber = result.order?.orderNumber;
+      if (!orderNumber) throw new Error('Numéro de commande non reçu');
+
+      toast.success(`Commande ${orderNumber} créée !`, { id: 'creating-order' });
+
+      const message = generateWhatsAppMessage(restaurant, formData, cartItems, cartTotal, orderNumber);
       const normalizedNumber = normalizeWhatsAppNumber(restaurant.whatsappNumber);
       const whatsappUrl = `https://wa.me/${normalizedNumber}?text=${encodeURIComponent(message)}`;
       
-      // Ouvrir WhatsApp dans un nouvel onglet
-      window.open(whatsappUrl, '_blank');
+      // Validation de l'URL WhatsApp
+      if (!whatsappUrl.startsWith('https://wa.me/')) {
+        console.error('URL WhatsApp invalide:', whatsappUrl);
+        throw new Error('URL WhatsApp invalide');
+      }
+
+      // Logs de débogage
+      console.log('📱 Redirection WhatsApp:', {
+        orderNumber,
+        normalizedNumber,
+        whatsappUrl: whatsappUrl.substring(0, 100) + '...', // Tronquer pour les logs
+        messageLength: message.length,
+      });
+
+      // Utiliser window.location.href au lieu de window.open pour éviter le blocage des popups
+      // Cela redirige directement vers WhatsApp (meilleure compatibilité mobile et desktop)
+      window.location.href = whatsappUrl;
       
-      // Afficher un message de succès
-      toast.success('Redirection vers WhatsApp...');
-      
-      // Appeler onConfirm pour fermer le modal et vider le panier après un court délai
-      setTimeout(() => {
-        onConfirm();
-      }, 500);
+      // Note: onConfirm() ne sera pas appelé car la page sera redirigée
+      // Si la redirection échoue, l'utilisateur reste sur la page et peut réessayer
     } catch (error: any) {
-      console.error('Erreur lors de l\'ouverture de WhatsApp:', error);
-      toast.error('Erreur lors de l\'ouverture de WhatsApp. Veuillez réessayer.');
+      console.error('❌ Erreur lors de la création de la commande:', error);
+      toast.error(error.message || 'Erreur lors de la création de la commande', { id: 'creating-order' });
+      setIsProcessing(false);
     }
   };
+
+  // Gestion du paiement Stripe
+  const handleStripePayment = async () => {
+    if (!restaurant.slug || cartItems.length === 0) {
+      toast.error('Configuration manquante');
+      return;
+    }
+
+    setIsProcessing(true);
+    toast.loading('Préparation du paiement...', { id: 'creating-order' });
+
+    try {
+      // Créer d'abord la commande
+      const result = await createOrder();
+      if (!result) return;
+
+      const orderNumber = result.order?.orderNumber;
+      const orderId = result.order?.id;
+
+      toast.success(`Commande ${orderNumber} créée ! Redirection vers le paiement...`, { id: 'creating-order' });
+
+      // Créer une session de paiement Stripe
+      const paymentResponse = await fetch('/api/payments/stripe/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId,
+          orderNumber,
+          amount: Math.round(total * 100), // En centimes
+          customerEmail: formData.customerEmail,
+          customerName: formData.customerName,
+          restaurantSlug: restaurant.slug,
+        }),
+      });
+
+      if (!paymentResponse.ok) {
+        throw new Error('Erreur lors de la création de la session de paiement');
+      }
+
+      const { url } = await paymentResponse.json();
+      
+      // Rediriger vers Stripe Checkout
+      window.location.href = url;
+    } catch (error: any) {
+      console.error('Erreur Stripe:', error);
+      toast.error(error.message || 'Erreur lors de la préparation du paiement', { id: 'creating-order' });
+      setIsProcessing(false);
+    }
+  };
+
+  // Gestion du paiement PayPal
+  const handlePayPalPayment = async () => {
+    if (!restaurant.slug || cartItems.length === 0) {
+      toast.error('Configuration manquante');
+      return;
+    }
+
+    setIsProcessing(true);
+    toast.loading('Préparation du paiement PayPal...', { id: 'creating-order' });
+
+    try {
+      // Créer d'abord la commande
+      const result = await createOrder();
+      if (!result) return;
+
+      const orderNumber = result.order?.orderNumber;
+      const orderId = result.order?.id;
+
+      toast.success(`Commande ${orderNumber} créée ! Redirection vers PayPal...`, { id: 'creating-order' });
+
+      // Créer une commande PayPal
+      const paymentResponse = await fetch('/api/payments/paypal/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId,
+          orderNumber,
+          amount: total,
+          restaurantSlug: restaurant.slug,
+        }),
+      });
+
+      if (!paymentResponse.ok) {
+        throw new Error('Erreur lors de la création de la commande PayPal');
+      }
+
+      const { approvalUrl } = await paymentResponse.json();
+      
+      // Rediriger vers PayPal
+      window.location.href = approvalUrl;
+    } catch (error: any) {
+      console.error('Erreur PayPal:', error);
+      toast.error(error.message || 'Erreur lors de la préparation du paiement PayPal', { id: 'creating-order' });
+      setIsProcessing(false);
+    }
+  };
+
+  // Gestionnaire principal du clic
+  const handleConfirmClick = () => {
+    switch (formData.paymentMethod) {
+      case 'CASH':
+      case 'CARD':
+        handleCashPayment();
+        break;
+      case 'STRIPE':
+        handleStripePayment();
+        break;
+      case 'PAYPAL':
+        handlePayPalPayment();
+        break;
+      default:
+        handleCashPayment();
+    }
+  };
+
+  // Texte et style du bouton selon le mode de paiement
+  const getButtonConfig = () => {
+    if (isProcessing) {
+      return {
+        text: 'Traitement en cours...',
+        icon: Loader2,
+        className: 'bg-gray-400 cursor-not-allowed',
+        iconClassName: 'animate-spin',
+      };
+    }
+
+    switch (formData.paymentMethod) {
+      case 'STRIPE':
+        return {
+          text: `Payer ${formatPrice(total)} par carte`,
+          icon: CreditCard,
+          className: 'bg-indigo-600 hover:bg-indigo-700',
+          iconClassName: '',
+        };
+      case 'PAYPAL':
+        return {
+          text: `Payer ${formatPrice(total)} avec PayPal`,
+          icon: Wallet,
+          className: 'bg-blue-600 hover:bg-blue-700',
+          iconClassName: '',
+        };
+      default:
+        return {
+          text: 'Confirmer et envoyer sur WhatsApp',
+          icon: MessageCircle,
+          className: 'bg-green-600 hover:bg-green-700',
+          iconClassName: '',
+        };
+    }
+  };
+
+  const buttonConfig = getButtonConfig();
+  const ButtonIcon = buttonConfig.icon;
 
   return (
     <div className="space-y-6">
@@ -196,16 +447,10 @@ export default function CheckoutStepConfirmation({
           <div className="flex-1">
             <h4 className="font-semibold text-gray-900 mb-2">Informations client</h4>
             <div className="space-y-1 text-sm text-gray-700">
-              <p>
-                <span className="font-medium">Nom:</span> {formData.customerName}
-              </p>
-              <p>
-                <span className="font-medium">Téléphone:</span> {formData.customerPhone}
-              </p>
+              <p><span className="font-medium">Nom:</span> {formData.customerName}</p>
+              <p><span className="font-medium">Téléphone:</span> {formData.customerPhone}</p>
               {formData.customerEmail && (
-                <p>
-                  <span className="font-medium">Email:</span> {formData.customerEmail}
-                </p>
+                <p><span className="font-medium">Email:</span> {formData.customerEmail}</p>
               )}
             </div>
           </div>
@@ -223,20 +468,29 @@ export default function CheckoutStepConfirmation({
           <div className="flex-1">
             <h4 className="font-semibold text-gray-900 mb-2">Mode de livraison</h4>
             <div className="space-y-1 text-sm text-gray-700">
-              <p>
-                <span className="font-medium">Type:</span> {getDeliveryLabel(formData.deliveryType)}
-              </p>
+              <p><span className="font-medium">Type:</span> {getDeliveryLabel(formData.deliveryType)}</p>
               {formData.deliveryType === 'DELIVERY' && formData.deliveryAddress && (
-                <p>
-                  <span className="font-medium">📍 Adresse:</span> {formData.deliveryAddress}
-                </p>
+                <p><span className="font-medium">📍 Adresse:</span> {formData.deliveryAddress}</p>
               )}
               {formData.notes && (
-                <p>
-                  <span className="font-medium">📝 Notes:</span> {formData.notes}
-                </p>
+                <p><span className="font-medium">📝 Notes:</span> {formData.notes}</p>
               )}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Card Paiement */}
+      <div className="bg-gray-50 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0">
+            <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+              <PaymentIcon className="w-5 h-5 text-orange-600" />
+            </div>
+          </div>
+          <div className="flex-1">
+            <h4 className="font-semibold text-gray-900 mb-2">Mode de paiement</h4>
+            <p className="text-sm text-gray-700">{getPaymentLabel(formData.paymentMethod)}</p>
           </div>
         </div>
       </div>
@@ -245,36 +499,33 @@ export default function CheckoutStepConfirmation({
       <div className="bg-gray-50 rounded-lg p-4">
         <h4 className="font-semibold text-gray-900 mb-4">Résumé de la commande</h4>
         
-        {/* Liste des items */}
         <div className="divide-y divide-gray-200 mb-4">
           {cartItems.map((item) => (
             <div key={item.id} className="py-3 flex justify-between items-start">
               <div className="flex-1">
                 <p className="text-sm font-medium text-gray-900">
-                  {item.quantity}× {item.name}
+                  {item.quantity}× {item.menuItemName}
+                  {item.variantName && ` (${item.variantName})`}
                 </p>
-                {item.customization && (
-                  <p className="text-xs text-gray-500 mt-1 italic">
-                    {item.customization}
+                {item.selectedOptions && item.selectedOptions.length > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Options: {item.selectedOptions.map(opt => opt.optionName).join(', ')}
                   </p>
                 )}
               </div>
               <p className="text-sm font-semibold text-gray-900 ml-4">
-                {formatPrice(item.price * item.quantity)}
+                {formatPrice(item.totalPrice || item.basePrice * item.quantity)}
               </p>
             </div>
           ))}
         </div>
 
-        {/* Ligne séparatrice */}
         <div className="border-t border-gray-300 pt-4 space-y-2">
-          {/* Sous-total */}
           <div className="flex justify-between text-sm text-gray-700">
             <span>Sous-total</span>
             <span className="font-medium">{formatPrice(cartTotal)}</span>
           </div>
 
-          {/* Frais de livraison */}
           {deliveryFee > 0 && (
             <div className="flex justify-between text-sm text-gray-700">
               <span>Frais de livraison</span>
@@ -282,7 +533,6 @@ export default function CheckoutStepConfirmation({
             </div>
           )}
 
-          {/* Total final */}
           <div className="flex justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-300">
             <span>Total</span>
             <span>{formatPrice(total)}</span>
@@ -290,29 +540,32 @@ export default function CheckoutStepConfirmation({
         </div>
       </div>
 
-      {/* Message de confirmation */}
+      {/* Message informatif */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
         <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
         <p className="text-sm text-blue-800">
-          En cliquant sur le bouton ci-dessous, vous serez redirigé vers WhatsApp pour confirmer votre commande.
+          {isOnlinePayment
+            ? 'Vous serez redirigé vers une page de paiement sécurisée pour finaliser votre commande.'
+            : 'En cliquant sur le bouton ci-dessous, vous serez redirigé vers WhatsApp pour confirmer votre commande.'}
         </p>
       </div>
 
-      {/* Bouton WhatsApp */}
+      {/* Bouton de confirmation */}
       <div className="space-y-3">
         <button
-          onClick={handleWhatsAppClick}
-          className="w-full bg-green-600 hover:bg-green-700 text-white py-4 px-6 rounded-lg text-lg font-semibold transition-colors flex items-center justify-center gap-2"
+          onClick={handleConfirmClick}
+          disabled={isProcessing || !restaurant.slug || cartItems.length === 0}
+          className={`w-full py-4 px-6 rounded-lg text-lg font-semibold transition-colors flex items-center justify-center gap-2 text-white ${buttonConfig.className}`}
         >
-          <MessageCircle className="w-6 h-6" />
-          <span>Envoyer sur WhatsApp</span>
+          <ButtonIcon className={`w-6 h-6 ${buttonConfig.iconClassName}`} />
+          <span>{buttonConfig.text}</span>
         </button>
         
-        {/* Bouton Retour */}
         {onPrev && (
           <button
             onClick={onPrev}
-            className="w-full px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+            disabled={isProcessing}
+            className="w-full px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors disabled:opacity-50"
           >
             Retour
           </button>
