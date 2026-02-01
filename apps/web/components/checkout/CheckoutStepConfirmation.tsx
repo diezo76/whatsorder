@@ -164,12 +164,16 @@ export default function CheckoutStepConfirmation({
   onPrev,
 }: CheckoutStepConfirmationProps) {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
   const deliveryFee = getDeliveryFee(formData.deliveryType);
   const total = cartTotal + deliveryFee;
   const DeliveryIcon = getDeliveryIcon(formData.deliveryType);
   const PaymentIcon = getPaymentIcon(formData.paymentMethod);
   
   const clearCart = useCartStore((state) => state.clearCart);
+
+  // Détection mobile
+  const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
   // Vérifier si le paiement est en ligne
   const isOnlinePayment = formData.paymentMethod === 'STRIPE' || formData.paymentMethod === 'PAYPAL';
@@ -307,23 +311,34 @@ export default function CheckoutStepConfirmation({
         restaurantWhatsApp: restaurant.whatsappNumber,
       });
 
-      // Utiliser window.location.href au lieu de window.open pour éviter le blocage des popups
-      // Cela redirige directement vers WhatsApp (meilleure compatibilité mobile et desktop)
-      console.log('🔄 Tentative de redirection vers WhatsApp...');
+      // Sur mobile, afficher un lien direct cliquable (plus fiable que redirection automatique)
+      // Sur desktop, rediriger automatiquement
+      console.log('🔄 Tentative de redirection vers WhatsApp...', { isMobile, whatsappUrl });
       
-      // Méthode 1: window.location.href (redirection directe)
-      try {
-        window.location.href = whatsappUrl;
-        // Si la redirection fonctionne, cette ligne ne sera jamais exécutée
-        console.log('⚠️ window.location.href n\'a pas redirigé, tentative avec window.open...');
-      } catch (error) {
-        console.error('❌ Erreur avec window.location.href:', error);
-      }
-      
-      // Méthode 2: Fallback avec window.open (si window.location.href échoue)
-      // Créer un lien temporaire et le cliquer programmatiquement
-      setTimeout(() => {
+      if (isMobile) {
+        // Sur mobile: stocker l'URL et afficher un lien direct cliquable
+        // C'est plus fiable car les navigateurs mobiles bloquent souvent les redirections automatiques
+        console.log('📱 Mode mobile: affichage du lien direct WhatsApp');
+        setWhatsappUrl(whatsappUrl);
+        setIsProcessing(false); // Réactiver le bouton pour permettre le clic sur le lien
+        
+        // Essayer quand même une redirection automatique après un court délai
+        setTimeout(() => {
+          try {
+            console.log('📱 Tentative de redirection automatique mobile');
+            window.location.href = whatsappUrl;
+          } catch (error) {
+            console.error('❌ Redirection automatique échouée, lien direct disponible:', error);
+          }
+        }, 500);
+      } else {
+        // Sur desktop, rediriger automatiquement
         try {
+          console.log('🖥️ Redirection desktop avec window.location.href');
+          window.location.href = whatsappUrl;
+        } catch (error) {
+          console.error('❌ Erreur avec window.location.href:', error);
+          // Fallback: créer un lien et le cliquer
           const link = document.createElement('a');
           link.href = whatsappUrl;
           link.target = '_blank';
@@ -332,13 +347,8 @@ export default function CheckoutStepConfirmation({
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
-          console.log('✅ Redirection via lien temporaire réussie');
-        } catch (error) {
-          console.error('❌ Erreur avec la méthode de fallback:', error);
-          // Dernière tentative: ouvrir dans un nouvel onglet
-          window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
         }
-      }, 100);
+      }
       
       // Note: onConfirm() ne sera pas appelé car la page sera redirigée
       // Si la redirection échoue, l'utilisateur reste sur la page et peut réessayer
@@ -631,24 +641,62 @@ export default function CheckoutStepConfirmation({
 
       {/* Bouton de confirmation */}
       <div className="space-y-3">
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('🖱️ onClick déclenché sur le bouton');
-            handleConfirmClick();
-          }}
-          disabled={isProcessing || !restaurant.slug || cartItems.length === 0}
-          className={`w-full py-4 px-6 rounded-lg text-lg font-semibold transition-colors flex items-center justify-center gap-2 text-white ${buttonConfig.className}`}
-          aria-label={buttonConfig.text}
-        >
-          <ButtonIcon className={`w-6 h-6 ${buttonConfig.iconClassName}`} />
-          <span>{buttonConfig.text}</span>
-        </button>
+        {/* Sur mobile, si WhatsApp URL est disponible après création de commande, afficher un lien direct */}
+        {isMobile && whatsappUrl && (
+          <div className="space-y-2">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <p className="text-sm text-green-800 mb-3 text-center">
+                ✅ Commande créée ! Cliquez sur le bouton ci-dessous pour ouvrir WhatsApp :
+              </p>
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-4 px-6 rounded-lg text-lg font-semibold transition-colors flex items-center justify-center gap-2 text-white bg-green-600 hover:bg-green-700 active:bg-green-800"
+                onClick={() => {
+                  console.log('📱 Lien direct WhatsApp cliqué');
+                  // Réinitialiser l'URL après le clic pour permettre de recréer une commande si nécessaire
+                  setTimeout(() => setWhatsappUrl(null), 1000);
+                }}
+              >
+                <MessageCircle className="w-6 h-6" />
+                <span>Ouvrir WhatsApp</span>
+              </a>
+            </div>
+            <button
+              onClick={() => {
+                setWhatsappUrl(null);
+                setIsProcessing(false);
+              }}
+              className="w-full px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors text-sm"
+            >
+              Créer une autre commande
+            </button>
+          </div>
+        )}
+        
+        {/* Bouton principal (masqué sur mobile si WhatsApp URL est disponible) */}
+        {!(isMobile && whatsappUrl) && (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('🖱️ onClick déclenché sur le bouton', { isMobile, isProcessing });
+              handleConfirmClick();
+            }}
+            disabled={isProcessing || !restaurant.slug || cartItems.length === 0}
+            className={`w-full py-4 px-6 rounded-lg text-lg font-semibold transition-colors flex items-center justify-center gap-2 text-white ${buttonConfig.className}`}
+            aria-label={buttonConfig.text}
+          >
+            <ButtonIcon className={`w-6 h-6 ${buttonConfig.iconClassName}`} />
+            <span>{buttonConfig.text}</span>
+          </button>
+        )}
+        
         {/* Debug info (dev only) */}
         {process.env.NODE_ENV === 'development' && (
           <div className="text-xs text-gray-500 p-2 bg-gray-100 rounded">
-            Debug: isProcessing={String(isProcessing)}, slug={restaurant.slug || 'undefined'}, items={cartItems.length}
+            Debug: isMobile={String(isMobile)}, isProcessing={String(isProcessing)}, slug={restaurant.slug || 'undefined'}, items={cartItems.length}, hasWhatsAppUrl={String(!!whatsappUrl)}
           </div>
         )}
         
