@@ -207,26 +207,58 @@ export default function CheckoutStepConfirmation({
     };
 
     const endpoint = `/api/public/restaurants/${restaurant.slug}/orders`;
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(orderData),
+    console.log('📤 Envoi de la commande:', {
+      endpoint,
+      restaurantSlug: restaurant.slug,
+      itemsCount: orderData.items.length,
+      customerName: orderData.customerName,
+      customerPhone: orderData.customerPhone,
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
-      const errorMessage = errorData.error || `Erreur ${response.status}`;
-      
-      if (errorMessage.includes('non trouvé') || errorMessage.includes('n\'appartient pas') || errorMessage.includes('supprimé')) {
-        clearCart();
-        toast.error('🛒 Votre panier contenait des articles obsolètes et a été vidé.', { duration: 6000 });
-        setTimeout(() => onConfirm(), 1500);
-        return null;
-      }
-      throw new Error(errorMessage);
-    }
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData),
+      });
 
-    return response.json();
+      console.log('📥 Réponse reçue:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
+        const errorMessage = errorData.error || `Erreur ${response.status}`;
+        
+        console.error('❌ Erreur API:', {
+          status: response.status,
+          errorMessage,
+          errorData,
+        });
+        
+        if (errorMessage.includes('non trouvé') || errorMessage.includes('n\'appartient pas') || errorMessage.includes('supprimé')) {
+          clearCart();
+          toast.error('🛒 Votre panier contenait des articles obsolètes et a été vidé.', { duration: 6000 });
+          setTimeout(() => onConfirm(), 1500);
+          return null;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      console.log('✅ Commande créée avec succès:', {
+        orderNumber: result.order?.orderNumber,
+        orderId: result.order?.id,
+        result,
+      });
+
+      return result;
+    } catch (error: any) {
+      console.error('❌ Erreur lors de l\'appel API createOrder:', error);
+      throw error;
+    }
   };
 
   // Gestion du paiement en espèces/carte à la livraison (WhatsApp)
@@ -241,10 +273,18 @@ export default function CheckoutStepConfirmation({
 
     try {
       const result = await createOrder();
-      if (!result) return;
+      if (!result) {
+        console.error('❌ createOrder() a retourné null ou undefined');
+        toast.error('Erreur lors de la création de la commande', { id: 'creating-order' });
+        setIsProcessing(false);
+        return;
+      }
 
       const orderNumber = result.order?.orderNumber;
-      if (!orderNumber) throw new Error('Numéro de commande non reçu');
+      if (!orderNumber) {
+        console.error('❌ Numéro de commande manquant dans la réponse:', result);
+        throw new Error('Numéro de commande non reçu');
+      }
 
       toast.success(`Commande ${orderNumber} créée !`, { id: 'creating-order' });
 
@@ -254,7 +294,7 @@ export default function CheckoutStepConfirmation({
       
       // Validation de l'URL WhatsApp
       if (!whatsappUrl.startsWith('https://wa.me/')) {
-        console.error('URL WhatsApp invalide:', whatsappUrl);
+        console.error('❌ URL WhatsApp invalide:', whatsappUrl);
         throw new Error('URL WhatsApp invalide');
       }
 
@@ -264,16 +304,19 @@ export default function CheckoutStepConfirmation({
         normalizedNumber,
         whatsappUrl: whatsappUrl.substring(0, 100) + '...', // Tronquer pour les logs
         messageLength: message.length,
+        restaurantWhatsApp: restaurant.whatsappNumber,
       });
 
       // Utiliser window.location.href au lieu de window.open pour éviter le blocage des popups
       // Cela redirige directement vers WhatsApp (meilleure compatibilité mobile et desktop)
+      console.log('🔄 Tentative de redirection vers WhatsApp...');
       window.location.href = whatsappUrl;
       
       // Note: onConfirm() ne sera pas appelé car la page sera redirigée
       // Si la redirection échoue, l'utilisateur reste sur la page et peut réessayer
     } catch (error: any) {
       console.error('❌ Erreur lors de la création de la commande:', error);
+      console.error('❌ Stack trace:', error.stack);
       toast.error(error.message || 'Erreur lors de la création de la commande', { id: 'creating-order' });
       setIsProcessing(false);
     }
@@ -377,6 +420,14 @@ export default function CheckoutStepConfirmation({
 
   // Gestionnaire principal du clic
   const handleConfirmClick = () => {
+    console.log('🖱️ Bouton cliqué:', {
+      paymentMethod: formData.paymentMethod,
+      isProcessing,
+      restaurantSlug: restaurant.slug,
+      cartItemsLength: cartItems.length,
+      restaurantWhatsApp: restaurant.whatsappNumber,
+    });
+
     switch (formData.paymentMethod) {
       case 'CASH':
       case 'CARD':
@@ -553,13 +604,25 @@ export default function CheckoutStepConfirmation({
       {/* Bouton de confirmation */}
       <div className="space-y-3">
         <button
-          onClick={handleConfirmClick}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🖱️ onClick déclenché sur le bouton');
+            handleConfirmClick();
+          }}
           disabled={isProcessing || !restaurant.slug || cartItems.length === 0}
           className={`w-full py-4 px-6 rounded-lg text-lg font-semibold transition-colors flex items-center justify-center gap-2 text-white ${buttonConfig.className}`}
+          aria-label={buttonConfig.text}
         >
           <ButtonIcon className={`w-6 h-6 ${buttonConfig.iconClassName}`} />
           <span>{buttonConfig.text}</span>
         </button>
+        {/* Debug info (dev only) */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="text-xs text-gray-500 p-2 bg-gray-100 rounded">
+            Debug: isProcessing={String(isProcessing)}, slug={restaurant.slug || 'undefined'}, items={cartItems.length}
+          </div>
+        )}
         
         {onPrev && (
           <button
