@@ -310,7 +310,35 @@ export default function CheckoutStepConfirmation({
       // Utiliser window.location.href au lieu de window.open pour éviter le blocage des popups
       // Cela redirige directement vers WhatsApp (meilleure compatibilité mobile et desktop)
       console.log('🔄 Tentative de redirection vers WhatsApp...');
-      window.location.href = whatsappUrl;
+      
+      // Méthode 1: window.location.href (redirection directe)
+      try {
+        window.location.href = whatsappUrl;
+        // Si la redirection fonctionne, cette ligne ne sera jamais exécutée
+        console.log('⚠️ window.location.href n\'a pas redirigé, tentative avec window.open...');
+      } catch (error) {
+        console.error('❌ Erreur avec window.location.href:', error);
+      }
+      
+      // Méthode 2: Fallback avec window.open (si window.location.href échoue)
+      // Créer un lien temporaire et le cliquer programmatiquement
+      setTimeout(() => {
+        try {
+          const link = document.createElement('a');
+          link.href = whatsappUrl;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.style.display = 'none';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          console.log('✅ Redirection via lien temporaire réussie');
+        } catch (error) {
+          console.error('❌ Erreur avec la méthode de fallback:', error);
+          // Dernière tentative: ouvrir dans un nouvel onglet
+          window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+        }
+      }, 100);
       
       // Note: onConfirm() ne sera pas appelé car la page sera redirigée
       // Si la redirection échoue, l'utilisateur reste sur la page et peut réessayer
