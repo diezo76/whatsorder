@@ -6,6 +6,7 @@ import { X } from 'lucide-react';
 import { CartItem, useCartStore } from '@/store/cartStore';
 import CheckoutStepCustomer, { validateCustomerInfo } from './CheckoutStepCustomer';
 import CheckoutStepDelivery, { validateDeliveryInfo, DeliveryType } from './CheckoutStepDelivery';
+import CheckoutStepPayment, { validatePaymentInfo, PaymentMethod } from './CheckoutStepPayment';
 import CheckoutStepConfirmation from './CheckoutStepConfirmation';
 
 interface Restaurant {
@@ -13,7 +14,7 @@ interface Restaurant {
   slug?: string;
   name: string;
   phone: string;
-  whatsappNumber: string;
+  whatsappNumber?: string; // Optionnel car peut ne pas être défini
 }
 
 interface CheckoutFormData {
@@ -23,6 +24,7 @@ interface CheckoutFormData {
   deliveryType: DeliveryType;
   deliveryAddress?: string;
   notes?: string;
+  paymentMethod: PaymentMethod;
 }
 
 interface CheckoutModalProps {
@@ -33,6 +35,8 @@ interface CheckoutModalProps {
   cartTotal: number;
   onConfirm?: () => void;
 }
+
+const TOTAL_STEPS = 4;
 
 export default function CheckoutModal({
   isOpen,
@@ -51,6 +55,7 @@ export default function CheckoutModal({
     deliveryType: 'DELIVERY',
     deliveryAddress: '',
     notes: '',
+    paymentMethod: 'CASH',
   });
 
   // Réinitialiser le formulaire quand le modal se ferme
@@ -64,6 +69,7 @@ export default function CheckoutModal({
         deliveryType: 'DELIVERY',
         deliveryAddress: '',
         notes: '',
+        paymentMethod: 'CASH',
       });
     }
   }, [isOpen]);
@@ -104,7 +110,6 @@ export default function CheckoutModal({
   };
 
   // Validation pour déterminer si le bouton "Suivant" doit être disabled
-  // Utilise useMemo pour recalculer uniquement quand nécessaire
   const isStepValid = useMemo((): boolean => {
     if (currentStep === 1) {
       return validateCustomerInfo({
@@ -118,6 +123,10 @@ export default function CheckoutModal({
         deliveryAddress: formData.deliveryAddress,
         notes: formData.notes,
       });
+    } else if (currentStep === 3) {
+      return validatePaymentInfo({
+        paymentMethod: formData.paymentMethod,
+      });
     }
     return true;
   }, [currentStep, formData]);
@@ -126,28 +135,30 @@ export default function CheckoutModal({
   const nextStep = () => {
     // Validation selon l'étape actuelle
     if (currentStep === 1) {
-      // Valider les informations client avec la fonction exportée
       if (!validateCustomerInfo({
         customerName: formData.customerName,
         customerPhone: formData.customerPhone,
         customerEmail: formData.customerEmail,
       })) {
-        // La validation est gérée visuellement dans CheckoutStepCustomer
         return;
       }
     } else if (currentStep === 2) {
-      // Valider les informations de livraison avec la fonction exportée
       if (!validateDeliveryInfo({
         deliveryType: formData.deliveryType,
         deliveryAddress: formData.deliveryAddress,
         notes: formData.notes,
       })) {
-        // La validation est gérée visuellement dans CheckoutStepDelivery
+        return;
+      }
+    } else if (currentStep === 3) {
+      if (!validatePaymentInfo({
+        paymentMethod: formData.paymentMethod,
+      })) {
         return;
       }
     }
 
-    if (currentStep < 3) {
+    if (currentStep < TOTAL_STEPS) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -163,61 +174,50 @@ export default function CheckoutModal({
   const handleConfirm = () => {
     clearCart();
     onClose();
-    // Appeler le callback onConfirm si fourni (pour fermer aussi le drawer)
     if (onConfirm) {
       onConfirm();
     }
   };
 
-
   // Rendu de l'indicateur d'étapes
   const renderStepIndicator = () => {
+    const steps = [1, 2, 3, 4];
+    
     return (
-      <div className="flex items-center justify-center gap-2 mb-6">
-        {/* Step 1 */}
-        <div className="flex items-center">
-          <div
-            className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm transition-colors ${
-              currentStep >= 1
-                ? 'bg-orange-600 text-white'
-                : 'bg-gray-200 text-gray-500'
-            }`}
-          >
-            1
+      <div className="flex items-center justify-center gap-1 mb-6">
+        {steps.map((step, index) => (
+          <div key={step} className="flex items-center">
+            <div
+              className={`w-9 h-9 rounded-full flex items-center justify-center font-semibold text-sm transition-colors ${
+                currentStep >= step
+                  ? 'bg-orange-600 text-white'
+                  : 'bg-gray-200 text-gray-500'
+              }`}
+            >
+              {step}
+            </div>
+            {index < steps.length - 1 && (
+              <div 
+                className={`w-8 h-0.5 mx-1 ${
+                  currentStep > step ? 'bg-orange-600' : 'bg-gray-200'
+                }`} 
+              />
+            )}
           </div>
-          {currentStep > 1 && (
-            <div className="w-12 h-0.5 bg-orange-600 mx-1" />
-          )}
-        </div>
-
-        {/* Step 2 */}
-        <div className="flex items-center">
-          <div
-            className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm transition-colors ${
-              currentStep >= 2
-                ? 'bg-orange-600 text-white'
-                : 'bg-gray-200 text-gray-500'
-            }`}
-          >
-            2
-          </div>
-          {currentStep > 2 && (
-            <div className="w-12 h-0.5 bg-orange-600 mx-1" />
-          )}
-        </div>
-
-        {/* Step 3 */}
-        <div
-          className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm transition-colors ${
-            currentStep >= 3
-              ? 'bg-orange-600 text-white'
-              : 'bg-gray-200 text-gray-500'
-          }`}
-        >
-          3
-        </div>
+        ))}
       </div>
     );
+  };
+
+  // Titres des étapes
+  const getStepTitle = () => {
+    switch (currentStep) {
+      case 1: return 'Vos informations';
+      case 2: return 'Livraison';
+      case 3: return 'Paiement';
+      case 4: return 'Confirmation';
+      default: return '';
+    }
   };
 
   // Rendu du contenu de l'étape actuelle
@@ -253,6 +253,18 @@ export default function CheckoutModal({
         );
       case 3:
         return (
+          <CheckoutStepPayment
+            formData={{
+              paymentMethod: formData.paymentMethod,
+            }}
+            onChange={handleFormChange}
+            onNext={nextStep}
+            onPrev={prevStep}
+            isValid={currentStep === 3 ? isStepValid : undefined}
+          />
+        );
+      case 4:
+        return (
           <CheckoutStepConfirmation
             formData={{
               customerName: formData.customerName,
@@ -261,6 +273,7 @@ export default function CheckoutModal({
               deliveryType: formData.deliveryType,
               deliveryAddress: formData.deliveryAddress,
               notes: formData.notes,
+              paymentMethod: formData.paymentMethod,
             }}
             cartItems={cartItems}
             cartTotal={cartTotal}
@@ -297,7 +310,7 @@ export default function CheckoutModal({
           <div className="flex-1">
             <h2 className="text-xl font-bold text-gray-900">Finaliser la commande</h2>
             <p className="text-sm text-gray-500 mt-1">
-              Étape {currentStep}/3
+              Étape {currentStep}/{TOTAL_STEPS} - {getStepTitle()}
             </p>
           </div>
           <button

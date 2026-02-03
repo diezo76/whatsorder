@@ -11,7 +11,7 @@ interface Restaurant {
   slug?: string;
   name: string;
   phone: string;
-  whatsappNumber: string;
+  whatsappNumber?: string; // Optionnel car peut ne pas être défini
 }
 
 interface CartDrawerProps {

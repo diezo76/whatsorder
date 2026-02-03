@@ -11,7 +11,7 @@ interface Restaurant {
   id?: string;
   slug?: string;
   name: string;
-  whatsappNumber: string;
+  whatsappNumber?: string; // Optionnel car peut ne pas être défini
 }
 
 interface ConfirmationFormData {
