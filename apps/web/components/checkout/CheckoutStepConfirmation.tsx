@@ -334,14 +334,26 @@ export default function CheckoutStepConfirmation({
 
         // Afficher un avertissement si l'API n'est pas disponible
         if (!whatsappInfo.apiEnabled) {
-          toast.warning('⚠️ Le message sera envoyé manuellement via WhatsApp', { 
+          toast('⚠️ Le message sera envoyé manuellement via WhatsApp', { 
             id: 'creating-order',
-            duration: 4000 
+            duration: 4000,
+            icon: '⚠️',
+            style: {
+              background: '#fff3cd',
+              color: '#856404',
+              border: '1px solid #ffc107',
+            },
           });
         } else if (whatsappInfo.error) {
-          toast.warning(`⚠️ Envoi automatique échoué: ${whatsappInfo.error}. Utilisation de WhatsApp manuel.`, { 
+          toast(`⚠️ Envoi automatique échoué: ${whatsappInfo.error}. Utilisation de WhatsApp manuel.`, { 
             id: 'creating-order',
-            duration: 5000 
+            duration: 5000,
+            icon: '⚠️',
+            style: {
+              background: '#fff3cd',
+              color: '#856404',
+              border: '1px solid #ffc107',
+            },
           });
         }
 
