@@ -6,11 +6,15 @@ import { supabase } from '@/lib/supabase/client';
 export interface Message {
   id: string;
   content: string;
-  type: 'INCOMING' | 'OUTGOING';
+  type: 'TEXT' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT' | 'LOCATION' | 'ORDER_LINK' | 'TEMPLATE';
+  sender: 'CUSTOMER' | 'STAFF' | 'SYSTEM';
   conversationId: string;
   createdAt: string;
   isRead: boolean;
-  attachments: string[];
+  attachments?: string[];
+  direction?: string;
+  status?: string;
+  mediaUrl?: string;
 }
 
 interface UseRealtimeMessagesProps {
@@ -69,8 +73,16 @@ export function useRealtimeMessages({
         }
       )
       .subscribe((status) => {
-        console.log(`📡 Messages status: ${status}`);
-        setIsConnected(status === 'SUBSCRIBED');
+        const statusStr = String(status);
+        if (statusStr === 'SUBSCRIBED') {
+          console.log(`✅ Messages Realtime: Connecté`);
+          setIsConnected(true);
+        } else if (statusStr === 'CHANNEL_ERROR' || statusStr === 'TIMED_OUT') {
+          console.warn(`⚠️ Messages Realtime: ${statusStr} (L'API REST fonctionnera toujours)`);
+          setIsConnected(false);
+        } else {
+          setIsConnected(statusStr === 'SUBSCRIBED');
+        }
       });
 
     return () => {

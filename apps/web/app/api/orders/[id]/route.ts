@@ -71,8 +71,18 @@ export async function PUT(
 ) {
   return withAuth(async (req) => {
     try {
-      const body = await req.json();
+      let body;
+      try {
+        body = await req.json();
+      } catch (parseError) {
+        console.error('Error parsing request body:', parseError);
+        throw new AppError('Corps de requête invalide', 400);
+      }
+
       const { status, deliveryAddress, customerNotes } = body;
+
+      // Log pour débogage
+      console.log('📦 Order update request:', { orderId: params.id, status, body });
 
       // Vérifier que la commande existe
       const existing = await prisma.order.findFirst({
@@ -99,7 +109,8 @@ export async function PUT(
       ];
 
       if (status && !validStatuses.includes(status)) {
-        throw new AppError('Statut invalide', 400);
+        console.error('Invalid status:', status, 'Valid statuses:', validStatuses);
+        throw new AppError(`Statut invalide: ${status}. Valeurs acceptées: ${validStatuses.join(', ')}`, 400);
       }
 
       // Mettre à jour

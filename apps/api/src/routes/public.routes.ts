@@ -6,5 +6,6 @@ const router = Router();
 // Routes publiques (non protégées)
 router.get('/restaurants/:slug', publicController.getRestaurantBySlug.bind(publicController));
 router.get('/restaurants/:slug/menu', publicController.getRestaurantMenu.bind(publicController));
+router.post('/restaurants/:slug/orders', publicController.createOrder.bind(publicController));
 
 export default router;

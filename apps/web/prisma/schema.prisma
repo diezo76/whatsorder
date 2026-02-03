@@ -12,50 +12,89 @@ datasource db {
 // ===== MODELS =====
 
 model Restaurant {
-  id               String         @id @default(uuid())
-  name             String
-  nameAr           String?
-  slug             String         @unique
-  description      String?
-  phone            String
-  email            String?
-  address          String?
-  logo             String?
-  coverImage       String?
-  currency         String         @default("EGP")
-  timezone         String         @default("Africa/Cairo")
-  language         String         @default("ar")
-  openingHours     Json?
-  deliveryZones    Json?
-  whatsappNumber   String?
-  whatsappApiKey   String?
-  whatsappApiToken String?
+  id                 String            @id @default(uuid())
+  name               String
+  nameAr             String?
+  slug               String            @unique
+  description        String?
+  phone              String
+  email              String?
+  address            String?
+  logo               String?
+  coverImage         String?
+  currency           String            @default("EGP")
+  timezone           String            @default("Africa/Cairo")
+  language           String            @default("ar")
+  openingHours       Json?
+  deliveryZones      Json?
+  whatsappNumber     String?
+  whatsappApiKey     String?
+  whatsappApiToken   String?
   whatsappBusinessId String?
-  enableAiParsing  Boolean        @default(true)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  users            User[]
-  customers        Customer[]
-  categories       Category[]
-  menuItems        MenuItem[]
-  orders           Order[]
-  conversations    Conversation[]
+  enableAiParsing    Boolean           @default(true)
+  
+  // 🔷 Stripe Connect
+  stripeAccountId       String?   // ID du compte Stripe Connect (acct_xxx)
+  stripeAccountStatus   String?   // "pending", "active", "restricted", "rejected"
+  stripeOnboardingComplete Boolean @default(false)
+  stripeConnectedAt     DateTime?
+  
+  // 🔶 PayPal
+  paypalMerchantId      String?   // ID du marchand PayPal
+  paypalEmail           String?   // Email PayPal du restaurant
+  paypalOnboardingComplete Boolean @default(false)
+  paypalConnectedAt     DateTime?
+  
+  // 💳 Options de paiement activées
+  enableCashPayment     Boolean   @default(true)
+  enableCardPayment     Boolean   @default(true)   // Carte à la livraison
+  enableStripePayment   Boolean   @default(false)  // Activé quand Stripe connecté
+  enablePaypalPayment   Boolean   @default(false)  // Activé quand PayPal connecté
+  
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  users              User[]
+  customers          Customer[]
+  categories         Category[]
+  menuItems          MenuItem[]
+  orders             Order[]
+  conversations      Conversation[]
+  messageTemplates   MessageTemplate[]
+  broadcasts         Broadcast[]
 
   @@map("restaurants")
 }
 
 model User {
-  id           String     @id @default(uuid())
-  email        String     @unique
+  id           String   @id @default(uuid())
+  email        String   @unique
   password     String
   name         String
-  role         UserRole   @default(STAFF)
+  role         UserRole @default(STAFF)
   restaurantId String
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+
+  // 🆕 Préférences Inbox
+  notifyOnNewMessage Boolean @default(true)
+  notifyOnAssignment Boolean @default(true)
+
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  // Relations existantes
   assignedOrders Order[]
 
+  // 🆕 Relations Conversations
+  assignedConversations Conversation[] @relation("AssignedConversations")
+  closedConversations   Conversation[] @relation("ClosedConversations")
+  broadcasts            Broadcast[]
+
+  @@index([restaurantId])
+  @@index([email])
   @@map("users")
 }
 
@@ -66,16 +105,17 @@ enum UserRole {
 }
 
 model Customer {
-  id            String         @id @default(uuid())
-  phone         String
-  name          String
-  email         String?
-  restaurantId  String
-  restaurant    Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  orders        Order[]
-  conversations Conversation[]
+  id                  String               @id @default(uuid())
+  phone               String
+  name                String
+  email               String?
+  restaurantId        String
+  restaurant          Restaurant           @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  orders              Order[]
+  conversations       Conversation[]
+  broadcastRecipients BroadcastRecipient[]
 
   @@unique([phone, restaurantId])
   @@map("customers")
@@ -100,56 +140,61 @@ model Category {
 }
 
 model MenuItem {
-  id           String      @id @default(uuid())
-  name         String
-  nameAr       String?
-  slug         String
-  description  String?
+  id            String            @id @default(uuid())
+  name          String
+  nameAr        String?
+  slug          String
+  description   String?
   descriptionAr String?
-  price        Float
-  image        String?
-  isAvailable  Boolean     @default(true)
-  isActive     Boolean     @default(true)
-  sortOrder    Int         @default(0)
-  categoryId   String
-  category     Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  restaurantId String
-  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  orderItems   OrderItem[]
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  price         Float? // Prix de base (optionnel si hasVariants = true)
+  image         String?
+  hasVariants   Boolean           @default(false) // Si true, le prix de base est ignoré
+  isAvailable   Boolean           @default(true)
+  isActive      Boolean           @default(true)
+  sortOrder     Int               @default(0)
+  categoryId    String
+  category      Category          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  restaurantId  String
+  restaurant    Restaurant        @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  variants      MenuItemVariant[]
+  options       MenuItemOption[]
+  orderItems    OrderItem[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   @@unique([categoryId, slug])
+  @@index([restaurantId])
+  @@index([isActive])
   @@map("menu_items")
 }
 
 model Order {
-  id              String       @id @default(uuid())
-  orderNumber      String       @unique
-  status           OrderStatus  @default(PENDING)
-  deliveryType     DeliveryType @default(DELIVERY)
-  deliveryAddress  String?
-  customerNotes    String?
-  subtotal         Float
-  deliveryFee      Float        @default(0)
-  discount         Float        @default(0)
-  tax              Float        @default(0)
-  total            Float
-  paymentMethod    String       @default("CASH")
-  paymentStatus    String       @default("PENDING")
-  completedAt      DateTime?
-  cancelledAt      DateTime?
+  id                 String       @id @default(uuid())
+  orderNumber        String       @unique
+  status             OrderStatus  @default(PENDING)
+  deliveryType       DeliveryType @default(DELIVERY)
+  deliveryAddress    String?
+  customerNotes      String?
+  subtotal           Float
+  deliveryFee        Float        @default(0)
+  discount           Float        @default(0)
+  tax                Float        @default(0)
+  total              Float
+  paymentMethod      String       @default("CASH")
+  paymentStatus      String       @default("PENDING")
+  completedAt        DateTime?
+  cancelledAt        DateTime?
   cancellationReason String?
-  customerId       String
-  customer         Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  restaurantId     String
-  restaurant       Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  assignedToId     String?
-  assignedTo       User?        @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
-  conversationId   String?
-  items            OrderItem[]
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  customerId         String
+  customer           Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  restaurantId       String
+  restaurant         Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  assignedToId       String?
+  assignedTo         User?        @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  conversationId     String?
+  items              OrderItem[]
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
   @@map("orders")
 }
@@ -172,50 +217,317 @@ enum DeliveryType {
 }
 
 model OrderItem {
-  id           String   @id @default(uuid())
-  name         String
-  quantity     Int
-  unitPrice    Float
-  subtotal     Float
-  customization Json?
-  notes        String?
-  orderId      String
-  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  menuItemId   String
-  menuItem     MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id              String            @id @default(uuid())
+  name            String
+  quantity        Int
+  unitPrice       Float
+  subtotal        Float
+  customization   Json?
+  notes           String?
+  variantId       String? // Variant sélectionné (si applicable)
+  orderId         String
+  order           Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId      String
+  menuItem        MenuItem          @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+  variant         MenuItemVariant?  @relation(fields: [variantId], references: [id])
+  selectedOptions OrderItemOption[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
+  @@index([orderId])
+  @@index([menuItemId])
+  @@index([variantId])
   @@map("order_items")
 }
 
 model Conversation {
-  id            String       @id @default(uuid())
-  whatsappPhone String?
-  isActive      Boolean      @default(true)
-  lastMessageAt DateTime     @default(now())
-  customerId    String
-  customer      Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  id            String  @id @default(uuid())
+  customerPhone String
+  customerId    String?
   restaurantId  String
-  restaurant    Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  messages      Message[]
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
 
+  // 🆕 Statut et priorité
+  status   ConversationStatus   @default(OPEN)
+  priority ConversationPriority @default(NORMAL)
+
+  // 🆕 Assignation
+  assignedToId String? // Staff assigné
+  assignedAt   DateTime?
+
+  // 🆕 Métadonnées
+  isUnread      Boolean   @default(true)
+  lastMessageAt DateTime  @default(now())
+  closedAt      DateTime?
+  closedById    String? // User qui a fermé
+
+  // 🆕 Tags/Labels
+  tags String[] @default([])
+
+  // 🆕 Notes internes (visibles uniquement par le staff)
+  internalNotes String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer   Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  assignedTo User?      @relation("AssignedConversations", fields: [assignedToId], references: [id])
+  closedBy   User?      @relation("ClosedConversations", fields: [closedById], references: [id])
+  messages   Message[]
+
+  @@index([customerPhone])
+  @@index([restaurantId])
+  @@index([status])
+  @@index([assignedToId])
+  @@index([lastMessageAt])
   @@map("conversations")
 }
 
 model Message {
-  id             String       @id @default(uuid())
-  content        String
-  direction      String       // "inbound" | "outbound"
-  type           String       @default("text") // "text" | "image" | "document"
-  mediaUrl       String?
-  status         String       @default("sent") // "sent" | "delivered" | "read" | "failed"
+  id             String @id @default(uuid())
   conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
 
+  // 🆕 Type de message
+  type MessageType @default(TEXT)
+
+  content String        @db.Text
+  sender  MessageSender
+
+  // 🆕 Métadonnées
+  isRead Boolean   @default(false)
+  readAt DateTime?
+
+  // 🆕 Pour les messages système/automatiques
+  isSystemMessage Boolean @default(false)
+  metadata        Json? // Données additionnelles (template, broadcast, etc.)
+
+  // Champs existants conservés pour compatibilité
+  direction String? // "inbound" | "outbound" (déprécié, utiliser sender)
+  mediaUrl  String?
+  status    String? @default("sent") // "sent" | "delivered" | "read" | "failed"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([createdAt])
   @@map("messages")
+}
+
+// 🆕 Enum pour le sender du message
+enum MessageSender {
+  CUSTOMER
+  STAFF
+  SYSTEM
+}
+
+// Modèle pour les variants (tailles, couleurs, etc.)
+model MenuItemVariant {
+  id         String  @id @default(uuid())
+  menuItemId String
+  name       String // ex: "Small", "Medium", "Large"
+  nameAr     String? // ex: "صغير", "متوسط", "كبير"
+  price      Float // Prix pour ce variant
+  sku        String? // Code SKU optionnel
+
+  // Gestion du stock (optionnel)
+  trackInventory Boolean @default(false)
+  stockQuantity  Int?    @default(0)
+  lowStockAlert  Int?    @default(5)
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  menuItem   MenuItem    @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@index([menuItemId])
+  @@map("menu_item_variants")
+}
+
+// Modèle pour les options (add-ons)
+model MenuItemOption {
+  id         String  @id @default(uuid())
+  menuItemId String
+  name       String // ex: "Extra cheese", "No onions"
+  nameAr     String? // ex: "جبنة إضافية", "بدون بصل"
+
+  // Type d'option
+  type MenuItemOptionType @default(ADDON)
+
+  // Prix (0 si gratuit)
+  priceModifier Float @default(0)
+
+  // Contrôles
+  isRequired    Boolean @default(false) // Le client doit choisir
+  isMultiple    Boolean @default(false) // Peut choisir plusieurs
+  maxSelections Int? // Max de sélections si isMultiple
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  menuItem         MenuItem          @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  orderItemOptions OrderItemOption[]
+
+  @@index([menuItemId])
+  @@map("menu_item_options")
+}
+
+enum MenuItemOptionType {
+  ADDON // Add-on payant (ex: Extra cheese +10 EGP)
+  MODIFICATION // Modification gratuite (ex: No onions)
+  INSTRUCTION // Instruction spéciale (ex: Well done)
+}
+
+// 🆕 Enum pour les statuts de conversation
+enum ConversationStatus {
+  OPEN // Conversation active
+  CLOSED // Conversation fermée
+  RESOLVED // Problème résolu
+  SPAM // Spam/indésirable
+}
+
+// 🆕 Enum pour les priorités
+enum ConversationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// 🆕 Enum pour les types de messages
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  LOCATION
+  ORDER_LINK // Lien vers une commande
+  TEMPLATE // Message template
+}
+
+// 🆕 Enum pour les statuts de broadcast
+enum BroadcastStatus {
+  DRAFT // Brouillon
+  SCHEDULED // Planifié
+  SENDING // En cours d'envoi
+  SENT // Envoyé
+  FAILED // Échoué
+}
+
+// Table de liaison OrderItem ↔ Options
+model OrderItemOption {
+  id            String @id @default(uuid())
+  orderItemId   String
+  optionId      String
+  priceModifier Float // Prix au moment de la commande (peut différer)
+
+  createdAt DateTime @default(now())
+
+  orderItem OrderItem      @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  option    MenuItemOption @relation(fields: [optionId], references: [id])
+
+  @@index([orderItemId])
+  @@index([optionId])
+  @@map("order_item_options")
+}
+
+// 🆕 Table pour les templates de messages
+model MessageTemplate {
+  id           String @id @default(uuid())
+  restaurantId String
+  name         String // ex: "Confirmation commande"
+  category     String // ex: "Orders", "Support", "Marketing"
+
+  // Contenu du template avec variables {{nom}}, {{total}}, etc.
+  content   String  @db.Text
+  contentAr String? @db.Text
+
+  // Variables disponibles
+  variables String[] @default([])
+
+  // Statistiques d'utilisation
+  usageCount Int       @default(0)
+  lastUsedAt DateTime?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@index([category])
+  @@map("message_templates")
+}
+
+// 🆕 Table pour les broadcasts WhatsApp
+model Broadcast {
+  id           String @id @default(uuid())
+  restaurantId String
+  name         String // ex: "Promo Weekend"
+
+  // Contenu
+  message   String  @db.Text
+  messageAr String? @db.Text
+
+  // Segmentation (filtres pour sélectionner les destinataires)
+  targetAudience Json // { status: "active", minOrders: 5, etc. }
+
+  // Statistiques
+  recipientCount Int @default(0)
+  sentCount      Int @default(0)
+  deliveredCount Int @default(0)
+  readCount      Int @default(0)
+  respondedCount Int @default(0)
+
+  // État
+  status      BroadcastStatus @default(DRAFT)
+  scheduledAt DateTime?
+  sentAt      DateTime?
+
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  restaurant Restaurant           @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  createdBy  User                 @relation(fields: [createdById], references: [id])
+  recipients BroadcastRecipient[]
+
+  @@index([restaurantId])
+  @@index([status])
+  @@map("broadcasts")
+}
+
+// 🆕 Table pour tracker les destinataires de broadcast
+model BroadcastRecipient {
+  id            String @id @default(uuid())
+  broadcastId   String
+  customerId    String
+  customerPhone String
+
+  // État de l'envoi
+  status       String    @default("pending") // pending, sent, delivered, read, failed
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  readAt       DateTime?
+  errorMessage String?
+
+  createdAt DateTime @default(now())
+
+  broadcast Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  customer  Customer  @relation(fields: [customerId], references: [id])
+
+  @@index([broadcastId])
+  @@index([customerId])
+  @@map("broadcast_recipients")
 }

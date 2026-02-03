@@ -64,6 +64,26 @@ export async function GET(request: Request) {
                     price: true,
                   },
                 },
+                variant: {
+                  select: {
+                    id: true,
+                    name: true,
+                    nameAr: true,
+                    price: true,
+                  },
+                },
+                selectedOptions: {
+                  include: {
+                    option: {
+                      select: {
+                        id: true,
+                        name: true,
+                        nameAr: true,
+                        priceModifier: true,
+                      },
+                    },
+                  },
+                },
               },
             },
             customer: {
@@ -133,26 +153,65 @@ export async function POST(request: Request) {
         throw new AppError('Certains items sont invalides', 400);
       }
 
+      // Récupérer les variants et options si nécessaire
+      const variantIds = items
+        .map((i: any) => i.variantId)
+        .filter((id: any) => id);
+      const optionIds = items
+        .flatMap((i: any) => i.selectedOptions?.map((o: any) => o.optionId) || [])
+        .filter((id: any) => id);
+
+      const [variants, options] = await Promise.all([
+        variantIds.length > 0
+          ? prisma.menuItemVariant.findMany({
+              where: { id: { in: variantIds } },
+            })
+          : [],
+        optionIds.length > 0
+          ? prisma.menuItemOption.findMany({
+              where: { id: { in: optionIds } },
+            })
+          : [],
+      ]);
+
       // Calculer le total
       let subtotal = 0;
-      const orderItems = items.map((item: any) => {
+      const orderItemsData = items.map((item: any) => {
         const menuItem = menuItems.find((m: { id: string }) => m.id === item.menuItemId);
         if (!menuItem) throw new AppError(`Item ${item.menuItemId} non trouvé`, 400);
 
-        const itemTotal = menuItem.price * item.quantity;
+        // Déterminer le prix de base (variant ou prix de l'item)
+        let basePrice = menuItem.price || 0;
+        const variant = item.variantId
+          ? variants.find((v: any) => v.id === item.variantId)
+          : null;
+        
+        if (variant) {
+          basePrice = variant.price;
+        }
+
+        // Calculer le prix des options
+        const selectedOptions = item.selectedOptions || [];
+        const optionsPrice = selectedOptions.reduce((sum: number, opt: any) => {
+          const option = options.find((o: any) => o.id === opt.optionId);
+          return sum + (option?.priceModifier || 0);
+        }, 0);
+
+        const itemTotal = (basePrice + optionsPrice) * item.quantity;
         subtotal += itemTotal;
 
         return {
           name: menuItem.name,
           menuItemId: menuItem.id,
+          variantId: item.variantId || null,
           quantity: item.quantity,
-          customization: item.variant || item.modifiers ? {
-            variant: item.variant || null,
-            modifiers: item.modifiers || [],
-          } : null,
           notes: item.notes || null,
-          unitPrice: menuItem.price,
+          unitPrice: basePrice + optionsPrice,
           subtotal: itemTotal,
+          selectedOptions: selectedOptions.map((opt: any) => ({
+            optionId: opt.optionId,
+            priceModifier: opt.priceModifier || 0,
+          })),
         };
       });
 
@@ -170,7 +229,7 @@ export async function POST(request: Request) {
       });
       const orderNumber = `ORD-${dateStr}-${String(count + 1).padStart(3, '0')}`;
 
-      // Créer la commande
+      // Créer la commande avec les items et leurs options
       const order = await prisma.order.create({
         data: {
           orderNumber,
@@ -184,7 +243,21 @@ export async function POST(request: Request) {
           deliveryFee,
           total,
           items: {
-            create: orderItems,
+            create: orderItemsData.map((item: any) => ({
+              name: item.name,
+              menuItemId: item.menuItemId,
+              variantId: item.variantId,
+              quantity: item.quantity,
+              notes: item.notes,
+              unitPrice: item.unitPrice,
+              subtotal: item.subtotal,
+              selectedOptions: {
+                create: item.selectedOptions.map((opt: any) => ({
+                  optionId: opt.optionId,
+                  priceModifier: opt.priceModifier,
+                })),
+              },
+            })),
           },
         },
         include: {

@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import authRoutes from './routes/auth.routes';
@@ -12,22 +13,87 @@ import noteRoutes from './routes/note.routes';
 import orderRoutes from './routes/order.routes';
 import aiRoutes from './routes/ai.routes';
 import analyticsRoutes from './routes/analytics.routes';
+import whatsappRoutes from './routes/whatsapp.routes';
 import { errorHandler } from './middleware/error-handler.middleware';
 import { authMiddleware } from './middleware/auth.middleware';
+import { apiLimiter, publicLimiter } from './middleware/rate-limit.middleware';
+import { loggerMiddleware } from './middleware/logger.middleware';
 import { setupSocketHandlers } from './socket';
 import { setIoInstance } from './utils/socket';
 import { ClientToServerEvents, ServerToClientEvents } from './types/socket';
-// Import OpenAI config pour initialiser et afficher le warning si nécessaire
+// Import configs pour initialiser et afficher les warnings si nécessaire
 import './config/openai';
+import './config/whatsapp';
 
 const app = express();
 const httpServer = createServer(app);
 const PORT = process.env.PORT || 4000;
 
-// Middleware
+// Security Headers avec Helmet
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:", "http:"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      connectSrc: ["'self'", "https://api.openai.com", "https://graph.facebook.com"],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
+    },
+  },
+  hsts: {
+    maxAge: 31536000, // 1 an
+    includeSubDomains: true,
+    preload: true,
+  },
+  frameguard: {
+    action: 'deny',
+  },
+  noSniff: true,
+  xssFilter: true,
+}));
+
+// Rate limiting global
+app.use('/api', apiLimiter);
+
+// Logging middleware
+app.use(loggerMiddleware);
+
+// Middleware CORS - Autoriser plusieurs origines
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:3000',
+  'https://www.whataybo.com',
+  'https://whataybo.com',
+  'http://localhost:3000',
+];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    // Autoriser les requêtes sans origine (mobile apps, Postman, etc.)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Vérifier si l'origine est autorisée
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      // En développement, autoriser toutes les origines pour faciliter le debug
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(`⚠️ [CORS] Origine non autorisée autorisée en dev: ${origin}`);
+        callback(null, true);
+      } else {
+        console.error(`❌ [CORS] Origine non autorisée: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    }
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json());
 
@@ -120,14 +186,15 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
-app.use('/api/public', publicRoutes);
+app.use('/api/public', publicLimiter, publicRoutes); // Routes publiques avec rate limiting
 app.use('/api/menu', authMiddleware, menuRoutes);
 app.use('/api/restaurant', authMiddleware, restaurantRoutes);
 app.use('/api/conversations', authMiddleware, conversationRoutes);
-app.use('/api', authMiddleware, noteRoutes);
 app.use('/api/orders', authMiddleware, orderRoutes);
-app.use('/api/ai', aiRoutes);
-app.use('/api/analytics', analyticsRoutes);
+app.use('/api/ai', authMiddleware, aiRoutes);
+app.use('/api/analytics', authMiddleware, analyticsRoutes);
+app.use('/api/notes', authMiddleware, noteRoutes); // Changé de /api à /api/notes pour éviter les conflits
+app.use('/api', whatsappRoutes);
 
 // Route pour Chrome DevTools (évite les erreurs CSP dans la console)
 app.get('/.well-known/appspecific/com.chrome.devtools.json', (_req, res) => {
@@ -138,9 +205,18 @@ app.get('/.well-known/appspecific/com.chrome.devtools.json', (_req, res) => {
 app.use(errorHandler);
 
 // Initialize Socket.io with TypeScript types
+const socketAllowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:3000',
+  'https://www.whataybo.com',
+  'https://whataybo.com',
+  'http://localhost:3000',
+];
+
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: process.env.NODE_ENV === 'development' 
+      ? true // Autoriser toutes les origines en développement
+      : socketAllowedOrigins,
     methods: ['GET', 'POST'],
     credentials: true
   }

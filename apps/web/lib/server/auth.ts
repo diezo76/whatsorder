@@ -69,3 +69,15 @@ export function requireRole(roles: string[]) {
     });
   };
 }
+
+// Fonction pour vérifier un token JWT et retourner le payload
+export async function verifyToken(token: string): Promise<AuthUser | null> {
+  try {
+    if (!token) return null;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as AuthUser;
+    return decoded;
+  } catch (error) {
+    console.error('Token verification error:', error);
+    return null;
+  }
+}

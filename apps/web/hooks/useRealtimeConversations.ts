@@ -67,8 +67,16 @@ export function useRealtimeConversations({
         }
       )
       .subscribe((status) => {
-        console.log(`📡 Conversations status: ${status}`);
-        setIsConnected(status === 'SUBSCRIBED');
+        const statusStr = String(status);
+        if (statusStr === 'SUBSCRIBED') {
+          console.log(`✅ Conversations Realtime: Connecté`);
+          setIsConnected(true);
+        } else if (statusStr === 'CHANNEL_ERROR' || statusStr === 'TIMED_OUT') {
+          console.warn(`⚠️ Conversations Realtime: ${statusStr} (L'API REST fonctionnera toujours)`);
+          setIsConnected(false);
+        } else {
+          setIsConnected(statusStr === 'SUBSCRIBED');
+        }
       });
 
     return () => {

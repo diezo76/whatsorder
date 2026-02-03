@@ -333,15 +333,28 @@ export default function ChatArea({
               <p className="text-sm mt-1">Commencez la conversation</p>
             </div>
           ) : (
-            messages.map((message) => (
-              <MessageBubble
-                key={message.id}
-                message={message}
-                showAvatar={true}
-                customerAvatar={conversation.customer.avatar}
-                customerName={conversation.customer.name}
-              />
-            ))
+            messages.map((message) => {
+              // Debug en développement
+              if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+                console.log('📤 ChatArea rendering message:', {
+                  id: message.id,
+                  content: message.content,
+                  contentLength: message.content?.length,
+                  type: message.type,
+                  direction: message.direction,
+                });
+              }
+              
+              return (
+                <MessageBubble
+                  key={message.id}
+                  message={message}
+                  showAvatar={true}
+                  customerAvatar={conversation.customer.avatar}
+                  customerName={conversation.customer.name}
+                />
+              );
+            })
           )}
         </div>
       </div>

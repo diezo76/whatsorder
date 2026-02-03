@@ -479,11 +479,11 @@ export default function OrdersPage() {
             <div className="flex items-center gap-2 text-xs">
               <div
                 className={`w-2 h-2 rounded-full ${
-                  socketConnected || isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
+                  socketConnected || isConnected ? 'bg-green-500 animate-pulse' : 'bg-blue-500'
                 }`}
               />
               <span className="text-gray-600">
-                {socketConnected || isConnected ? 'Temps réel actif' : 'Déconnecté'}
+                {socketConnected || isConnected ? 'Temps réel actif' : 'Mode REST'}
               </span>
             </div>
 
@@ -548,7 +548,7 @@ export default function OrdersPage() {
       <div className="flex-1 overflow-x-auto p-4 md:p-6 bg-gray-50">
         {/* Indicateur de connexion Realtime */}
         <div className="mb-4 flex items-center gap-2 px-4 py-2 bg-white rounded-lg border">
-          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-blue-500'}`} />
           <span className="text-sm text-gray-600">
             {isConnected ? 'Temps réel actif' : 'Déconnecté'}
           </span>

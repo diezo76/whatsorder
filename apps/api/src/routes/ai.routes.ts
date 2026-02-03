@@ -1,8 +1,12 @@
 import express from 'express';
 import { parseOrderFromMessage, createOrderFromParsed } from '../controllers/ai.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
+import { apiLimiter } from '../middleware/rate-limit.middleware';
 
 const router = express.Router();
+
+// Rate limiting pour les endpoints AI (coûteux en ressources)
+router.use(apiLimiter);
 
 // Toutes les routes sont protégées par authMiddleware
 router.use(authMiddleware);

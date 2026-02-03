@@ -2,30 +2,19 @@
 
 import { useEffect, useRef, useState } from 'react';
 import MenuItemCard from './MenuItemCard';
-
-interface MenuItem {
-  id: string;
-  name: string;
-  nameAr?: string;
-  description?: string;
-  descriptionAr?: string;
-  price: number;
-  image?: string;
-  tags?: string[];
-  isFeatured?: boolean;
-}
+import { MenuItemWithVariantsAndOptions } from '@/types/menu';
 
 interface Category {
   id: string;
   name: string;
   nameAr?: string;
   description?: string;
-  items: MenuItem[];
+  items: MenuItemWithVariantsAndOptions[];
 }
 
 interface MenuCategoryProps {
   category: Category;
-  onAddToCart?: (item: MenuItem) => void;
+  onAddToCart?: (item: MenuItemWithVariantsAndOptions) => void;
 }
 
 export default function MenuCategory({ category, onAddToCart }: MenuCategoryProps) {

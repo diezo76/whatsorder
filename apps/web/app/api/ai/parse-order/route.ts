@@ -50,8 +50,10 @@ export async function POST(request: Request) {
 
       // Construire le contexte pour OpenAI
       const menuText = menuItems
-        .map((item: { id: string; name: string; nameAr: string | null; price: number }) => 
-          `- ${item.name} (${item.nameAr || ''}) - ${item.price} EGP [ID: ${item.id}]`)
+        .map((item: { id: string; name: string; nameAr: string | null; price: number | null }) => {
+          const priceText = item.price !== null ? `${item.price} EGP` : 'Prix variable (voir variants)';
+          return `- ${item.name} (${item.nameAr || ''}) - ${priceText} [ID: ${item.id}]`;
+        })
         .join('\n');
 
       const systemPrompt = `Tu es un assistant IA pour un restaurant égyptien.

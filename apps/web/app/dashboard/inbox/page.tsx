@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { Search, MessageSquare, Plus } from 'lucide-react';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
 import ConversationList, { Conversation } from '@/components/inbox/ConversationList';
@@ -25,6 +26,29 @@ export default function InboxPage() {
 
   // Auth hook pour obtenir restaurantId
   const { user } = useAuth();
+
+  // Fonction pour charger les conversations (définie avant les hooks qui l'utilisent)
+  const loadConversations = useCallback(async () => {
+    try {
+      const response = await api.get<{
+        conversations: Conversation[];
+        total: number;
+        page: number;
+        limit: number;
+        hasMore: boolean;
+      }>('/conversations');
+
+      // Trier par lastMessageAt DESC (plus récentes en premier)
+      const sorted = response.data.conversations.sort(
+        (a, b) =>
+          new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+      );
+      setConversations(sorted);
+    } catch (error: any) {
+      console.error('Erreur lors du chargement des conversations:', error);
+      toast.error('Erreur lors du chargement des conversations');
+    }
+  }, []);
 
   // Socket.io hook (gardé pour compatibilité)
   const {
@@ -73,13 +97,14 @@ export default function InboxPage() {
         // Mapper le message du hook vers le format attendu par ChatArea
         const mappedMessage: Message = {
           id: realtimeMessage.id,
-          content: realtimeMessage.content,
-          direction: realtimeMessage.type === 'INCOMING' ? 'inbound' : 'outbound',
-          type: 'text', // Par défaut, peut être amélioré avec les attachments
+          content: realtimeMessage.content || '',
+          direction: realtimeMessage.sender === 'CUSTOMER' ? 'inbound' : 'outbound',
+          type: realtimeMessage.type === 'IMAGE' || realtimeMessage.type === 'VIDEO' ? 'image' : 
+                realtimeMessage.type === 'DOCUMENT' ? 'document' : 'text',
           conversationId: realtimeMessage.conversationId,
           createdAt: realtimeMessage.createdAt,
-          status: realtimeMessage.isRead ? 'read' : 'delivered',
-          mediaUrl: realtimeMessage.attachments?.[0] || null,
+          status: (realtimeMessage.isRead ? 'read' : (realtimeMessage.status || 'delivered')) as 'sent' | 'delivered' | 'read' | 'failed',
+          mediaUrl: realtimeMessage.attachments?.[0] || realtimeMessage.mediaUrl || null,
         };
         
         setMessages((prev) => [...prev, mappedMessage]);
@@ -135,13 +160,14 @@ export default function InboxPage() {
       // Mapper le message du hook vers le format attendu par ChatArea
       const mappedMessage: Message = {
         id: realtimeMessage.id,
-        content: realtimeMessage.content,
-        direction: realtimeMessage.type === 'INCOMING' ? 'inbound' : 'outbound',
-        type: 'text',
+        content: realtimeMessage.content || '',
+        direction: realtimeMessage.sender === 'CUSTOMER' ? 'inbound' : 'outbound',
+        type: realtimeMessage.type === 'IMAGE' || realtimeMessage.type === 'VIDEO' ? 'image' : 
+              realtimeMessage.type === 'DOCUMENT' ? 'document' : 'text',
         conversationId: realtimeMessage.conversationId,
         createdAt: realtimeMessage.createdAt,
-        status: realtimeMessage.isRead ? 'read' : 'delivered',
-        mediaUrl: realtimeMessage.attachments?.[0] || null,
+        status: (realtimeMessage.isRead ? 'read' : (realtimeMessage.status || 'delivered')) as 'sent' | 'delivered' | 'read' | 'failed',
+        mediaUrl: realtimeMessage.attachments?.[0] || realtimeMessage.mediaUrl || null,
       };
       setMessages((prev) =>
         prev.map((m) => (m.id === mappedMessage.id ? mappedMessage : m))
@@ -149,57 +175,85 @@ export default function InboxPage() {
     },
   });
 
-  // Fonction pour charger les conversations
-  const loadConversations = useCallback(async () => {
-    try {
-      const response = await api.get<{
-        conversations: Conversation[];
-        total: number;
-        page: number;
-        limit: number;
-        hasMore: boolean;
-      }>('/conversations');
-
-      // Trier par lastMessageAt DESC (plus récentes en premier)
-      const sorted = response.data.conversations.sort(
-        (a, b) =>
-          new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
-      );
-      setConversations(sorted);
-    } catch (error: any) {
-      console.error('Erreur lors du chargement des conversations:', error);
-      toast.error('Erreur lors du chargement des conversations');
-    }
-  }, []);
-
-  // Fonction pour charger les messages
-  const loadMessages = useCallback(async (conversationId: string) => {
-    setMessagesLoading(true);
-    try {
-      const response = await api.get<{
-        messages: Message[];
-        total: number;
-        page: number;
-        limit: number;
-        hasMore: boolean;
-      }>(`/conversations/${conversationId}/messages`);
-
-      // Reverse car API retourne DESC (plus récents d'abord)
-      setMessages(response.data.messages.reverse());
-    } catch (error: any) {
-      console.error('Error loading messages:', error);
-      toast.error('Erreur de chargement des messages');
-    } finally {
-      setMessagesLoading(false);
-    }
-  }, []);
-
   // Fetch initial des conversations
   useEffect(() => {
     if (user?.restaurantId) {
       loadConversations();
     }
   }, [user?.restaurantId, loadConversations]);
+
+  // Fonction pour mapper les messages de la DB vers le format ChatArea
+  const mapMessageToChatFormat = (dbMessage: any): Message => {
+    console.log('🔄 Mapping message RAW:', JSON.stringify(dbMessage, null, 2));
+    
+    // Vérifier que le message a les champs requis
+    if (!dbMessage.id) {
+      console.error('❌ Message sans ID:', dbMessage);
+      throw new Error('Message invalide: pas d\'ID');
+    }
+    
+    // Mapper sender (CUSTOMER/STAFF/SYSTEM) vers direction (inbound/outbound)
+    let directionFromSender = 'outbound';
+    if (dbMessage.sender === 'CUSTOMER') {
+      directionFromSender = 'inbound';
+    } else if (dbMessage.sender === 'STAFF' || dbMessage.sender === 'SYSTEM') {
+      directionFromSender = 'outbound';
+    }
+    
+    // Utiliser direction si disponible (pour compatibilité), sinon mapper depuis sender
+    const finalDirection = dbMessage.direction || directionFromSender;
+    
+    // Normaliser direction
+    const normalizedDirection = finalDirection === 'inbound' || finalDirection === 'INBOUND' ? 'inbound' : 'outbound';
+    
+    // Mapper type (TEXT/IMAGE/VIDEO/etc.) vers type (text/image/document)
+    let type: 'text' | 'image' | 'document' = 'text';
+    const messageType = dbMessage.type?.toUpperCase() || 'TEXT';
+    if (messageType === 'IMAGE' || messageType === 'VIDEO') {
+      type = 'image';
+    } else if (messageType === 'DOCUMENT') {
+      type = 'document';
+    }
+    
+    // Mapper status (peut être null)
+    const status = (dbMessage.status || 'sent').toLowerCase();
+    
+    // Vérifier que le contenu existe
+    const content = dbMessage.content || '';
+    if (!content || content.trim() === '') {
+      console.warn('⚠️ Message sans contenu:', {
+        id: dbMessage.id,
+        type: dbMessage.type,
+        sender: dbMessage.sender,
+        content: dbMessage.content,
+      });
+    }
+    
+    // Convertir createdAt en string si c'est un Date
+    let createdAtStr = dbMessage.createdAt;
+    if (createdAtStr instanceof Date) {
+      createdAtStr = createdAtStr.toISOString();
+    } else if (typeof createdAtStr === 'string') {
+      // Déjà une string, on la garde
+    } else {
+      createdAtStr = new Date().toISOString();
+      console.warn('⚠️ createdAt invalide, utilisation de maintenant:', dbMessage.createdAt);
+    }
+    
+    const mapped: Message = {
+      id: String(dbMessage.id),
+      content: String(content),
+      direction: normalizedDirection,
+      type,
+      conversationId: String(dbMessage.conversationId),
+      createdAt: createdAtStr,
+      status: (status === 'read' ? 'read' : status === 'delivered' ? 'delivered' : status === 'failed' ? 'failed' : 'sent') as 'sent' | 'delivered' | 'read' | 'failed',
+      mediaUrl: dbMessage.mediaUrl ? String(dbMessage.mediaUrl) : null,
+    };
+    
+    console.log('✅ Message mappé:', JSON.stringify(mapped, null, 2));
+    return mapped;
+  };
 
   // Fonction pour sélectionner une conversation
   const handleSelectConversation = useCallback(
@@ -209,7 +263,7 @@ export default function InboxPage() {
       // Marque comme lu via API si messages non lus
       if (conversation.unreadCount > 0) {
         try {
-          await api.patch(`/conversations/${conversation.id}/mark-read`);
+          await api.put(`/conversations/${conversation.id}/read`);
 
           // Met à jour localement
           setConversations((prev) =>
@@ -217,11 +271,42 @@ export default function InboxPage() {
           );
         } catch (error: any) {
           console.error('Error marking as read:', error);
+          // Ne pas bloquer la sélection de conversation si l'erreur survient
         }
       }
     },
     []
   );
+
+  // Fonction pour charger les messages
+  const loadMessages = useCallback(async (conversationId: string) => {
+    setMessagesLoading(true);
+    try {
+      const response = await api.get<{
+        messages: any[];
+        total?: number;
+        page?: number;
+        limit?: number;
+        hasMore?: boolean;
+        success?: boolean;
+      }>(`/conversations/${conversationId}/messages`);
+
+      // Mapper les messages de la DB vers le format ChatArea
+      const rawMessages = response.data.messages || [];
+      console.log('📨 Messages bruts reçus:', rawMessages.length, rawMessages);
+      
+      const mappedMessages = rawMessages.map(mapMessageToChatFormat);
+      console.log('📨 Messages mappés:', mappedMessages.length, mappedMessages);
+      
+      // Les messages sont déjà triés par createdAt ASC, on les garde dans cet ordre
+      setMessages(mappedMessages);
+    } catch (error: any) {
+      console.error('Error loading messages:', error);
+      toast.error('Erreur de chargement des messages');
+    } finally {
+      setMessagesLoading(false);
+    }
+  }, []);
 
   // Rejoindre/quitter la conversation via Socket.io et charger les messages
   useEffect(() => {
@@ -242,8 +327,17 @@ export default function InboxPage() {
     // Charge les messages
     loadMessages(selectedConversation.id);
 
-    // Marque comme lu via Socket.io
-    markAsRead(selectedConversation.id);
+    // Marque comme lu via API REST
+    if (selectedConversation.unreadCount > 0) {
+      api.put(`/conversations/${selectedConversation.id}/read`).catch((err) => {
+        console.warn('Erreur marquage lu (non bloquant):', err);
+      });
+    }
+
+    // Marque aussi via Socket.io si disponible
+    if (socketConnected) {
+      markAsRead(selectedConversation.id);
+    }
 
     return () => {
       leaveConversation(selectedConversation.id);
@@ -354,12 +448,43 @@ export default function InboxPage() {
         type: 'text',
       });
 
-      // Le message sera ajouté via Socket.io event 'new_message'
-      // Pas besoin de l'ajouter manuellement ici
-      // Mais on peut l'ajouter immédiatement pour un feedback instantané
-      setMessages((prev) => [...prev, response.data.message]);
+      // Mapper le message retourné par l'API vers le format ChatArea
+      const dbMessage = response.data.message;
+      const mappedMessage = mapMessageToChatFormat(dbMessage);
+      
+      console.log('📤 Message envoyé, ajout à l\'état local:', mappedMessage);
 
-      return response.data.message;
+      // Ajouter immédiatement à l'état local pour un feedback instantané
+      setMessages((prev) => {
+        // Vérifier qu'il n'est pas déjà présent (éviter les doublons)
+        if (prev.some(m => m.id === mappedMessage.id)) {
+          return prev;
+        }
+        return [...prev, mappedMessage];
+      });
+
+      // Mettre à jour la conversation dans la liste (lastMessage)
+      setConversations((prev) =>
+        prev
+          .map((conv) =>
+            conv.id === selectedConversation.id
+              ? {
+                  ...conv,
+                  lastMessage: {
+                    id: mappedMessage.id,
+                    content: mappedMessage.content,
+                    createdAt: mappedMessage.createdAt,
+                    direction: mappedMessage.direction,
+                  },
+                  lastMessageAt: mappedMessage.createdAt,
+                }
+              : conv
+          )
+          .sort(
+            (a, b) =>
+              new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+          )
+      );
     } catch (error: any) {
       console.error('Error sending message:', error);
       toast.error("Erreur lors de l'envoi");
@@ -367,54 +492,154 @@ export default function InboxPage() {
     }
   };
 
-  return (
-    <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)] md:h-[calc(100vh-5rem)] bg-gray-50 overflow-hidden">
-      {/* Mobile: Liste OU Chat (pas les deux) */}
-      {/* Desktop: Les deux côte à côte */}
+  // Fonction pour fermer une conversation
+  const handleCloseConversation = useCallback(async (id: string) => {
+    try {
+      await fetch(`/api/conversations/${id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'CLOSED' }),
+      });
       
-      {/* Colonne gauche : Liste des conversations */}
-      <div className={`${selectedConversation ? 'hidden md:block' : 'block'} w-full md:w-80 flex-shrink-0`}>
-        <ConversationList
-          conversations={conversations}
-          selectedId={selectedConversation?.id || null}
-          onSelect={handleSelectConversation}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          filter={filter}
-          onFilterChange={setFilter}
-        />
-      </div>
+      toast.success('Conversation fermée');
+      loadConversations();
+      if (selectedConversation?.id === id) {
+        setSelectedConversation(null);
+      }
+    } catch (error) {
+      console.error('Failed to close conversation:', error);
+      toast.error('Erreur lors de la fermeture');
+    }
+  }, [selectedConversation, loadConversations]);
 
-      {/* Colonne centrale : Zone de chat */}
-      <div className={`${selectedConversation ? 'flex' : 'hidden md:flex'} flex-1 flex-col`}>
-        {/* Bouton retour sur mobile */}
-        {selectedConversation && (
-          <button
-            onClick={() => setSelectedConversation(null)}
-            className="md:hidden flex items-center gap-2 p-3 bg-white border-b text-slate-700"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            <span>Retour</span>
-          </button>
-        )}
-        <ChatArea
-          conversation={selectedConversation}
-          messages={messages}
-          onSendMessage={handleSendMessage}
-          onToggleInfo={() => setShowCustomerInfo(!showCustomerInfo)}
-          loading={messagesLoading}
-          isConnected={socketConnected || messagesConnected}
-        />
-      </div>
+  // Debug: Log l'état des connexions
+  useEffect(() => {
+    console.log('🔌 État des connexions:', {
+      socketConnected,
+      conversationsConnected,
+      messagesConnected,
+      total: socketConnected || conversationsConnected || messagesConnected,
+    });
+  }, [socketConnected, conversationsConnected, messagesConnected]);
 
-      {/* Colonne droite : Infos client + notes (conditionnelle) - Desktop only */}
-      {showCustomerInfo && selectedConversation && (
-        <div className="hidden md:block">
-          <CustomerInfo conversation={selectedConversation} onClose={() => setShowCustomerInfo(false)} />
+  // Raccourcis clavier
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Ctrl+K : Focus recherche
+      if (e.ctrlKey && e.key === 'k') {
+        e.preventDefault();
+        document.getElementById('inbox-search')?.focus();
+      }
+      
+      // C : Fermer conversation sélectionnée
+      if (e.key === 'c' && selectedConversation && e.target === document.body && !e.ctrlKey) {
+        handleCloseConversation(selectedConversation.id);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [selectedConversation, handleCloseConversation]);
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+      {/* Header avec recherche */}
+      <div className="border-b bg-white px-6 py-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <MessageSquare className="w-6 h-6 text-orange-600" />
+            <h1 className="text-2xl font-bold">Inbox WhatsApp</h1>
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${
+              (socketConnected || conversationsConnected || messagesConnected) 
+                ? 'bg-green-100 text-green-800' 
+                : 'bg-blue-100 text-blue-800'
+            }`}>
+              <div className={`w-2 h-2 rounded-full ${
+                (socketConnected || conversationsConnected || messagesConnected) 
+                  ? 'bg-green-500' 
+                  : 'bg-blue-500'
+              }`} />
+              {(socketConnected || conversationsConnected || messagesConnected) 
+                ? '🟢 Temps réel actif' 
+                : '🔵 Mode REST (API fonctionnelle)'}
+            </div>
+          </div>
         </div>
-      )}
+
+        {/* Barre de recherche */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+          <input
+            id="inbox-search"
+            type="text"
+            placeholder="Rechercher par nom, téléphone... (Ctrl+K)"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+        </div>
+      </div>
+
+
+      {/* Contenu principal */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Colonne gauche : Liste des conversations */}
+        <div className={`${selectedConversation ? 'hidden md:block' : 'block'} w-full md:w-80 flex-shrink-0 border-r bg-white overflow-y-auto`}>
+          <ConversationList
+            conversations={conversations}
+            selectedId={selectedConversation?.id || null}
+            onSelect={handleSelectConversation}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            filter={filter}
+            onFilterChange={setFilter}
+          />
+        </div>
+
+        {/* Colonne centrale : Zone de chat */}
+        <div className={`${selectedConversation ? 'flex' : 'hidden md:flex'} flex-1 flex-col`}>
+          {selectedConversation ? (
+            <>
+              {/* Bouton retour sur mobile */}
+              <button
+                onClick={() => setSelectedConversation(null)}
+                className="md:hidden flex items-center gap-2 p-3 bg-white border-b text-slate-700"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                <span>Retour</span>
+              </button>
+              <ChatArea
+                conversation={selectedConversation}
+                messages={messages}
+                onSendMessage={handleSendMessage}
+                onToggleInfo={() => setShowCustomerInfo(!showCustomerInfo)}
+                loading={messagesLoading}
+                isConnected={socketConnected || messagesConnected}
+              />
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-500">
+              <div className="text-center">
+                <MessageSquare size={64} className="mx-auto mb-4 text-gray-300" />
+                <p className="text-lg">Sélectionnez une conversation</p>
+                <p className="text-sm mt-2">Choisissez une conversation dans la liste pour commencer</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Colonne droite : Infos client + notes (conditionnelle) - Desktop only */}
+        {showCustomerInfo && selectedConversation && (
+          <div className="hidden md:block">
+            <CustomerInfo conversation={selectedConversation} onClose={() => setShowCustomerInfo(false)} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

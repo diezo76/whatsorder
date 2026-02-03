@@ -1,7 +1,3 @@
-// Prisma Schema - Whataybo Restaurant Management System
-// Base de données: PostgreSQL 15+
-// Version: 1.0.0
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,259 +7,169 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ==========================================
-// MODÈLES CORE
-// ==========================================
-
 model Restaurant {
-  id          String   @id @default(uuid())
-  name        String
-  slug        String   @unique
-  phone       String
-  email       String?
-  address     String?
-  logo        String?
-  coverImage  String?
-  description String?
-  
-  // Configuration
-  currency    String   @default("EGP")
-  timezone    String   @default("Africa/Cairo")
-  language    String   @default("ar")
-  
-  // Horaires (JSON: {monday: {open: "09:00", close: "22:00"}, ...})
-  openingHours Json?
-  
-  // Zones de livraison (JSON: [{name: "Zone 1", fee: 20}, ...])
-  deliveryZones Json?
-  
-  // WhatsApp
-  whatsappNumber String?
-  whatsappApiToken String?
+  id                 String           @id @default(uuid())
+  name               String
+  slug               String           @unique
+  phone              String
+  email              String?
+  address            String?
+  logo               String?
+  coverImage         String?
+  description        String?
+  currency           String           @default("EGP")
+  timezone           String           @default("Africa/Cairo")
+  language           String           @default("ar")
+  openingHours       Json?
+  deliveryZones      Json?
+  whatsappNumber     String?
+  whatsappApiToken   String?
   whatsappBusinessId String?
-  
-  // Statut
-  isActive    Boolean  @default(true)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  // Relations
-  users       User[]
-  categories  Category[]
-  customers   Customer[]
-  orders      Order[]
-  conversations Conversation[]
-  workflows   Workflow[]
-  campaigns   Campaign[]
-  analytics   DailyAnalytics[]
-  
+  isActive           Boolean          @default(true)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  campaigns          Campaign[]
+  categories         Category[]
+  conversations      Conversation[]
+  customers          Customer[]
+  analytics          DailyAnalytics[]
+  orders             Order[]
+  users              User[]
+  workflows          Workflow[]
+
   @@index([slug])
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  password     String   // Hashed with bcrypt
-  name         String
-  phone        String?
-  avatar       String?
-  role         UserRole @default(STAFF)
-  
-  restaurantId String?
-  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  
-  isActive     Boolean  @default(true)
-  lastLoginAt  DateTime?
-  
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  // Relations
-  assignedOrders Order[]
+  id             String         @id @default(uuid())
+  email          String         @unique
+  password       String
+  name           String
+  phone          String?
+  avatar         String?
+  role           UserRole       @default(STAFF)
+  restaurantId   String?
+  isActive       Boolean        @default(true)
+  lastLoginAt    DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
   internalNotes  InternalNote[]
-  
+  assignedOrders Order[]
+  restaurant     Restaurant?    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
   @@index([restaurantId])
   @@index([email])
 }
 
-enum UserRole {
-  OWNER
-  MANAGER
-  STAFF
-  DELIVERY
-}
-
-// ==========================================
-// MENU & CATALOGUE
-// ==========================================
-
 model Category {
-  id           String   @id @default(uuid())
+  id           String     @id @default(uuid())
   name         String
   nameAr       String?
   slug         String
   description  String?
   image        String?
-  sortOrder    Int      @default(0)
-  isActive     Boolean  @default(true)
-  
+  sortOrder    Int        @default(0)
+  isActive     Boolean    @default(true)
   restaurantId String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  // Relations
   items        MenuItem[]
-  
+
   @@unique([restaurantId, slug])
   @@index([restaurantId, isActive])
 }
 
 model MenuItem {
-  id           String   @id @default(uuid())
-  name         String
-  nameAr       String?
-  slug         String
-  description  String?
-  descriptionAr String?
-  
-  price        Float
-  compareAtPrice Float?
-  
-  image        String?
-  images       String[]
-  
-  // Variantes (JSON: [{name: "Size", options: ["Small", "Large"], prices: [0, 10]}])
-  variants     Json?
-  
-  // Modificateurs (JSON: [{name: "Extra Cheese", price: 5, max: 2}])
-  modifiers    Json?
-  
-  // Statut
-  isAvailable  Boolean  @default(true)
-  isActive     Boolean  @default(true)
-  isFeatured   Boolean  @default(false)
-  
-  // Nutrition (optionnel)
-  calories     Int?
-  preparationTime Int?  // en minutes
-  
-  // Tags
-  tags         String[]
-  allergens    String[]
-  
-  sortOrder    Int      @default(0)
-  
-  categoryId   String
-  category     Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  
-  restaurantId String
-  
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  // Relations
-  orderItems   OrderItem[]
-  
+  id              String      @id @default(uuid())
+  name            String
+  nameAr          String?
+  slug            String
+  description     String?
+  descriptionAr   String?
+  price           Float
+  compareAtPrice  Float?
+  image           String?
+  images          String[]
+  variants        Json?
+  modifiers       Json?
+  isAvailable     Boolean     @default(true)
+  isActive        Boolean     @default(true)
+  isFeatured      Boolean     @default(false)
+  calories        Int?
+  preparationTime Int?
+  tags            String[]
+  allergens       String[]
+  sortOrder       Int         @default(0)
+  categoryId      String
+  restaurantId    String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  category        Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  orderItems      OrderItem[]
+
   @@unique([categoryId, slug])
   @@index([categoryId, isActive, isAvailable])
   @@index([isFeatured])
 }
 
-// ==========================================
-// CLIENTS & COMMANDES
-// ==========================================
-
 model Customer {
-  id           String   @id @default(uuid())
-  phone        String
-  name         String?
-  email        String?
-  address      String?
-  
-  // Stats
-  totalOrders  Int      @default(0)
-  totalSpent   Float    @default(0)
-  lastOrderAt  DateTime?
-  
-  // Préférences
-  language     String   @default("ar")
-  notes        String?
-  
-  restaurantId String
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  // Relations
-  orders       Order[]
+  id            String         @id @default(uuid())
+  phone         String
+  name          String?
+  email         String?
+  address       String?
+  totalOrders   Int            @default(0)
+  totalSpent    Float          @default(0)
+  lastOrderAt   DateTime?
+  language      String         @default("ar")
+  notes         String?
+  restaurantId  String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   conversations Conversation[]
-  
+  restaurant    Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  orders        Order[]
+
   @@unique([restaurantId, phone])
   @@index([restaurantId, phone])
 }
 
 model Order {
-  id           String      @id @default(uuid())
-  orderNumber  String      @unique
-  
-  // Client
-  customerId   String
-  customer     Customer    @relation(fields: [customerId], references: [id])
-  
-  // Livraison
-  deliveryType DeliveryType
-  deliveryAddress String?
-  deliveryFee  Float       @default(0)
-  deliveryNotes String?
-  
-  // Montants
-  subtotal     Float
-  discount     Float       @default(0)
-  tax          Float       @default(0)
-  total        Float
-  
-  // Statut
-  status       OrderStatus @default(PENDING)
-  
-  // Paiement
-  paymentMethod PaymentMethod @default(CASH)
-  paymentStatus PaymentStatus @default(PENDING)
-  paidAt       DateTime?
-  
-  // Source
-  source       OrderSource @default(WHATSAPP)
-  
-  // Notes
-  customerNotes String?
-  kitchenNotes  String?
-  
-  // Assignation
-  assignedToId  String?
-  assignedTo    User?       @relation(fields: [assignedToId], references: [id])
-  assignedAt    DateTime?
-  
-  // Timing
+  id                  String         @id @default(uuid())
+  orderNumber         String         @unique
+  customerId          String
+  deliveryType        DeliveryType
+  deliveryAddress     String?
+  deliveryFee         Float          @default(0)
+  deliveryNotes       String?
+  subtotal            Float
+  discount            Float          @default(0)
+  tax                 Float          @default(0)
+  total               Float
+  status              OrderStatus    @default(PENDING)
+  paymentMethod       PaymentMethod  @default(CASH)
+  paymentStatus       PaymentStatus  @default(PENDING)
+  paidAt              DateTime?
+  source              OrderSource    @default(WHATSAPP)
+  customerNotes       String?
+  kitchenNotes        String?
+  assignedToId        String?
+  assignedAt          DateTime?
   estimatedDeliveryAt DateTime?
-  completedAt  DateTime?
-  cancelledAt  DateTime?
-  cancellationReason String?
-  
-  restaurantId String
-  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  
-  conversationId String?
-  
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  
-  // Relations
-  items        OrderItem[]
-  internalNotes InternalNote[]
-  
+  completedAt         DateTime?
+  cancelledAt         DateTime?
+  cancellationReason  String?
+  restaurantId        String
+  conversationId      String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  internalNotes       InternalNote[]
+  assignedTo          User?          @relation(fields: [assignedToId], references: [id])
+  customer            Customer       @relation(fields: [customerId], references: [id])
+  restaurant          Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  items               OrderItem[]
+
   @@index([restaurantId, status])
   @@index([customerId])
   @@index([orderNumber])
@@ -271,27 +177,152 @@ model Order {
 }
 
 model OrderItem {
-  id           String   @id @default(uuid())
-  
-  orderId      String
-  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
-  menuItemId   String
-  menuItem     MenuItem @relation(fields: [menuItemId], references: [id])
-  
-  name         String
-  quantity     Int
-  unitPrice    Float
-  subtotal     Float
-  
-  // Personnalisation (JSON: {variant: "Large", modifiers: ["Extra Cheese"]})
+  id            String   @id @default(uuid())
+  orderId       String
+  menuItemId    String
+  name          String
+  quantity      Int
+  unitPrice     Float
+  subtotal      Float
   customization Json?
-  
-  notes        String?
-  
-  createdAt    DateTime @default(now())
-  
+  notes         String?
+  createdAt     DateTime @default(now())
+  menuItem      MenuItem @relation(fields: [menuItemId], references: [id])
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
   @@index([orderId])
+}
+
+model Conversation {
+  id            String         @id @default(uuid())
+  customerId    String
+  restaurantId  String
+  whatsappPhone String
+  isActive      Boolean        @default(true)
+  lastMessageAt DateTime       @default(now())
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  customer      Customer       @relation(fields: [customerId], references: [id])
+  restaurant    Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  internalNotes InternalNote[]
+  messages      Message[]
+
+  @@unique([restaurantId, whatsappPhone])
+  @@index([restaurantId, isActive])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  content        String
+  direction      String
+  type           String       @default("text")
+  whatsappId     String?      @unique
+  mediaUrl       String?
+  status         String       @default("sent")
+  isProcessed    Boolean      @default(false)
+  aiParsed       Json?
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([whatsappId])
+}
+
+model InternalNote {
+  id             String        @id @default(uuid())
+  content        String
+  userId         String
+  orderId        String?
+  conversationId String?
+  createdAt      DateTime      @default(now())
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  order          Order?        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id])
+
+  @@index([orderId])
+  @@index([conversationId])
+}
+
+model Workflow {
+  id           String              @id @default(uuid())
+  name         String
+  description  String?
+  trigger      String
+  conditions   Json?
+  actions      Json
+  isActive     Boolean             @default(true)
+  restaurantId String
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  restaurant   Restaurant          @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  executions   WorkflowExecution[]
+
+  @@index([restaurantId, isActive])
+}
+
+model WorkflowExecution {
+  id          String    @id @default(uuid())
+  workflowId  String
+  context     Json
+  status      String
+  result      Json?
+  error       String?
+  executedAt  DateTime  @default(now())
+  completedAt DateTime?
+  workflow    Workflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId, executedAt])
+}
+
+model Campaign {
+  id             String     @id @default(uuid())
+  name           String
+  description    String?
+  messag         String
+  mediaUrl       String?
+  segmentation   Json?
+  scheduledAt    DateTime?
+  sentAt         DateTime?
+  targetCount    Int        @default(0)
+  sentCount      Int        @default(0)
+  deliveredCount Int        @default(0)
+  readCount      Int        @default(0)
+  clickCount     Int        @default(0)
+  status         String     @default("draft")
+  restaurantId   String
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  restaurant     Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, status])
+}
+
+model DailyAnalytics {
+  id                 String     @id @default(uuid())
+  date               DateTime   @db.Date
+  restaurantId       String
+  totalOrders        Int        @default(0)
+  completedOrders    Int        @default(0)
+  cancelledOrders    Int        @default(0)
+  revenue            Float      @default(0)
+  avgOrderValue      Float      @default(0)
+  newCustomers       Int        @default(0)
+  returningCustomers Int        @default(0)
+  messagesReceived   Int        @default(0)
+  messagesSent       Int        @default(0)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  restaurant         Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, date])
+  @@index([restaurantId, date])
+}
+
+enum UserRole {
+  OWNER
+  MANAGER
+  STAFF
 }
 
 enum DeliveryType {
@@ -330,211 +361,4 @@ enum OrderSource {
   WEBSITE
   PHONE
   WALK_IN
-}
-
-// ==========================================
-// WHATSAPP & CONVERSATIONS
-// ==========================================
-
-model Conversation {
-  id           String   @id @default(uuid())
-  
-  customerId   String
-  customer     Customer @relation(fields: [customerId], references: [id])
-  
-  restaurantId String
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  
-  // WhatsApp
-  whatsappPhone String
-  
-  // Statut
-  isActive     Boolean  @default(true)
-  lastMessageAt DateTime @default(now())
-  
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  // Relations
-  messages     Message[]
-  internalNotes InternalNote[]
-  
-  @@unique([restaurantId, whatsappPhone])
-  @@index([restaurantId, isActive])
-  @@index([restaurantId, lastMessageAt])
-}
-
-model Message {
-  id           String   @id @default(uuid())
-  
-  conversationId String
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  
-  // Message
-  content      String
-  direction    String   // "inbound" | "outbound"
-  type         String   @default("text") // "text" | "image" | "document" | "audio"
-  
-  // WhatsApp
-  whatsappId   String?  @unique
-  mediaUrl     String?
-  
-  // Statut
-  status       String   @default("sent") // "sent" | "delivered" | "read" | "failed"
-  
-  // IA
-  isProcessed  Boolean  @default(false)
-  aiParsed     Json?    // Résultat du parsing IA
-  
-  createdAt    DateTime @default(now())
-  
-  @@index([conversationId, createdAt])
-  @@index([whatsappId])
-}
-
-model InternalNote {
-  id           String   @id @default(uuid())
-  
-  content      String
-  
-  userId       String
-  user         User     @relation(fields: [userId], references: [id])
-  
-  orderId      String?
-  order        Order?   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
-  conversationId String?
-  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  
-  createdAt    DateTime @default(now())
-  
-  @@index([orderId])
-  @@index([conversationId])
-}
-
-// ==========================================
-// AUTOMATION & WORKFLOWS
-// ==========================================
-
-model Workflow {
-  id           String   @id @default(uuid())
-  name         String
-  description  String?
-  
-  // Trigger
-  trigger      String   // "new_order" | "order_status_changed" | "new_customer" | etc.
-  
-  // Conditions (JSON)
-  conditions   Json?
-  
-  // Actions (JSON: [{type: "send_whatsapp", template: "order_confirmation", ...}])
-  actions      Json
-  
-  // Statut
-  isActive     Boolean  @default(true)
-  
-  restaurantId String
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  // Relations
-  executions   WorkflowExecution[]
-  
-  @@index([restaurantId, isActive])
-}
-
-model WorkflowExecution {
-  id           String   @id @default(uuid())
-  
-  workflowId   String
-  workflow     Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  
-  // Contexte (JSON: {orderId: "...", customerId: "..."})
-  context      Json
-  
-  // Résultat
-  status       String   // "success" | "failed" | "running"
-  result       Json?
-  error        String?
-  
-  executedAt   DateTime @default(now())
-  completedAt  DateTime?
-  
-  @@index([workflowId, executedAt])
-}
-
-// ==========================================
-// MARKETING & CAMPAIGNS
-// ==========================================
-
-model Campaign {
-  id           String   @id @default(uuid())
-  name         String
-  description  String?
-  
-  // Message
-  message     String
-  mediaUrl     String?
-  
-  // Segmentation (JSON: {tags: ["vip"], lastOrderDays: 30, ...})
-  segmentation Json?
-  
-  // Planning
-  scheduledAt  DateTime?
-  sentAt       DateTime?
-  
-  // Stats
-  targetCount  Int      @default(0)
-  sentCount    Int      @default(0)
-  deliveredCount Int    @default(0)
-  readCount    Int      @default(0)
-  clickCount   Int      @default(0)
-  
-  // Statut
-  status       String   @default("draft") // "draft" | "scheduled" | "sending" | "sent" | "failed"
-  
-  restaurantId String
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  @@index([restaurantId, status])
-}
-
-// ==========================================
-// ANALYTICS
-// ==========================================
-
-model DailyAnalytics {
-  id           String   @id @default(uuid())
-  date         DateTime @db.Date
-  
-  restaurantId String
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  
-  // Métriques commandes
-  totalOrders  Int      @default(0)
-  completedOrders Int   @default(0)
-  cancelledOrders Int   @default(0)
-  
-  // Métriques financières
-  revenue      Float    @default(0)
-  avgOrderValue Float   @default(0)
-  
-  // Métriques clients
-  newCustomers Int      @default(0)
-  returningCustomers Int @default(0)
-  
-  // Métriques WhatsApp
-  messagesReceived Int   @default(0)
-  messagesSent Int      @default(0)
-  
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  @@unique([restaurantId, date])
-  @@index([restaurantId, date])
 }

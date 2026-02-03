@@ -1,4 +1,5 @@
 import { OrderStatus } from '@prisma/client';
+import { getWhatsAppConfig, isWhatsAppEnabled } from '../config/whatsapp';
 
 /**
  * Interface pour les options de notification
@@ -7,6 +8,33 @@ export interface NotificationOptions {
   phone: string;
   message: string;
   orderId: string;
+}
+
+/**
+ * Interface pour la réponse de l'API WhatsApp
+ */
+interface WhatsAppApiResponse {
+  messaging_product: string;
+  contacts: Array<{
+    input: string;
+    wa_id: string;
+  }>;
+  messages: Array<{
+    id: string;
+  }>;
+}
+
+/**
+ * Interface pour les erreurs de l'API WhatsApp
+ */
+interface WhatsAppApiError {
+  error: {
+    message: string;
+    type: string;
+    code: number;
+    error_subcode?: number;
+    fbtrace_id?: string;
+  };
 }
 
 /**
@@ -107,41 +135,109 @@ Pour toute question, contactez-nous.
 }
 
 /**
- * TODO: Implémenter l'envoi via WhatsApp Business Cloud API
- * @param _phone - Numéro de téléphone du destinataire
- * @param _message - Message à envoyer
- * @throws Error si l'envoi échoue
- * 
- * Cette fonction sera utilisée dans sendOrderNotification une fois l'API configurée
+ * Formate un numéro de téléphone pour WhatsApp (format international)
+ * @param phone - Numéro de téléphone (peut contenir +, espaces, tirets, etc.)
+ * @returns Numéro formaté (ex: 201234567890)
  */
-export async function sendWhatsAppMessage(_phone: string, _message: string): Promise<void> {
-  // const whatsappUrl = `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
-  // const token = process.env.WHATSAPP_API_TOKEN;
-  //
-  // if (!token || !whatsappUrl) {
-  //   throw new Error('WhatsApp API credentials not configured');
-  // }
-  //
-  // const response = await fetch(whatsappUrl, {
-  //   method: 'POST',
-  //   headers: {
-  //     'Authorization': `Bearer ${token}`,
-  //     'Content-Type': 'application/json',
-  //   },
-  //   body: JSON.stringify({
-  //     messaging_product: 'whatsapp',
-  //     to: phone,
-  //     type: 'text',
-  //     text: { body: message },
-  //   }),
-  // });
-  //
-  // if (!response.ok) {
-  //   const error = await response.json();
-  //   throw new Error(`WhatsApp API error: ${JSON.stringify(error)}`);
-  // }
+export function formatPhoneNumber(phone: string): string {
+  // Supprime tous les caractères non numériques sauf +
+  let cleaned = phone.replace(/[^\d+]/g, '');
+  
+  // Si commence par +, supprime le +
+  if (cleaned.startsWith('+')) {
+    cleaned = cleaned.substring(1);
+  }
+  
+  // Si commence par 00, supprime les 00
+  if (cleaned.startsWith('00')) {
+    cleaned = cleaned.substring(2);
+  }
+  
+  return cleaned;
+}
 
-  throw new Error('WhatsApp API not implemented yet');
+/**
+ * Envoie un message WhatsApp via l'API Business Cloud API
+ * @param phone - Numéro de téléphone du destinataire (format international sans +)
+ * @param message - Message texte à envoyer
+ * @param restaurantConfig - Configuration WhatsApp du restaurant (optionnel)
+ * @returns Promise qui se résout avec l'ID du message envoyé
+ * @throws Error si l'envoi échoue ou si WhatsApp n'est pas configuré
+ */
+export async function sendWhatsAppMessage(
+  phone: string,
+  message: string,
+  restaurantConfig?: {
+    whatsappApiToken?: string | null;
+    whatsappBusinessId?: string | null;
+  }
+): Promise<string> {
+  // Vérifier que WhatsApp est configuré
+  const config = getWhatsAppConfig(restaurantConfig);
+  if (!config) {
+    throw new Error(
+      'WhatsApp API non configurée. Configurez WHATSAPP_PHONE_NUMBER_ID et WHATSAPP_ACCESS_TOKEN, ' +
+      'ou ajoutez whatsappApiToken et whatsappBusinessId au restaurant.'
+    );
+  }
+
+  // Formater le numéro de téléphone
+  const formattedPhone = formatPhoneNumber(phone);
+  
+  if (!formattedPhone || formattedPhone.length < 10) {
+    throw new Error(`Numéro de téléphone invalide: ${phone}`);
+  }
+
+  // Construire l'URL de l'API
+  const apiUrl = `${config.apiUrl}/${config.version}/${config.phoneNumberId}/messages`;
+
+  try {
+    // Envoyer la requête à l'API WhatsApp
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${config.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: formattedPhone,
+        type: 'text',
+        text: {
+          body: message,
+        },
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const error = data as WhatsAppApiError;
+      throw new Error(
+        `WhatsApp API error (${error.error.code}): ${error.error.message}`
+      );
+    }
+
+    const result = data as WhatsAppApiResponse;
+    const messageId = result.messages?.[0]?.id;
+
+    if (!messageId) {
+      throw new Error('WhatsApp API n\'a pas retourné d\'ID de message');
+    }
+
+    console.log(`✅ WhatsApp message sent successfully to ${formattedPhone} (ID: ${messageId})`);
+    return messageId;
+  } catch (error: any) {
+    console.error(`❌ Error sending WhatsApp message to ${formattedPhone}:`, error);
+    
+    // Re-throw avec un message plus clair
+    if (error instanceof Error) {
+      throw error;
+    }
+    
+    throw new Error(`Erreur lors de l'envoi du message WhatsApp: ${error.message || String(error)}`);
+  }
 }
 
 /**
@@ -149,28 +245,27 @@ export async function sendWhatsAppMessage(_phone: string, _message: string): Pro
  * @param order - Commande complète avec relations (customer, restaurant, etc.)
  * @param status - Nouveau statut de la commande
  * @returns Promise qui se résout une fois la notification envoyée (ou loggée)
- * 
- * TODO: Implémenter l'envoi réel via WhatsApp Business API
  */
 export async function sendOrderNotification(
   order: any,
   status: OrderStatus
-): Promise<void> {
+): Promise<string | null> {
   try {
     const customerPhone = order.customer?.phone;
     const orderNumber = order.orderNumber;
     const orderId = order.id;
+    const restaurant = order.restaurant;
 
     if (!customerPhone) {
       console.warn(`[WhatsApp] No phone number for order ${orderNumber}`);
-      return;
+      return null;
     }
 
     // Génère le message selon le statut
     const message = generateStatusMessage(order, status);
 
-    // Format du téléphone (supprime les caractères non numériques sauf +)
-    const formattedPhone = customerPhone.replace(/[^\d+]/g, '');
+    // Format du téléphone
+    const formattedPhone = formatPhoneNumber(customerPhone);
 
     // Logs détaillés pour debug
     const timestamp = new Date().toISOString();
@@ -184,20 +279,32 @@ export async function sendOrderNotification(
     console.log(message);
     console.log('---');
 
-    // TODO: Implémenter l'envoi réel
     // Vérifier si le restaurant a configuré WhatsApp API
-    // if (order.restaurant?.whatsappApiToken) {
-    //   await sendWhatsAppMessage(formattedPhone, message);
-    //   console.log(`✅ WhatsApp notification sent successfully to ${formattedPhone}`);
-    // } else {
-    //   console.log(`⚠️ WhatsApp API not configured for restaurant ${order.restaurantId}`);
-    // }
+    const restaurantConfig = restaurant ? {
+      whatsappApiToken: restaurant.whatsappApiToken,
+      whatsappBusinessId: restaurant.whatsappBusinessId,
+    } : undefined;
 
-    // Pour l'instant, on retourne une promesse résolue
-    return Promise.resolve();
+    if (!isWhatsAppEnabled(restaurantConfig)) {
+      console.log(`⚠️ WhatsApp API not configured for restaurant ${order.restaurantId}`);
+      console.log(`   Configurez whatsappApiToken et whatsappBusinessId dans les paramètres du restaurant`);
+      return null;
+    }
+
+    // Envoyer le message WhatsApp
+    try {
+      const messageId = await sendWhatsAppMessage(formattedPhone, message, restaurantConfig);
+      console.log(`✅ WhatsApp notification sent successfully to ${formattedPhone} (Message ID: ${messageId})`);
+      return messageId;
+    } catch (error: any) {
+      console.error(`❌ Failed to send WhatsApp notification to ${formattedPhone}:`, error.message);
+      // Ne pas faire échouer la requête si la notification échoue
+      // L'erreur est loggée mais n'est pas propagée
+      return null;
+    }
   } catch (error) {
     console.error('[WhatsApp] Error generating notification:', error);
     // Ne pas faire échouer la requête si la notification échoue
-    return Promise.resolve();
+    return null;
   }
 }

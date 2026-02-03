@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import { prisma } from '@/utils/prisma';
 import { generateToken } from '@/utils/jwt';
+import { emailService } from './email.service';
 
 export interface RegisterInput {
   email: string;
@@ -27,6 +28,28 @@ export interface AuthResponse {
 }
 
 export class AuthService {
+  /**
+   * Génère un slug unique pour le restaurant
+   */
+  private async generateUniqueSlug(baseName: string): Promise<string> {
+    const baseSlug = baseName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
+      .substring(0, 50); // Limiter la longueur
+    
+    let slug = baseSlug || `restaurant-${Date.now()}`;
+    let counter = 1;
+    
+    // Vérifier l'unicité du slug
+    while (await prisma.restaurant.findUnique({ where: { slug } })) {
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+    
+    return slug;
+  }
+
   async register(input: RegisterInput): Promise<AuthResponse> {
     // Vérifier si l'utilisateur existe déjà
     const existingUser = await prisma.user.findUnique({
@@ -45,7 +68,23 @@ export class AuthService {
       ? `${input.firstName} ${input.lastName}`.trim()
       : input.firstName || input.lastName || input.email.split('@')[0];
 
-    // Créer l'utilisateur (sans restaurantId pour l'instant)
+    // Générer un slug unique pour le restaurant
+    const restaurantSlug = await this.generateUniqueSlug(
+      input.firstName || input.lastName || input.email.split('@')[0] || 'restaurant'
+    );
+
+    // Créer le restaurant avec des valeurs par défaut
+    const restaurant = await prisma.restaurant.create({
+      data: {
+        name: 'Mon Restaurant', // Sera mis à jour lors de l'onboarding
+        slug: restaurantSlug,
+        phone: input.phone || '0000000000', // Sera mis à jour lors de l'onboarding
+        email: input.email,
+        isActive: true,
+      },
+    });
+
+    // Créer l'utilisateur lié au restaurant
     const user = await prisma.user.create({
       data: {
         email: input.email,
@@ -53,8 +92,24 @@ export class AuthService {
         name,
         phone: input.phone,
         role: 'OWNER', // Par défaut OWNER pour les nouveaux comptes
+        restaurantId: restaurant.id,
       },
     });
+
+    // Envoyer l'email de confirmation (ne pas faire échouer l'inscription si l'email échoue)
+    try {
+      const frontendUrl = process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://www.whataybo.com';
+      await emailService.sendRestaurantConfirmationEmail({
+        restaurantName: restaurant.name,
+        ownerName: name,
+        ownerEmail: input.email,
+        restaurantSlug: restaurant.slug,
+        dashboardUrl: `${frontendUrl}/dashboard`,
+      });
+    } catch (error: any) {
+      console.error('⚠️ Failed to send confirmation email:', error.message);
+      // Ne pas faire échouer l'inscription si l'email échoue
+    }
 
     // Générer le token JWT
     const token = generateToken({

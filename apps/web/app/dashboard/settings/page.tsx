@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Building2, Clock, Truck, MessageCircle, Save } from 'lucide-react';
+import { Building2, Clock, Truck, MessageCircle, Save, Share2, CreditCard } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { api } from '@/lib/api';
 import SettingsGeneralTab from '@/components/settings/SettingsGeneralTab';
 import SettingsHoursTab from '@/components/settings/SettingsHoursTab';
 import SettingsDeliveryTab from '@/components/settings/SettingsDeliveryTab';
 import SettingsIntegrationsTab from '@/components/settings/SettingsIntegrationsTab';
+import SettingsShareTab from '@/components/settings/SettingsShareTab';
+import SettingsPaymentsTab from '@/components/settings/SettingsPaymentsTab';
 
 // Interfaces TypeScript
 interface OpeningHours {
@@ -61,7 +63,7 @@ interface Restaurant {
   updatedAt: string;
 }
 
-type TabType = 'general' | 'hours' | 'delivery' | 'integrations';
+type TabType = 'general' | 'hours' | 'delivery' | 'integrations' | 'payments' | 'share';
 
 // Fonction de comparaison profonde pour les objets
 const deepEqual = (obj1: any, obj2: any): boolean => {
@@ -80,6 +82,32 @@ const deepEqual = (obj1: any, obj2: any): boolean => {
   }
   
   return true;
+};
+
+// Fonction de comparaison robuste pour les horaires d'ouverture
+const compareOpeningHours = (a: OpeningHours | null, b: OpeningHours | null): boolean => {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  
+  const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+  
+  return days.every(day => {
+    const dayA = a[day];
+    const dayB = b[day];
+    
+    // Si les deux jours n'existent pas, ils sont considérés comme égaux
+    if (!dayA && !dayB) return true;
+    
+    // Si un seul existe, ils sont différents
+    if (!dayA || !dayB) return false;
+    
+    // Comparer les propriétés
+    return (
+      dayA.open === dayB.open &&
+      dayA.close === dayB.close &&
+      dayA.closed === dayB.closed
+    );
+  });
 };
 
 export default function SettingsPage() {
@@ -249,7 +277,7 @@ export default function SettingsPage() {
       const restaurantLanguage = restaurant?.language || 'ar';
       if (formData.timezone !== restaurantTimezone) updateData.timezone = formData.timezone;
       if (formData.language !== restaurantLanguage) updateData.language = formData.language;
-      if (JSON.stringify(formData.openingHours) !== JSON.stringify(restaurant?.openingHours)) {
+      if (!compareOpeningHours(formData.openingHours, restaurant?.openingHours || null)) {
         updateData.openingHours = formData.openingHours;
       }
       if (JSON.stringify(formData.deliveryZones) !== JSON.stringify(restaurant?.deliveryZones)) {
@@ -269,6 +297,11 @@ export default function SettingsPage() {
       const data = response.data.restaurant || response.data;
       
       // Normaliser les données retournées pour s'assurer que tous les champs sont présents
+      // Si on vient de sauvegarder des horaires mais que le serveur retourne null, utiliser ceux qu'on a sauvegardés
+      const restaurantOpeningHours = (updateData.openingHours !== undefined && (data.openingHours === null || data.openingHours === undefined))
+        ? (updateData.openingHours as OpeningHours | null)
+        : (data.openingHours ?? null);
+      
       const updatedRestaurant: Restaurant = {
         ...data,
         timezone: data.timezone ?? 'Africa/Cairo',
@@ -281,7 +314,7 @@ export default function SettingsPage() {
         whatsappNumber: data.whatsappNumber ?? null,
         whatsappApiToken: data.whatsappApiToken ?? null,
         whatsappBusinessId: data.whatsappBusinessId ?? null,
-        openingHours: data.openingHours ?? null,
+        openingHours: restaurantOpeningHours,
         deliveryZones: data.deliveryZones ?? null,
       };
 
@@ -474,51 +507,79 @@ export default function SettingsPage() {
         </div>
 
         {/* Tabs Navigation */}
-        <div className="border-b border-gray-200 mb-6">
-          <nav className="flex space-x-8">
+        <div className="border-b border-gray-200 mb-6 overflow-x-auto -mx-6 px-6">
+          <nav className="flex space-x-4 sm:space-x-8 flex-nowrap">
             <button
               onClick={() => setSelectedTab('general')}
-              className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              className={`flex items-center gap-1 sm:gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
                 selectedTab === 'general'
                   ? 'border-orange-500 text-orange-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
+              title="Général"
             >
-              <Building2 className="w-5 h-5" />
-              Général
+              <Building2 className="w-5 h-5 flex-shrink-0" />
+              <span className="hidden sm:inline">Général</span>
             </button>
             <button
               onClick={() => setSelectedTab('hours')}
-              className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              className={`flex items-center gap-1 sm:gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
                 selectedTab === 'hours'
                   ? 'border-orange-500 text-orange-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
+              title="Horaires"
             >
-              <Clock className="w-5 h-5" />
-              Horaires
+              <Clock className="w-5 h-5 flex-shrink-0" />
+              <span className="hidden sm:inline">Horaires</span>
             </button>
             <button
               onClick={() => setSelectedTab('delivery')}
-              className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              className={`flex items-center gap-1 sm:gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
                 selectedTab === 'delivery'
                   ? 'border-orange-500 text-orange-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
+              title="Livraison"
             >
-              <Truck className="w-5 h-5" />
-              Livraison
+              <Truck className="w-5 h-5 flex-shrink-0" />
+              <span className="hidden sm:inline">Livraison</span>
             </button>
             <button
               onClick={() => setSelectedTab('integrations')}
-              className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              className={`flex items-center gap-1 sm:gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
                 selectedTab === 'integrations'
                   ? 'border-orange-500 text-orange-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
+              title="WhatsApp"
             >
-              <MessageCircle className="w-5 h-5" />
-              WhatsApp & Intégrations
+              <MessageCircle className="w-5 h-5 flex-shrink-0" />
+              <span className="hidden sm:inline">WhatsApp</span>
+            </button>
+            <button
+              onClick={() => setSelectedTab('payments')}
+              className={`flex items-center gap-1 sm:gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
+                selectedTab === 'payments'
+                  ? 'border-orange-500 text-orange-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+              title="Paiements"
+            >
+              <CreditCard className="w-5 h-5 flex-shrink-0" />
+              <span className="hidden sm:inline">Paiements</span>
+            </button>
+            <button
+              onClick={() => setSelectedTab('share')}
+              className={`flex items-center gap-1 sm:gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
+                selectedTab === 'share'
+                  ? 'border-orange-500 text-orange-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+              title="Partage & QR Code"
+            >
+              <Share2 className="w-5 h-5 flex-shrink-0" />
+              <span className="hidden sm:inline">Partage & QR Code</span>
             </button>
           </nav>
         </div>
@@ -554,6 +615,17 @@ export default function SettingsPage() {
                 whatsappBusinessId: formData.whatsappBusinessId,
               }}
               onChange={(field, value) => setFormData({ ...formData, [field]: value })}
+            />
+          )}
+
+          {selectedTab === 'payments' && (
+            <SettingsPaymentsTab />
+          )}
+
+          {selectedTab === 'share' && restaurant && (
+            <SettingsShareTab
+              restaurantSlug={restaurant.slug}
+              restaurantName={restaurant.name}
             />
           )}
         </div>

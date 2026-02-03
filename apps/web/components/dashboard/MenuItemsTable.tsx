@@ -377,36 +377,39 @@ export default function MenuItemsTable({
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2 pt-3 border-t border-gray-200">
+                  <div className="flex items-center gap-1 sm:gap-2 pt-3 border-t border-gray-200">
                     <button
                       onClick={() => onToggleAvailability(item.id)}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors text-sm font-medium"
+                      className="flex-1 flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors text-xs sm:text-sm font-medium min-w-[60px]"
+                      title={item.isAvailable ? 'Marquer comme indisponible' : 'Marquer comme disponible'}
                     >
                       {item.isAvailable ? (
                         <>
-                          <EyeOff className="w-4 h-4" />
-                          Indisponible
+                          <EyeOff className="w-4 h-4 flex-shrink-0" />
+                          <span className="hidden sm:inline">Indisponible</span>
                         </>
                       ) : (
                         <>
-                          <Eye className="w-4 h-4" />
-                          Disponible
+                          <Eye className="w-4 h-4 flex-shrink-0" />
+                          <span className="hidden sm:inline">Disponible</span>
                         </>
                       )}
                     </button>
                     <button
                       onClick={() => onEdit(item)}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-orange-600 hover:text-orange-800 hover:bg-orange-50 rounded-lg transition-colors text-sm font-medium"
+                      className="flex-1 flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-orange-600 hover:text-orange-800 hover:bg-orange-50 rounded-lg transition-colors text-xs sm:text-sm font-medium min-w-[60px]"
+                      title="Modifier"
                     >
-                      <Edit className="w-4 h-4" />
-                      Modifier
+                      <Edit className="w-4 h-4 flex-shrink-0" />
+                      <span className="hidden sm:inline">Modifier</span>
                     </button>
                     <button
                       onClick={() => handleDelete(item)}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium"
+                      className="flex-1 flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors text-xs sm:text-sm font-medium min-w-[60px]"
+                      title="Supprimer"
                     >
-                      <Trash2 className="w-4 h-4" />
-                      Supprimer
+                      <Trash2 className="w-4 h-4 flex-shrink-0" />
+                      <span className="hidden sm:inline">Supprimer</span>
                     </button>
                   </div>
                 </div>

@@ -20,6 +20,18 @@ export async function GET(
       const limit = parseInt(searchParams.get('limit') || '50');
       const offset = parseInt(searchParams.get('offset') || '0');
 
+      // Vérifier que la conversation appartient au restaurant
+      const conversation = await prisma.conversation.findFirst({
+        where: {
+          id: params.id,
+          restaurantId: req.user!.restaurantId,
+        },
+      });
+
+      if (!conversation) {
+        throw new AppError('Conversation non trouvée', 404);
+      }
+
       const messages = await prisma.message.findMany({
         where: {
           conversationId: params.id,
@@ -27,6 +39,24 @@ export async function GET(
         orderBy: { createdAt: 'asc' },
         take: limit,
         skip: offset,
+        select: {
+          id: true,
+          conversationId: true,
+          content: true,
+          type: true,
+          sender: true,
+          direction: true,
+          status: true,
+          mediaUrl: true,
+          createdAt: true,
+          isRead: true,
+        },
+      });
+
+      // Log pour débogage
+      console.log('📨 API Messages retournés:', {
+        count: messages.length,
+        sample: messages.length > 0 ? messages[0] : null,
       });
 
       return NextResponse.json({
@@ -73,14 +103,32 @@ export async function POST(
       }
 
       // Créer le message
+      // Mapper le type frontend vers le type Prisma
+      const messageType = type === 'text' ? 'TEXT' : 
+                         type === 'image' ? 'IMAGE' : 
+                         type === 'document' ? 'DOCUMENT' : 'TEXT';
+      
       const message = await prisma.message.create({
         data: {
           conversationId: params.id,
           content: content.trim(),
-          type: type || 'text',
-          mediaUrl: mediaUrl || null,
+          type: messageType,
+          sender: 'STAFF', // Messages envoyés depuis l'inbox sont toujours STAFF
           direction: 'outbound',
           status: 'sent',
+          mediaUrl: mediaUrl || null,
+        },
+        select: {
+          id: true,
+          conversationId: true,
+          content: true,
+          type: true,
+          sender: true,
+          direction: true,
+          status: true,
+          mediaUrl: true,
+          createdAt: true,
+          isRead: true,
         },
       });
 

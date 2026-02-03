@@ -6,12 +6,14 @@ import {
   getOrdersByStatus,
   getDeliveryTypes
 } from '../controllers/analytics.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { apiLimiter } from '../middleware/rate-limit.middleware';
 
 const router = Router();
 
-// Toutes les routes sont protégées
-router.use(authMiddleware);
+// Rate limiting pour analytics (calculs coûteux)
+router.use(apiLimiter);
+
+// Note: authMiddleware est appliqué dans index.ts
 
 // KPI Dashboard
 router.get('/dashboard-stats', getDashboardStats);

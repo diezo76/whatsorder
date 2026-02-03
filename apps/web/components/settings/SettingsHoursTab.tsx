@@ -46,11 +46,15 @@ export default function SettingsHoursTab({ openingHours, onChange }: SettingsHou
 
   // Synchroniser avec les props si elles changent
   useEffect(() => {
+    // Ne pas réinitialiser si openingHours est null mais qu'on a déjà des horaires locaux
+    // Cela évite de réinitialiser après une sauvegarde qui retourne null temporairement
     if (openingHours && Object.keys(openingHours).length > 0) {
       setLocalHours(openingHours);
-    } else {
+    } else if (!openingHours && Object.keys(localHours).length === 0) {
+      // Seulement réinitialiser si on n'a vraiment aucune donnée (premier chargement)
       setLocalHours(getDefaultHours());
     }
+    // Si openingHours est null mais qu'on a déjà des horaires locaux, on les garde
   }, [openingHours]);
 
   const handleDayChange = (day: string, field: 'open' | 'close' | 'closed', value: string | boolean) => {

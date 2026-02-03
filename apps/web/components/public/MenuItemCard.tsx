@@ -1,30 +1,45 @@
 'use client';
 
 import { useState } from 'react';
-import { UtensilsCrossed, ShoppingCart, Check } from 'lucide-react';
+import { UtensilsCrossed, ShoppingCart } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
-
-interface MenuItem {
-  id: string;
-  name: string;
-  nameAr?: string;
-  description?: string;
-  descriptionAr?: string;
-  price: number;
-  image?: string;
-  tags?: string[];
-  isFeatured?: boolean;
-}
+import { ProductModal } from './ProductModal';
+import { MenuItemWithVariantsAndOptions, CartItem } from '@/types/menu';
 
 interface MenuItemCardProps {
-  item: MenuItem;
-  onAddToCart?: (item: MenuItem) => void; // Conservé pour compatibilité mais non utilisé
+  item: MenuItemWithVariantsAndOptions;
+  onAddToCart?: (item: MenuItemWithVariantsAndOptions) => void;
 }
 
 export default function MenuItemCard({ item }: MenuItemCardProps) {
-  const { id, name, nameAr, description, descriptionAr, price, image, tags, isFeatured } = item;
+  const { id, name, nameAr, description, descriptionAr, price, image, hasVariants, variants, options } = item;
   const addItem = useCartStore((state) => state.addItem);
-  const [isAdded, setIsAdded] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+
+  const handleAddToCart = (cartItem: CartItem) => {
+    addItem(cartItem);
+  };
+
+  const handleCardClick = () => {
+    // Si l'item a des variants ou options, ouvrir le modal
+    // Sinon, ajouter directement au panier
+    if (hasVariants || (options && options.length > 0)) {
+      setShowModal(true);
+    } else {
+      // Ajouter directement au panier pour les items simples
+      const cartItem: CartItem = {
+        id: `${id}-${Date.now()}`,
+        menuItemId: id,
+        menuItemName: name,
+        quantity: 1,
+        basePrice: price || 0,
+        selectedOptions: [],
+        totalPrice: price || 0,
+        image,
+      };
+      addItem(cartItem);
+    }
+  };
 
   return (
     <div className="bg-white rounded-lg shadow hover:shadow-lg transition-all duration-300 hover:scale-105 overflow-hidden flex flex-col">
@@ -42,12 +57,6 @@ export default function MenuItemCard({ item }: MenuItemCardProps) {
           </div>
         )}
 
-        {/* Badge Featured */}
-        {isFeatured && (
-          <div className="absolute top-2 right-2 bg-orange-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md">
-            ⭐ Populaire
-          </div>
-        )}
       </div>
 
       {/* Contenu */}
@@ -83,84 +92,35 @@ export default function MenuItemCard({ item }: MenuItemCardProps) {
           </div>
         )}
 
-        {/* Tags */}
-        {tags && tags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-3">
-            {tags.map((tag) => (
-              <span
-                key={tag}
-                className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full font-medium"
-              >
-                {tag === 'vegetarian' && '🌱 '}
-                {tag === 'spicy' && '🌶️ '}
-                {tag === 'popular' && '⭐ '}
-                {tag === 'traditional' && '🏛️ '}
-                {tag === 'hot' && '🔥 '}
-                {tag === 'fresh' && '✨ '}
-                {tag === 'healthy' && '💚 '}
-                {tag === 'sweet' && '🍰 '}
-                {tag === 'grilled' && '🔥 '}
-                {tag === 'seafood' && '🐟 '}
-                {tag === 'breakfast' && '🌅 '}
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-
         {/* Prix et Bouton */}
         <div className="flex items-center justify-between pt-3 border-t border-gray-100">
           <div className="flex flex-col">
             <span className="text-lg font-bold text-primary">
-              {price} EGP
+              {hasVariants && variants && variants.length > 0 
+                ? `À partir de ${variants[0]?.price || price || 0} EGP`
+                : `${price || 0} EGP`}
             </span>
           </div>
 
           {/* Bouton Ajouter au panier */}
           <button
-            onClick={() => {
-              // Générer un ID unique pour l'item dans le panier
-              const cartItemId = `${id}-${Date.now()}`;
-              
-              // Ajouter au panier via le store
-              addItem({
-                id: cartItemId,
-                menuItemId: id,
-                name,
-                nameAr,
-                price,
-                image,
-              });
-
-              // Feedback visuel : afficher "Ajouté ✓" pendant 1 seconde
-              setIsAdded(true);
-              setTimeout(() => {
-                setIsAdded(false);
-              }, 1000);
-            }}
-            className={`
-              flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200
-              ${
-                isAdded
-                  ? 'bg-green-600 text-white scale-105'
-                  : 'bg-primary text-white hover:bg-primary/90 active:scale-95'
-              }
-            `}
+            onClick={handleCardClick}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 bg-primary text-white hover:bg-primary/90 active:scale-95"
           >
-            {isAdded ? (
-              <>
-                <Check className="w-4 h-4 animate-bounce" />
-                <span>Ajouté</span>
-              </>
-            ) : (
-              <>
-                <ShoppingCart className="w-4 h-4" />
-                <span>Ajouter</span>
-              </>
-            )}
+            <ShoppingCart className="w-4 h-4" />
+            <span>Ajouter</span>
           </button>
         </div>
       </div>
+
+      {/* Modal pour sélectionner variants/options */}
+      {showModal && (
+        <ProductModal
+          product={item}
+          onClose={() => setShowModal(false)}
+          onAddToCart={handleAddToCart}
+        />
+      )}
     </div>
   );
 }

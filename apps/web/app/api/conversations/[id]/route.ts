@@ -51,15 +51,45 @@ export async function PUT(
   return withAuth(async (req) => {
     try {
       const body = await req.json();
-      const { isActive } = body;
+      const { isActive, status, priority } = body;
+
+      // Construire l'objet de mise à jour avec seulement les champs fournis
+      const updateData: any = {};
+      
+      if (isActive !== undefined) {
+        updateData.isActive = isActive;
+      }
+      if (status !== undefined) {
+        updateData.status = status;
+      }
+      if (priority !== undefined) {
+        updateData.priority = priority;
+      }
+
+      // Vérifier que la conversation appartient au restaurant
+      const existingConversation = await prisma.conversation.findFirst({
+        where: {
+          id: params.id,
+          restaurantId: req.user!.restaurantId,
+        },
+      });
+
+      if (!existingConversation) {
+        throw new AppError('Conversation non trouvée', 404);
+      }
 
       const conversation = await prisma.conversation.update({
         where: { id: params.id },
-        data: {
-          ...(isActive !== undefined && { isActive }),
-        },
+        data: updateData,
         include: {
           customer: true,
+          assignedTo: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
         },
       });
 

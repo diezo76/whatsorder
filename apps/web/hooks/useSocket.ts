@@ -99,8 +99,17 @@ export function useSocket() {
       return;
     }
 
+    // En production, Socket.io nécessite une URL API explicite
+    // Si pas configurée, on utilise Supabase Realtime à la place
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    
+    // Ne pas se connecter si on est en production sans URL API configurée
+    if (!apiUrl) {
+      console.log('Socket.io disabled: NEXT_PUBLIC_API_URL not configured. Using Supabase Realtime instead.');
+      return;
+    }
+
     // Crée la connexion
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
     const socket = io(apiUrl, {
       auth: { token },
       transports: ['websocket', 'polling'],

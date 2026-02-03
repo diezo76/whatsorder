@@ -52,6 +52,11 @@ export default function OnboardingPage() {
   const createSampleMenu = watch('createSampleMenu');
 
   const onSubmit = async (data: OnboardingFormData) => {
+    // Vérifier qu'on est bien à la dernière étape
+    if (currentStep !== steps.length) {
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -177,7 +182,7 @@ export default function OnboardingPage() {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-2xl shadow-xl p-8">
+        <form onSubmit={(e) => e.preventDefault()} className="bg-white rounded-2xl shadow-xl p-8">
           {/* Step 1: Informations de base */}
           {currentStep === 1 && (
             <div className="space-y-6">
@@ -358,7 +363,8 @@ export default function OnboardingPage() {
               </button>
             ) : (
               <button
-                type="submit"
+                type="button"
+                onClick={() => handleSubmit(onSubmit)()}
                 disabled={loading}
                 className="px-6 py-3 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >

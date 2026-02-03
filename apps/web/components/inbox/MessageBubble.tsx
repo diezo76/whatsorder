@@ -97,6 +97,25 @@ export default function MessageBubble({
 }: MessageBubbleProps) {
   const isOutbound = message.direction === 'outbound';
 
+  // Debug: log le message pour vérifier
+  if (typeof window !== 'undefined') {
+    console.log('💬 MessageBubble rendering:', {
+      id: message.id,
+      content: message.content,
+      contentType: typeof message.content,
+      contentLength: message.content?.length,
+      isEmpty: !message.content || message.content.trim() === '',
+      type: message.type,
+      direction: message.direction,
+      fullMessage: message,
+    });
+  }
+  
+  // Si le contenu est vide, afficher un message de debug
+  if (!message.content || message.content.trim() === '') {
+    console.error('❌ MessageBubble: Message sans contenu!', message);
+  }
+
   return (
     <div className={`flex gap-2 ${isOutbound ? 'justify-end' : 'justify-start'}`}>
       {/* Avatar (si inbound et showAvatar) */}
@@ -129,7 +148,11 @@ export default function MessageBubble({
           {/* Contenu selon le type */}
           {message.type === 'text' && (
             <p className="whitespace-pre-wrap break-words text-sm">
-              {renderTextWithLinks(message.content)}
+              {message.content && message.content.trim() !== '' ? (
+                renderTextWithLinks(message.content)
+              ) : (
+                <span className="italic text-gray-500">(Message vide)</span>
+              )}
             </p>
           )}
 

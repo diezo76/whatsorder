@@ -35,13 +35,18 @@ export async function POST(request: Request) {
         throw new AppError('Le nom du restaurant et le téléphone sont requis', 400);
       }
 
+      // Vérifier que l'utilisateur a un restaurantId (devrait toujours exister maintenant)
+      if (!req.user!.restaurantId) {
+        throw new AppError('Aucun restaurant associé à votre compte. Veuillez contacter le support.', 404);
+      }
+
       // Vérifier que le restaurant existe et appartient à l'utilisateur
       const restaurant = await prisma.restaurant.findUnique({
         where: { id: req.user!.restaurantId },
       });
 
       if (!restaurant) {
-        throw new AppError('Restaurant non trouvé', 404);
+        throw new AppError('Restaurant non trouvé. Veuillez contacter le support.', 404);
       }
 
       // Générer un slug unique si nécessaire

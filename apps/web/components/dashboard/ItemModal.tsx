@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Loader2, Tag, Clock, ToggleLeft, Plus } from 'lucide-react';
+import { VariantManager } from '@/components/menu/VariantManager';
+import { OptionManager } from '@/components/menu/OptionManager';
 
 // Interfaces TypeScript
 interface Category {
@@ -20,17 +22,18 @@ interface MenuItem {
   slug: string;
   description?: string;
   descriptionAr?: string;
-  price: number;
+  price?: number;
   compareAtPrice?: number;
   image?: string;
-  images: string[];
-  tags: string[];
-  allergens: string[];
+  images?: string[];
+  tags?: string[];
+  allergens?: string[];
   calories?: number;
   preparationTime?: number;
   isAvailable: boolean;
   isActive: boolean;
-  isFeatured: boolean;
+  isFeatured?: boolean;
+  hasVariants?: boolean;
   categoryId: string;
   category?: Category;
 }
@@ -339,8 +342,12 @@ export default function ItemModal({
       newErrors.categoryId = 'La catégorie est requise';
     }
 
-    if (!formData.price || formData.price <= 0 || isNaN(formData.price)) {
-      newErrors.price = 'Le prix doit être supérieur à 0';
+    // Le prix est requis seulement si l'item n'a pas de variants
+    // Note: On vérifie hasVariants depuis l'item, mais pour un nouvel item, on exige un prix
+    if (!item || !item.hasVariants) {
+      if (!formData.price || formData.price <= 0 || isNaN(formData.price)) {
+        newErrors.price = 'Le prix doit être supérieur à 0 (ou ajoutez des variants)';
+      }
     }
 
     if (formData.compareAtPrice !== null && formData.compareAtPrice !== undefined) {
@@ -856,6 +863,21 @@ export default function ItemModal({
                 />
               </div>
             </div>
+
+            {/* Section: Variants et Options - Seulement en mode édition */}
+            {item && item.id && (
+              <>
+                <div className="border-t border-gray-200 pt-6">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">
+                    Variants et Options
+                  </h3>
+                  <div className="space-y-6">
+                    <VariantManager menuItemId={item.id} />
+                    <OptionManager menuItemId={item.id} />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -870,7 +892,7 @@ export default function ItemModal({
           </button>
           <button
             onClick={handleSave}
-            disabled={loading || !formData.name.trim() || !formData.categoryId || formData.price <= 0}
+            disabled={loading || !formData.name.trim() || !formData.categoryId || (!item && (!formData.price || formData.price <= 0))}
             className="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
