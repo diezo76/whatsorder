@@ -172,6 +172,97 @@ catch (error: any) {
 
 ---
 
+# 📋 Compte Rendu - Correction Utilisation Numéro WhatsApp Restaurant
+
+**Date** : 11 janvier 2026  
+**Agent** : Composer (Cursor AI)  
+**Statut** : ✅ Corrections appliquées pour utiliser le numéro WhatsApp du restaurant enregistré
+
+---
+
+## 🎯 Objectif
+
+Corriger le problème où les commandes étaient envoyées au numéro WhatsApp codé en dur `+201276921081` au lieu du numéro WhatsApp du restaurant qui s'est enregistré.
+
+---
+
+## ✅ Modifications Effectuées
+
+### 1. Suppression des Fallbacks Codés en Dur
+
+**Fichier** : `apps/web/app/[slug]/page.tsx`
+- ✅ Supprimé le fallback `|| '+201276921081'` à la ligne 323
+- ✅ Utilisation de `restaurant.whatsappNumber || undefined` pour éviter les valeurs par défaut
+- ✅ Si le numéro n'est pas défini, pas de fallback automatique
+
+**Fichier** : `apps/web/components/cart/CartDrawer.tsx`
+- ✅ Corrigé le restaurant par défaut (lignes 36-41)
+- ✅ Supprimé le numéro WhatsApp codé en dur
+- ✅ `whatsappNumber` défini à `undefined` par défaut
+- ✅ Slug vide par défaut pour empêcher la création de commande si restaurant non défini
+
+### 2. Amélioration de la Validation
+
+**Fichier** : `apps/web/components/checkout/CheckoutStepConfirmation.tsx`
+- ✅ Validation détaillée avec messages d'erreur spécifiques (lignes 270-285)
+- ✅ Vérification séparée pour `restaurant.slug`, `restaurant.whatsappNumber`, et `cartItems.length`
+- ✅ Message d'erreur clair si le numéro WhatsApp n'est pas configuré : "Le restaurant n'a pas configuré son numéro WhatsApp"
+- ✅ Logs détaillés pour tracer le numéro WhatsApp utilisé
+
+### 3. Correction de l'Onboarding
+
+**Fichier** : `apps/web/app/api/onboarding/quick-setup/route.ts`
+- ✅ Ajout de `whatsappNumber: phone` lors de la création/mise à jour du restaurant (ligne 77)
+- ✅ Le numéro de téléphone est utilisé comme numéro WhatsApp par défaut lors de l'onboarding
+- ✅ Le restaurant peut modifier ce numéro plus tard dans les paramètres
+- ✅ Ajout de logs pour tracer l'enregistrement du `whatsappNumber`
+
+### 4. Logs de Débogage
+
+**Fichier** : `apps/web/components/checkout/CheckoutStepConfirmation.tsx`
+- ✅ Logs détaillés avant génération de l'URL WhatsApp (lignes 312-320)
+- ✅ Affichage du numéro WhatsApp original, normalisé, et de l'URL générée
+- ✅ Logs pour identifier quel numéro est utilisé lors de la création de commande
+
+---
+
+## 📝 Fichiers Modifiés
+
+1. **`apps/web/app/[slug]/page.tsx`**
+   - Ligne 323 : Suppression du fallback `'+201276921081'`
+
+2. **`apps/web/components/cart/CartDrawer.tsx`**
+   - Lignes 36-41 : Correction du restaurant par défaut
+
+3. **`apps/web/components/checkout/CheckoutStepConfirmation.tsx`**
+   - Lignes 270-285 : Amélioration de la validation
+   - Lignes 312-330 : Ajout de logs de débogage détaillés
+
+4. **`apps/web/app/api/onboarding/quick-setup/route.ts`**
+   - Ligne 77 : Ajout de `whatsappNumber: phone` lors de l'onboarding
+
+---
+
+## 🔍 Résultats Attendus
+
+1. **Nouveaux restaurants** : Le numéro WhatsApp sera automatiquement défini lors de l'onboarding (utilise le téléphone)
+2. **Restaurants existants** : Doivent configurer leur numéro WhatsApp dans les paramètres
+3. **Validation** : Message d'erreur clair si le numéro WhatsApp n'est pas configuré
+4. **Logs** : Traçabilité complète du numéro WhatsApp utilisé lors de la création de commande
+
+---
+
+## ⚠️ Action Requise pour les Restaurants Existants
+
+Les restaurants qui se sont déjà enregistrés avant cette correction doivent :
+1. Aller dans les paramètres du dashboard
+2. Configurer leur numéro WhatsApp dans l'onglet "Général" ou "Intégrations"
+3. Sauvegarder les modifications
+
+Sinon, ils verront un message d'erreur clair lors de la création de commande.
+
+---
+
 # 📋 Compte Rendu - Modifications Application
 
 ---

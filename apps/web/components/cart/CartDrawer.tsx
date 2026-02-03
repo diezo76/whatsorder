@@ -28,17 +28,25 @@ export default function CartDrawer({ isOpen, onClose, restaurant }: CartDrawerPr
   
   // Calculer total à la volée depuis les items
   const total = useCartStore((state) => 
-    state.items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    state.items.reduce((sum, item) => sum + (item.totalPrice || item.basePrice * item.quantity), 0)
   );
 
   // Restaurant par défaut si non fourni (pour tests)
+  // ATTENTION: Le slug est requis pour créer une commande !
+  // Ne pas utiliser de numéro WhatsApp par défaut - le restaurant doit avoir son propre numéro
   const defaultRestaurant: Restaurant = {
     name: 'Restaurant',
-    phone: '+201276921081',
-    whatsappNumber: '+201276921081',
+    phone: '',
+    whatsappNumber: undefined, // Pas de numéro par défaut - le restaurant doit définir son numéro
+    slug: '', // Slug vide par défaut - empêchera la création de commande si restaurant non défini
   };
 
   const restaurantData = restaurant || defaultRestaurant;
+  
+  // Log pour debug
+  if (!restaurantData.slug) {
+    console.warn('⚠️ [CART] Restaurant sans slug:', restaurantData);
+  }
 
   // Gestion de la touche ESC pour fermer le drawer
   useEffect(() => {
@@ -67,7 +75,7 @@ export default function CartDrawer({ isOpen, onClose, restaurant }: CartDrawerPr
 
   // Calcul du sous-total d'un item
   const getItemSubtotal = (item: CartItem) => {
-    return item.price * item.quantity;
+    return item.totalPrice || item.basePrice * item.quantity;
   };
 
   // Gestion du clic sur l'overlay
@@ -78,16 +86,16 @@ export default function CartDrawer({ isOpen, onClose, restaurant }: CartDrawerPr
   };
 
   // Gestion de l'incrémentation de quantité
-  const handleIncreaseQuantity = (menuItemId: string, currentQuantity: number) => {
-    updateQuantity(menuItemId, currentQuantity + 1);
+  const handleIncreaseQuantity = (itemId: string, currentQuantity: number) => {
+    updateQuantity(itemId, currentQuantity + 1);
   };
 
   // Gestion de la décrémentation de quantité
-  const handleDecreaseQuantity = (menuItemId: string, currentQuantity: number) => {
+  const handleDecreaseQuantity = (itemId: string, currentQuantity: number) => {
     if (currentQuantity > 1) {
-      updateQuantity(menuItemId, currentQuantity - 1);
+      updateQuantity(itemId, currentQuantity - 1);
     } else {
-      removeItem(menuItemId);
+      removeItem(itemId);
     }
   };
 
@@ -165,7 +173,7 @@ export default function CartDrawer({ isOpen, onClose, restaurant }: CartDrawerPr
                       {item.image ? (
                         <img
                           src={item.image}
-                          alt={item.name}
+                          alt={item.menuItemName}
                           className="w-[60px] h-[60px] rounded-lg object-cover"
                         />
                       ) : (
@@ -180,16 +188,29 @@ export default function CartDrawer({ isOpen, onClose, restaurant }: CartDrawerPr
                       {/* Nom et prix */}
                       <div className="mb-2">
                         <h3 className="text-sm font-semibold text-gray-900 truncate">
-                          {item.name}
+                          {item.menuItemName}
                         </h3>
-                        {item.nameAr && (
-                          <p className="text-xs text-gray-600 truncate" dir="rtl">
-                            {item.nameAr}
+                        {item.variantName && (
+                          <p className="text-xs text-gray-500">
+                            {item.variantName}
                           </p>
                         )}
-                        <p className="text-sm font-medium text-primary mt-1">
-                          {formatPrice(item.price)}
-                        </p>
+                        <div className="text-sm font-medium text-primary mt-1">
+                          <p>{formatPrice(item.basePrice)}</p>
+                          {item.variantName && (
+                            <p className="text-xs text-gray-500">{item.variantName}</p>
+                          )}
+                          {item.selectedOptions && item.selectedOptions.length > 0 && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              {item.selectedOptions.map((opt, idx) => (
+                                <span key={idx}>
+                                  {opt.optionName} {opt.priceModifier > 0 ? `+${opt.priceModifier} EGP` : ''}
+                                  {idx < item.selectedOptions.length - 1 ? ', ' : ''}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Contrôles quantité */}
@@ -197,7 +218,7 @@ export default function CartDrawer({ isOpen, onClose, restaurant }: CartDrawerPr
                         <div className="flex items-center gap-2">
                           {/* Bouton - */}
                           <button
-                            onClick={() => handleDecreaseQuantity(item.menuItemId, item.quantity)}
+                            onClick={() => handleDecreaseQuantity(item.id, item.quantity)}
                             className="p-1 rounded-full bg-white border border-gray-300 hover:bg-gray-50 transition-colors"
                             aria-label="Diminuer la quantité"
                           >
@@ -211,7 +232,7 @@ export default function CartDrawer({ isOpen, onClose, restaurant }: CartDrawerPr
 
                           {/* Bouton + */}
                           <button
-                            onClick={() => handleIncreaseQuantity(item.menuItemId, item.quantity)}
+                            onClick={() => handleIncreaseQuantity(item.id, item.quantity)}
                             className="p-1 rounded-full bg-white border border-gray-300 hover:bg-gray-50 transition-colors"
                             aria-label="Augmenter la quantité"
                           >
@@ -221,7 +242,7 @@ export default function CartDrawer({ isOpen, onClose, restaurant }: CartDrawerPr
 
                         {/* Bouton supprimer */}
                         <button
-                          onClick={() => removeItem(item.menuItemId)}
+                          onClick={() => removeItem(item.id)}
                           className="p-1.5 text-red-500 hover:bg-red-50 rounded-full transition-colors"
                           aria-label="Supprimer l'item"
                         >
@@ -239,12 +260,6 @@ export default function CartDrawer({ isOpen, onClose, restaurant }: CartDrawerPr
                         </p>
                       </div>
 
-                      {/* Personnalisations */}
-                      {item.customization && (
-                        <p className="text-xs text-gray-500 mt-1 italic">
-                          {item.customization}
-                        </p>
-                      )}
                     </div>
                   </div>
                 </div>

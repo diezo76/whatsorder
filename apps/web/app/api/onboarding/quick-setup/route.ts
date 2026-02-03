@@ -63,6 +63,8 @@ export async function POST(request: Request) {
       }
 
       // Mettre à jour le restaurant avec les informations de base
+      // Utiliser le numéro de téléphone comme numéro WhatsApp par défaut
+      // Le restaurant pourra le modifier plus tard dans les paramètres
       const updatedRestaurant = await prisma.restaurant.update({
         where: { id: restaurant.id },
         data: {
@@ -74,8 +76,16 @@ export async function POST(request: Request) {
           currency,
           timezone,
           language,
+          whatsappNumber: phone, // Utiliser le téléphone comme WhatsApp par défaut
           description: `Bienvenue chez ${restaurantName}! Commandez en ligne et recevez votre commande rapidement.`,
         },
+      });
+      
+      console.log('✅ Restaurant mis à jour avec whatsappNumber:', {
+        restaurantId: updatedRestaurant.id,
+        restaurantName: updatedRestaurant.name,
+        phone: updatedRestaurant.phone,
+        whatsappNumber: updatedRestaurant.whatsappNumber,
       });
 
       // Créer le menu par défaut si demandé

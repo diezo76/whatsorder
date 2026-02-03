@@ -52,19 +52,23 @@ interface MenuItem {
   slug: string;
   description?: string;
   descriptionAr?: string;
-  price: number;
+  price?: number;
   compareAtPrice?: number;
   image?: string;
-  images: string[];
-  variants?: any;
+  images?: string[];
+  hasVariants?: boolean;
+  variants?: any[];
+  options?: any[];
   modifiers?: any;
   isAvailable: boolean;
-  isFeatured: boolean;
+  isFeatured?: boolean;
   calories?: number;
   preparationTime?: number;
-  tags: string[];
-  allergens: string[];
+  tags?: string[];
+  allergens?: string[];
   sortOrder: number;
+  categoryId?: string;
+  isActive?: boolean;
 }
 
 interface Category {
@@ -127,36 +131,31 @@ export default function RestaurantMenuPage() {
     fetchData();
   }, [fetchData]);
 
-  // Type simplifié pour MenuItemCard (compatible avec MenuCategory)
-  type SimpleMenuItem = {
-    id: string;
-    name: string;
-    nameAr?: string;
-    description?: string;
-    descriptionAr?: string;
-    price: number;
-    image?: string;
-    tags?: string[];
-    isFeatured?: boolean;
-  };
-
   // Callback pour ajouter au panier (optionnel, MenuItemCard utilise directement le store)
-  const handleAddToCart = (_item: SimpleMenuItem) => {
+  const handleAddToCart = (_item: any) => {
     // MenuItemCard utilise directement useCartStore, cette fonction est conservée pour compatibilité
-    // mais peut être supprimée si MenuCategory n'en a plus besoin
   };
 
   // Fonction pour mapper les items du menu vers le format attendu par MenuItemCard
-  const mapMenuItem = (item: MenuItem): SimpleMenuItem => ({
+  const mapMenuItem = (item: MenuItem) => ({
     id: item.id,
     name: item.name,
     nameAr: item.nameAr,
     description: item.description,
     descriptionAr: item.descriptionAr,
-    price: item.price,
+    price: item.price || 0,
     image: item.image,
-    tags: item.tags,
-    isFeatured: item.isFeatured,
+    hasVariants: item.hasVariants || false,
+    variants: item.variants || [],
+    options: item.options || [],
+    categoryId: item.categoryId || '',
+    isActive: item.isActive !== undefined ? item.isActive : true,
+    isAvailable: item.isAvailable !== undefined ? item.isAvailable : true,
+    category: {
+      id: item.categoryId || '',
+      name: '',
+      nameAr: '',
+    },
   });
 
   // Fonction pour mapper les catégories vers le format attendu par MenuCategory
@@ -321,7 +320,7 @@ export default function RestaurantMenuPage() {
                 slug: restaurant.slug,
                 name: restaurant.name,
                 phone: restaurant.phone,
-                whatsappNumber: restaurant.whatsappNumber || '+201276921081',
+                whatsappNumber: restaurant.whatsappNumber || undefined, // Pas de fallback - utiliser le numéro du restaurant ou undefined
               }
             : undefined
         }

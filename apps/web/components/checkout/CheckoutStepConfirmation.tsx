@@ -267,8 +267,25 @@ export default function CheckoutStepConfirmation({
 
   // Gestion du paiement en espèces/carte à la livraison (WhatsApp)
   const handleCashPayment = async () => {
-    if (!restaurant.whatsappNumber || !restaurant.slug || cartItems.length === 0) {
-      toast.error('Configuration manquante');
+    // Validation détaillée avec messages d'erreur spécifiques
+    if (!restaurant.slug) {
+      console.error('❌ Restaurant slug manquant');
+      toast.error('Erreur: Restaurant non identifié. Veuillez réessayer.');
+      return;
+    }
+    
+    if (!restaurant.whatsappNumber) {
+      console.error('❌ Numéro WhatsApp du restaurant manquant:', {
+        restaurantId: restaurant.id,
+        restaurantName: restaurant.name,
+        restaurantSlug: restaurant.slug,
+      });
+      toast.error('⚠️ Le restaurant n\'a pas configuré son numéro WhatsApp. Veuillez contacter le restaurant directement.', { duration: 6000 });
+      return;
+    }
+    
+    if (cartItems.length === 0) {
+      toast.error('Votre panier est vide');
       return;
     }
 
@@ -292,6 +309,17 @@ export default function CheckoutStepConfirmation({
 
       toast.success(`Commande ${orderNumber} créée !`, { id: 'creating-order' });
 
+      // Logs de débogage pour tracer le numéro WhatsApp utilisé
+      console.log('📱 Numéro WhatsApp du restaurant:', {
+        restaurantId: restaurant.id,
+        restaurantName: restaurant.name,
+        restaurantSlug: restaurant.slug,
+        whatsappNumberOriginal: restaurant.whatsappNumber,
+        whatsappNumberType: typeof restaurant.whatsappNumber,
+        whatsappNumberIsNull: restaurant.whatsappNumber === null,
+        whatsappNumberIsUndefined: restaurant.whatsappNumber === undefined,
+      });
+
       const message = generateWhatsAppMessage(restaurant, formData, cartItems, cartTotal, orderNumber);
       const normalizedNumber = normalizeWhatsAppNumber(restaurant.whatsappNumber);
       const whatsappUrl = `https://wa.me/${normalizedNumber}?text=${encodeURIComponent(message)}`;
@@ -302,13 +330,16 @@ export default function CheckoutStepConfirmation({
         throw new Error('URL WhatsApp invalide');
       }
 
-      // Logs de débogage
+      // Logs de débogage détaillés
       console.log('📱 Redirection WhatsApp:', {
         orderNumber,
+        restaurantId: restaurant.id,
+        restaurantName: restaurant.name,
+        restaurantSlug: restaurant.slug,
+        whatsappNumberOriginal: restaurant.whatsappNumber,
         normalizedNumber,
         whatsappUrl: whatsappUrl.substring(0, 100) + '...', // Tronquer pour les logs
         messageLength: message.length,
-        restaurantWhatsApp: restaurant.whatsappNumber,
       });
 
       // Sur mobile, afficher un lien direct cliquable (plus fiable que redirection automatique)
