@@ -307,81 +307,94 @@ export default function CheckoutStepConfirmation({
         throw new Error('Numéro de commande non reçu');
       }
 
-      toast.success(`Commande ${orderNumber} créée !`, { id: 'creating-order' });
-
-      // Logs de débogage pour tracer le numéro WhatsApp utilisé
-      console.log('📱 Numéro WhatsApp du restaurant:', {
-        restaurantId: restaurant.id,
-        restaurantName: restaurant.name,
-        restaurantSlug: restaurant.slug,
-        whatsappNumberOriginal: restaurant.whatsappNumber,
-        whatsappNumberType: typeof restaurant.whatsappNumber,
-        whatsappNumberIsNull: restaurant.whatsappNumber === null,
-        whatsappNumberIsUndefined: restaurant.whatsappNumber === undefined,
-      });
-
-      const message = generateWhatsAppMessage(restaurant, formData, cartItems, cartTotal, orderNumber);
-      const normalizedNumber = normalizeWhatsAppNumber(restaurant.whatsappNumber);
-      const whatsappUrl = `https://wa.me/${normalizedNumber}?text=${encodeURIComponent(message)}`;
+      // Vérifier si le message a été envoyé via l'API WhatsApp Business
+      const whatsappInfo = result.whatsapp;
       
-      // Validation de l'URL WhatsApp
-      if (!whatsappUrl.startsWith('https://wa.me/')) {
-        console.error('❌ URL WhatsApp invalide:', whatsappUrl);
-        throw new Error('URL WhatsApp invalide');
+      if (whatsappInfo?.messageSent) {
+        // Message envoyé avec succès via l'API WhatsApp Business
+        toast.success(`✅ Commande ${orderNumber} créée et message envoyé !`, { id: 'creating-order', duration: 5000 });
+        setIsProcessing(false);
+        
+        // Afficher un message de confirmation
+        setTimeout(() => {
+          onConfirm();
+        }, 2000);
+        return;
       }
 
-      // Logs de débogage détaillés
-      console.log('📱 Redirection WhatsApp:', {
-        orderNumber,
-        restaurantId: restaurant.id,
-        restaurantName: restaurant.name,
-        restaurantSlug: restaurant.slug,
-        whatsappNumberOriginal: restaurant.whatsappNumber,
-        normalizedNumber,
-        whatsappUrl: whatsappUrl.substring(0, 100) + '...', // Tronquer pour les logs
-        messageLength: message.length,
-      });
-
-      // Sur mobile, afficher un lien direct cliquable (plus fiable que redirection automatique)
-      // Sur desktop, rediriger automatiquement
-      console.log('🔄 Tentative de redirection vers WhatsApp...', { isMobile, whatsappUrl });
-      
-      if (isMobile) {
-        // Sur mobile: stocker l'URL et afficher un lien direct cliquable
-        // C'est plus fiable car les navigateurs mobiles bloquent souvent les redirections automatiques
-        console.log('📱 Mode mobile: affichage du lien direct WhatsApp');
-        setWhatsappUrl(whatsappUrl);
-        setIsProcessing(false); // Réactiver le bouton pour permettre le clic sur le lien
+      // Si le message n'a pas été envoyé via l'API, utiliser wa.me
+      if (whatsappInfo?.waMeUrl) {
+        const whatsappUrl = whatsappInfo.waMeUrl;
         
-        // Essayer quand même une redirection automatique après un court délai
-        setTimeout(() => {
+        console.log('📱 Utilisation de wa.me car WhatsApp API non disponible:', {
+          orderNumber,
+          apiEnabled: whatsappInfo.apiEnabled,
+          error: whatsappInfo.error,
+        });
+
+        // Afficher un avertissement si l'API n'est pas disponible
+        if (!whatsappInfo.apiEnabled) {
+          toast.warning('⚠️ Le message sera envoyé manuellement via WhatsApp', { 
+            id: 'creating-order',
+            duration: 4000 
+          });
+        } else if (whatsappInfo.error) {
+          toast.warning(`⚠️ Envoi automatique échoué: ${whatsappInfo.error}. Utilisation de WhatsApp manuel.`, { 
+            id: 'creating-order',
+            duration: 5000 
+          });
+        }
+
+        // Sur mobile, afficher un lien direct cliquable
+        // Sur desktop, rediriger automatiquement
+        console.log('🔄 Tentative de redirection vers WhatsApp...', { isMobile, whatsappUrl });
+        
+        if (isMobile) {
+          // Sur mobile: stocker l'URL et afficher un lien direct cliquable
+          console.log('📱 Mode mobile: affichage du lien direct WhatsApp');
+          setWhatsappUrl(whatsappUrl);
+          setIsProcessing(false);
+          
+          // Essayer quand même une redirection automatique après un court délai
+          setTimeout(() => {
+            try {
+              console.log('📱 Tentative de redirection automatique mobile');
+              window.location.href = whatsappUrl;
+            } catch (error) {
+              console.error('❌ Redirection automatique échouée, lien direct disponible:', error);
+            }
+          }, 500);
+        } else {
+          // Sur desktop, rediriger automatiquement
           try {
-            console.log('📱 Tentative de redirection automatique mobile');
+            console.log('🖥️ Redirection desktop avec window.location.href');
             window.location.href = whatsappUrl;
           } catch (error) {
-            console.error('❌ Redirection automatique échouée, lien direct disponible:', error);
+            console.error('❌ Erreur avec window.location.href:', error);
+            // Fallback: créer un lien et le cliquer
+            const link = document.createElement('a');
+            link.href = whatsappUrl;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
           }
-        }, 500);
-      } else {
-        // Sur desktop, rediriger automatiquement
-        try {
-          console.log('🖥️ Redirection desktop avec window.location.href');
-          window.location.href = whatsappUrl;
-        } catch (error) {
-          console.error('❌ Erreur avec window.location.href:', error);
-          // Fallback: créer un lien et le cliquer
-          const link = document.createElement('a');
-          link.href = whatsappUrl;
-          link.target = '_blank';
-          link.rel = 'noopener noreferrer';
-          link.style.display = 'none';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
         }
+        
+        // Note: onConfirm() ne sera pas appelé car la page sera redirigée
+      } else {
+        // Pas d'URL WhatsApp disponible
+        toast.error('❌ Impossible d\'envoyer le message WhatsApp. Veuillez contacter le restaurant directement.', { 
+          id: 'creating-order',
+          duration: 6000 
+        });
+        setIsProcessing(false);
+        setTimeout(() => {
+          onConfirm();
+        }, 2000);
       }
-      
-      // Note: onConfirm() ne sera pas appelé car la page sera redirigée
       // Si la redirection échoue, l'utilisateur reste sur la page et peut réessayer
     } catch (error: any) {
       console.error('❌ Erreur lors de la création de la commande:', error);

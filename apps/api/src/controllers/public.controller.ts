@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { prisma } from '@/utils/prisma';
 import { getIoInstance, broadcastOrderUpdate } from '@/utils/socket';
 import { generateOrderNumber } from './ai.controller';
+import { sendWhatsAppMessage, formatPhoneNumber } from '@/services/whatsapp.service';
+import { isWhatsAppEnabled } from '@/config/whatsapp';
 
 // Schéma de validation pour créer une commande
 const createOrderSchema = z.object({
@@ -218,7 +220,14 @@ export class PublicController {
       console.log(`🔍 Recherche du restaurant avec le slug: ${slug}...`);
       const restaurant = await prisma.restaurant.findUnique({
         where: { slug },
-        select: { id: true, name: true, slug: true, whatsappNumber: true },
+        select: { 
+          id: true, 
+          name: true, 
+          slug: true, 
+          whatsappNumber: true,
+          whatsappApiToken: true,
+          whatsappBusinessId: true,
+        },
       });
 
       if (!restaurant) {
@@ -226,6 +235,15 @@ export class PublicController {
         return res.status(404).json({ error: 'Restaurant non trouvé' });
       }
       console.log(`✅ Restaurant trouvé: ${restaurant.name} (ID: ${restaurant.id})`);
+
+      // Vérifier que WhatsApp est configuré AVANT de créer la commande
+      if (!restaurant.whatsappNumber) {
+        console.error(`❌ Numéro WhatsApp non configuré pour le restaurant ${restaurant.name}`);
+        return res.status(400).json({ 
+          error: 'Le restaurant n\'a pas configuré son numéro WhatsApp. Veuillez contacter le restaurant directement.',
+          code: 'WHATSAPP_NOT_CONFIGURED'
+        });
+      }
 
       // Vérifier que les items existent, appartiennent au restaurant et sont disponibles
       // Cette validation se fait AVANT toute création pour éviter de créer un client si les items sont invalides
@@ -338,7 +356,7 @@ export class PublicController {
             discount: 0,
             tax: 0,
             total,
-            paymentMethod: data.paymentMethod,
+            paymentMethod: data.paymentMethod as any, // Validation Zod garantit le type
             paymentStatus: 'PENDING',
             source: 'WEBSITE', // Source: depuis le site web (utiliser WEBSITE au lieu de WEB)
             items: {
@@ -393,13 +411,49 @@ export class PublicController {
         orderId: order.id,
         orderNumber: order.orderNumber,
         total: order.total,
-        itemsCount: order.items.length,
+        itemsCount: (order as any).items?.length || 0,
         customerId: order.customerId,
-        customerName: order.customer.name,
+        customerName: (order as any).customer?.name || data.customerName,
       });
 
-      // Retourner la commande avec le numéro pour l'inclure dans le message WhatsApp
-      // Structure de réponse: { success: true, order: {...}, restaurant: {...} }
+      // Générer le message WhatsApp (utiliser les données de la commande créée)
+      const orderWithRelations = order as any; // Type assertion car include garantit les relations
+      const customerName = orderWithRelations.customer?.name || data.customerName;
+      const customerPhone = orderWithRelations.customer?.phone || data.customerPhone;
+      const itemsText = (orderWithRelations.items || []).map((item: any) => `• ${item.quantity}× ${item.name} - ${item.subtotal.toFixed(2)} EGP`).join('\n') || 'Aucun item';
+      const message = `🍽️ Nouvelle Commande - ${restaurant.name}\n\n📝 Numéro de commande: ${order.orderNumber}\n\n👤 Client: ${customerName} (${customerPhone})\n🚚 Type: ${data.deliveryType === 'DELIVERY' ? 'Livraison' : data.deliveryType === 'PICKUP' ? 'À emporter' : 'Sur place'}\n💳 Paiement: ${data.paymentMethod}\n💰 Total: ${total.toFixed(2)} EGP\n\n📦 Commande:\n${itemsText}${data.notes ? `\n\n📝 Notes: ${data.notes}` : ''}`;
+
+      // Vérifier si WhatsApp Business API est configuré
+      const restaurantConfig = {
+        whatsappApiToken: restaurant.whatsappApiToken,
+        whatsappBusinessId: restaurant.whatsappBusinessId,
+      };
+      const whatsappApiEnabled = isWhatsAppEnabled(restaurantConfig);
+
+      let whatsappMessageId: string | null = null;
+      let whatsappError: string | null = null;
+
+      // Essayer d'envoyer via l'API WhatsApp Business si disponible
+      if (whatsappApiEnabled) {
+        try {
+          console.log(`📱 Tentative d'envoi du message via WhatsApp Business API...`);
+          whatsappMessageId = await sendWhatsAppMessage(
+            restaurant.whatsappNumber!,
+            message,
+            restaurantConfig
+          );
+          console.log(`✅ Message WhatsApp envoyé via API (ID: ${whatsappMessageId})`);
+        } catch (error: any) {
+          console.error(`❌ Erreur lors de l'envoi via WhatsApp API:`, error);
+          whatsappError = error.message;
+          // Ne pas faire échouer la création de commande si l'envoi WhatsApp échoue
+        }
+      } else {
+        console.log(`⚠️ WhatsApp Business API non configuré, utilisation de wa.me`);
+      }
+
+      // Retourner la commande avec les informations WhatsApp
+      // Structure de réponse: { success: true, order: {...}, restaurant: {...}, whatsapp: {...} }
       return res.status(201).json({
         success: true,
         order: {
@@ -411,6 +465,16 @@ export class PublicController {
         restaurant: {
           name: restaurant.name,
           whatsappNumber: restaurant.whatsappNumber,
+        },
+        whatsapp: {
+          apiEnabled: whatsappApiEnabled,
+          messageSent: whatsappMessageId !== null,
+          messageId: whatsappMessageId,
+          error: whatsappError,
+          // Si l'API n'est pas disponible, retourner l'URL wa.me pour le frontend
+          waMeUrl: !whatsappApiEnabled || whatsappError 
+            ? `https://wa.me/${formatPhoneNumber(restaurant.whatsappNumber!)}?text=${encodeURIComponent(message)}`
+            : null,
         },
       });
     } catch (error: any) {
