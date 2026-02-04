@@ -367,15 +367,21 @@ export default function CheckoutStepConfirmation({
           setWhatsappUrl(whatsappUrl);
           setIsProcessing(false);
           
-          // Essayer quand même une redirection automatique après un court délai
+          // Essayer une redirection automatique après un court délai
+          // Mais ne pas compter dessus car les navigateurs mobiles peuvent bloquer
           setTimeout(() => {
             try {
               console.log('📱 Tentative de redirection automatique mobile');
-              window.location.href = whatsappUrl;
+              // Utiliser window.open qui fonctionne mieux sur mobile
+              const opened = window.open(whatsappUrl, '_blank');
+              if (!opened || opened.closed || typeof opened.closed === 'undefined') {
+                // Si window.open a été bloqué, le lien direct sera utilisé
+                console.log('📱 window.open bloqué, utilisation du lien direct');
+              }
             } catch (error) {
               console.error('❌ Redirection automatique échouée, lien direct disponible:', error);
             }
-          }, 500);
+          }, 300);
         } else {
           // Sur desktop, rediriger automatiquement
           try {
@@ -700,24 +706,36 @@ export default function CheckoutStepConfirmation({
         {/* Sur mobile, si WhatsApp URL est disponible après création de commande, afficher un lien direct */}
         {isMobile && whatsappUrl && (
           <div className="space-y-2">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <p className="text-sm text-green-800 mb-3 text-center">
-                ✅ Commande créée ! Cliquez sur le bouton ci-dessous pour ouvrir WhatsApp :
+            <div className="bg-green-50 border-2 border-green-500 rounded-lg p-4 animate-pulse">
+              <p className="text-sm font-semibold text-green-900 mb-2 text-center">
+                ✅ Commande créée avec succès !
+              </p>
+              <p className="text-xs text-green-700 mb-4 text-center">
+                Cliquez sur le bouton ci-dessous pour ouvrir WhatsApp et envoyer votre commande :
               </p>
               <a
                 href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full py-4 px-6 rounded-lg text-lg font-semibold transition-colors flex items-center justify-center gap-2 text-white bg-green-600 hover:bg-green-700 active:bg-green-800"
-                onClick={() => {
-                  console.log('📱 Lien direct WhatsApp cliqué');
+                className="w-full py-4 px-6 rounded-lg text-lg font-bold transition-all flex items-center justify-center gap-3 text-white bg-green-600 hover:bg-green-700 active:bg-green-800 shadow-lg hover:shadow-xl transform hover:scale-105"
+                onClick={(e) => {
+                  console.log('📱 Lien direct WhatsApp cliqué', whatsappUrl);
+                  // Forcer l'ouverture même si le navigateur bloque
+                  e.preventDefault();
+                  window.open(whatsappUrl, '_blank');
                   // Réinitialiser l'URL après le clic pour permettre de recréer une commande si nécessaire
-                  setTimeout(() => setWhatsappUrl(null), 1000);
+                  setTimeout(() => {
+                    setWhatsappUrl(null);
+                    setIsProcessing(false);
+                  }, 2000);
                 }}
               >
                 <MessageCircle className="w-6 h-6" />
-                <span>Ouvrir WhatsApp</span>
+                <span>Ouvrir WhatsApp maintenant</span>
               </a>
+              <p className="text-xs text-gray-600 mt-3 text-center">
+                Si WhatsApp ne s'ouvre pas automatiquement, cliquez sur le bouton ci-dessus
+              </p>
             </div>
             <button
               onClick={() => {
