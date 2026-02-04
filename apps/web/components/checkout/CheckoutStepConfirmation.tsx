@@ -362,22 +362,24 @@ export default function CheckoutStepConfirmation({
         setWhatsappUrl(whatsappUrl);
         setIsProcessing(false);
         
-        // Essayer une redirection automatique après un court délai (mais ne pas compter dessus)
+        // Essayer une redirection automatique après un court délai
         setTimeout(() => {
           try {
             console.log('📱 Tentative de redirection automatique vers WhatsApp');
             // Utiliser window.open qui fonctionne mieux que window.location.href
             const opened = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
             if (!opened || opened.closed || typeof opened.closed === 'undefined') {
-              // Si window.open a été bloqué, le lien direct sera utilisé
-              console.log('📱 window.open bloqué, utilisation du lien direct cliquable');
+              // Si window.open a été bloqué, essayer window.location.href
+              console.log('📱 window.open bloqué, tentative avec window.location.href');
+              window.location.href = whatsappUrl;
             } else {
-              console.log('✅ WhatsApp ouvert avec succès');
+              console.log('✅ WhatsApp ouvert avec succès via redirection automatique');
             }
           } catch (error) {
             console.error('❌ Redirection automatique échouée, lien direct disponible:', error);
+            // Le bouton cliquable sera toujours disponible
           }
-        }, 500);
+        }, 800);
         
         // IMPORTANT: Ne PAS appeler onConfirm() ici et NE PAS continuer l'exécution
         // Le modal restera ouvert avec le lien cliquable
@@ -693,23 +695,74 @@ export default function CheckoutStepConfirmation({
               <p className="text-xs text-green-700 mb-4 text-center">
                 Cliquez sur le bouton ci-dessous pour ouvrir WhatsApp et envoyer votre commande :
               </p>
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-4 px-6 rounded-lg text-lg font-bold transition-all flex items-center justify-center gap-3 text-white bg-green-600 hover:bg-green-700 active:bg-green-800 shadow-lg hover:shadow-xl transform hover:scale-105"
+              <button
+                type="button"
                 onClick={(e) => {
-                  console.log('📱 Lien direct WhatsApp cliqué', whatsappUrl);
-                  // Ne pas empêcher le comportement par défaut pour que le lien fonctionne
-                  // Le navigateur ouvrira WhatsApp ou l'app web
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('📱 Bouton WhatsApp cliqué', whatsappUrl);
+                  
+                  if (!whatsappUrl) {
+                    console.error('❌ WhatsApp URL manquante');
+                    toast.error('Erreur: Lien WhatsApp non disponible');
+                    return;
+                  }
+
+                  try {
+                    // Méthode 1: Essayer window.open (fonctionne mieux sur mobile)
+                    const opened = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+                    
+                    // Si window.open a été bloqué, essayer window.location.href
+                    if (!opened || opened.closed || typeof opened.closed === 'undefined') {
+                      console.log('📱 window.open bloqué, tentative avec window.location.href');
+                      window.location.href = whatsappUrl;
+                    } else {
+                      console.log('✅ WhatsApp ouvert avec window.open');
+                    }
+                  } catch (error) {
+                    console.error('❌ Erreur lors de l\'ouverture de WhatsApp:', error);
+                    // Fallback: créer un lien et le cliquer
+                    try {
+                      const link = document.createElement('a');
+                      link.href = whatsappUrl;
+                      link.target = '_blank';
+                      link.rel = 'noopener noreferrer';
+                      link.style.display = 'none';
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      console.log('✅ WhatsApp ouvert via lien créé dynamiquement');
+                    } catch (fallbackError) {
+                      console.error('❌ Toutes les méthodes ont échoué:', fallbackError);
+                      toast.error('Impossible d\'ouvrir WhatsApp. Veuillez copier le lien manuellement.');
+                    }
+                  }
                 }}
+                className="w-full py-4 px-6 rounded-lg text-lg font-bold transition-all flex items-center justify-center gap-3 text-white bg-green-600 hover:bg-green-700 active:bg-green-800 shadow-lg hover:shadow-xl transform hover:scale-105 cursor-pointer"
               >
                 <MessageCircle className="w-6 h-6" />
                 <span>Ouvrir WhatsApp maintenant</span>
-              </a>
+              </button>
               <p className="text-xs text-gray-600 mt-3 text-center">
-                Si WhatsApp ne s'ouvre pas, copiez le lien ou contactez directement le restaurant
+                Si WhatsApp ne s'ouvre pas automatiquement, cliquez sur le bouton ci-dessus
               </p>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (whatsappUrl) {
+                    navigator.clipboard.writeText(whatsappUrl).then(() => {
+                      toast.success('Lien WhatsApp copié dans le presse-papiers !', { duration: 2000 });
+                    }).catch(() => {
+                      toast.error('Impossible de copier le lien', { duration: 2000 });
+                    });
+                  }
+                }}
+                className="w-full mt-2 px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+              >
+                📋 Copier le lien WhatsApp
+              </button>
             </div>
             <button
               onClick={() => {
