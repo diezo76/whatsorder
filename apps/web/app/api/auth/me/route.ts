@@ -37,11 +37,21 @@ export async function GET(request: Request) {
       );
     }
 
+    // Vérifier que JWT_SECRET est défini
+    if (!process.env.JWT_SECRET) {
+      console.error('❌ JWT_SECRET is not defined in /api/auth/me');
+      return NextResponse.json(
+        { success: false, error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+
     // Vérifier le token
     let decoded: JWTPayload;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload;
-    } catch {
+      decoded = jwt.verify(token, process.env.JWT_SECRET) as JWTPayload;
+    } catch (error: any) {
+      console.error('❌ Token verification error:', error?.message);
       return NextResponse.json(
         { success: false, error: 'Invalid or expired token' },
         { status: 401 }

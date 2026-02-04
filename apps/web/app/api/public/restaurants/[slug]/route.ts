@@ -43,11 +43,25 @@ export async function GET(
 
     return NextResponse.json(restaurant);
   } catch (error: any) {
-    console.error('Error in getRestaurantBySlug:', error);
-    console.error('Error stack:', error.stack);
+    console.error('❌ Error in getRestaurantBySlug:', error);
+    console.error('❌ Error message:', error?.message);
+    console.error('❌ Error stack:', error?.stack);
+    console.error('❌ Error code:', error?.code);
+    
+    // Vérifier si c'est une erreur de connexion Prisma
+    if (error?.code === 'P1001' || error?.message?.includes('connect')) {
+      return NextResponse.json(
+        { 
+          error: 'Database connection error',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        },
+        { status: 500 }
+      );
+    }
+    
     return NextResponse.json(
       { 
-        error: error.message || 'Failed to fetch restaurant',
+        error: error?.message || 'Failed to fetch restaurant',
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
       },
       { status: 500 }

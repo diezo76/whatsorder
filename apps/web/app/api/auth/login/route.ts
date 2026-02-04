@@ -13,6 +13,15 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: Request) {
   try {
+    // Vérifier que JWT_SECRET est défini
+    if (!process.env.JWT_SECRET) {
+      console.error('❌ JWT_SECRET is not defined');
+      return NextResponse.json(
+        { success: false, error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+
     const body = await request.json();
     const { email, password } = body;
 
@@ -55,7 +64,7 @@ export async function POST(request: Request) {
         role: user.role,
         restaurantId: user.restaurantId,
       },
-      process.env.JWT_SECRET!,
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -72,9 +81,15 @@ export async function POST(request: Request) {
       token,
     });
   } catch (error: any) {
-    console.error('Login error:', error);
+    console.error('❌ Login error:', error);
+    console.error('❌ Error message:', error?.message);
+    console.error('❌ Error stack:', error?.stack);
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { 
+        success: false, 
+        error: 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? error?.message : undefined
+      },
       { status: 500 }
     );
   }

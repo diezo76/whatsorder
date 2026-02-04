@@ -157,4 +157,44 @@ Pour activer l'envoi automatique, configurer :
 
 ---
 
-*Compte rendu généré le 4 février 2026*
+## 🔧 Correction du Bouton WhatsApp (Mise à jour)
+
+### Problème Identifié
+Le bouton "Confirmer et envoyer sur WhatsApp" ne fonctionnait pas car :
+- L'API Next.js (`/api/public/restaurants/[slug]/orders`) **ne retournait pas** le lien `wa.me` (`waMeUrl`)
+- Le frontend attendait `result.whatsapp.waMeUrl` mais l'API ne renvoyait que `restaurant.whatsappNumber`
+
+### Solution Appliquée
+Modification de `/apps/web/app/api/public/restaurants/[slug]/orders/route.ts` pour :
+1. Générer le lien `wa.me` avec le message formaté
+2. Retourner l'objet `whatsapp` avec `waMeUrl` dans la réponse
+
+### Code Modifié
+```javascript
+// Avant (manquant)
+return NextResponse.json({
+  order: {...},
+  restaurant: {...},
+});
+
+// Après (corrigé)
+return NextResponse.json({
+  order: {...},
+  restaurant: {...},
+  whatsapp: {
+    apiEnabled: false,
+    messageSent: false,
+    waMeUrl: `https://wa.me/${phone}?text=${encodeURIComponent(message)}`,
+  },
+});
+```
+
+### Déploiement
+- **Commit** : `876e52f` - "fix: Ajouter waMeUrl dans la réponse API de création de commande"
+- **Déploiement** : `dpl_6N7DUfFG7LaXsT7epgRsya3sXKJp`
+- **Statut** : ✅ READY
+- **Date** : 4 février 2026, 12:15 UTC
+
+---
+
+*Compte rendu mis à jour le 4 février 2026*

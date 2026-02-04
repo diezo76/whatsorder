@@ -43,9 +43,20 @@ export function withAuth(handler: AuthenticatedHandler) {
         );
       }
 
+      if (!process.env.JWT_SECRET) {
+        console.error('❌ JWT_SECRET is not defined in auth-app.ts');
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Server configuration error'
+          },
+          { status: 500 }
+        );
+      }
+
       const decoded = jwt.verify(
         token,
-        process.env.JWT_SECRET!
+        process.env.JWT_SECRET
       ) as AuthUser;
 
       const authenticatedRequest = request as AuthenticatedRequest;
