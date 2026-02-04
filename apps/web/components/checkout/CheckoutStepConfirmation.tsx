@@ -357,51 +357,31 @@ export default function CheckoutStepConfirmation({
           });
         }
 
-        // Sur mobile, afficher un lien direct cliquable
-        // Sur desktop, rediriger automatiquement
-        console.log('🔄 Tentative de redirection vers WhatsApp...', { isMobile, whatsappUrl });
+        // Toujours afficher le lien WhatsApp cliquable (plus fiable que redirection automatique)
+        console.log('📱 Affichage du lien WhatsApp cliquable:', { whatsappUrl });
+        setWhatsappUrl(whatsappUrl);
+        setIsProcessing(false);
         
-        if (isMobile) {
-          // Sur mobile: stocker l'URL et afficher un lien direct cliquable
-          console.log('📱 Mode mobile: affichage du lien direct WhatsApp');
-          setWhatsappUrl(whatsappUrl);
-          setIsProcessing(false);
-          
-          // Essayer une redirection automatique après un court délai
-          // Mais ne pas compter dessus car les navigateurs mobiles peuvent bloquer
-          setTimeout(() => {
-            try {
-              console.log('📱 Tentative de redirection automatique mobile');
-              // Utiliser window.open qui fonctionne mieux sur mobile
-              const opened = window.open(whatsappUrl, '_blank');
-              if (!opened || opened.closed || typeof opened.closed === 'undefined') {
-                // Si window.open a été bloqué, le lien direct sera utilisé
-                console.log('📱 window.open bloqué, utilisation du lien direct');
-              }
-            } catch (error) {
-              console.error('❌ Redirection automatique échouée, lien direct disponible:', error);
-            }
-          }, 300);
-        } else {
-          // Sur desktop, rediriger automatiquement
+        // Essayer une redirection automatique après un court délai (mais ne pas compter dessus)
+        setTimeout(() => {
           try {
-            console.log('🖥️ Redirection desktop avec window.location.href');
-            window.location.href = whatsappUrl;
+            console.log('📱 Tentative de redirection automatique vers WhatsApp');
+            // Utiliser window.open qui fonctionne mieux que window.location.href
+            const opened = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+            if (!opened || opened.closed || typeof opened.closed === 'undefined') {
+              // Si window.open a été bloqué, le lien direct sera utilisé
+              console.log('📱 window.open bloqué, utilisation du lien direct cliquable');
+            } else {
+              console.log('✅ WhatsApp ouvert avec succès');
+            }
           } catch (error) {
-            console.error('❌ Erreur avec window.location.href:', error);
-            // Fallback: créer un lien et le cliquer
-            const link = document.createElement('a');
-            link.href = whatsappUrl;
-            link.target = '_blank';
-            link.rel = 'noopener noreferrer';
-            link.style.display = 'none';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            console.error('❌ Redirection automatique échouée, lien direct disponible:', error);
           }
-        }
+        }, 500);
         
-        // Note: onConfirm() ne sera pas appelé car la page sera redirigée
+        // IMPORTANT: Ne PAS appeler onConfirm() ici et NE PAS continuer l'exécution
+        // Le modal restera ouvert avec le lien cliquable
+        return; // Arrêter l'exécution ici
       } else {
         // Pas d'URL WhatsApp disponible
         toast.error('❌ Impossible d\'envoyer le message WhatsApp. Veuillez contacter le restaurant directement.', { 
@@ -703,10 +683,10 @@ export default function CheckoutStepConfirmation({
 
       {/* Bouton de confirmation */}
       <div className="space-y-3">
-        {/* Sur mobile, si WhatsApp URL est disponible après création de commande, afficher un lien direct */}
-        {isMobile && whatsappUrl && (
-          <div className="space-y-2">
-            <div className="bg-green-50 border-2 border-green-500 rounded-lg p-4 animate-pulse">
+        {/* Si WhatsApp URL est disponible après création de commande, afficher un lien direct */}
+        {whatsappUrl && (
+          <div className="space-y-3">
+            <div className="bg-green-50 border-2 border-green-500 rounded-lg p-4">
               <p className="text-sm font-semibold text-green-900 mb-2 text-center">
                 ✅ Commande créée avec succès !
               </p>
@@ -720,27 +700,22 @@ export default function CheckoutStepConfirmation({
                 className="w-full py-4 px-6 rounded-lg text-lg font-bold transition-all flex items-center justify-center gap-3 text-white bg-green-600 hover:bg-green-700 active:bg-green-800 shadow-lg hover:shadow-xl transform hover:scale-105"
                 onClick={(e) => {
                   console.log('📱 Lien direct WhatsApp cliqué', whatsappUrl);
-                  // Forcer l'ouverture même si le navigateur bloque
-                  e.preventDefault();
-                  window.open(whatsappUrl, '_blank');
-                  // Réinitialiser l'URL après le clic pour permettre de recréer une commande si nécessaire
-                  setTimeout(() => {
-                    setWhatsappUrl(null);
-                    setIsProcessing(false);
-                  }, 2000);
+                  // Ne pas empêcher le comportement par défaut pour que le lien fonctionne
+                  // Le navigateur ouvrira WhatsApp ou l'app web
                 }}
               >
                 <MessageCircle className="w-6 h-6" />
                 <span>Ouvrir WhatsApp maintenant</span>
               </a>
               <p className="text-xs text-gray-600 mt-3 text-center">
-                Si WhatsApp ne s'ouvre pas automatiquement, cliquez sur le bouton ci-dessus
+                Si WhatsApp ne s'ouvre pas, copiez le lien ou contactez directement le restaurant
               </p>
             </div>
             <button
               onClick={() => {
                 setWhatsappUrl(null);
                 setIsProcessing(false);
+                // Ne pas appeler onConfirm() ici, juste réinitialiser pour permettre une nouvelle commande
               }}
               className="w-full px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors text-sm"
             >
@@ -749,8 +724,8 @@ export default function CheckoutStepConfirmation({
           </div>
         )}
         
-        {/* Bouton principal (masqué sur mobile si WhatsApp URL est disponible) */}
-        {!(isMobile && whatsappUrl) && (
+        {/* Bouton principal (masqué si WhatsApp URL est disponible) */}
+        {!whatsappUrl && (
           <button
             onClick={(e) => {
               e.preventDefault();
