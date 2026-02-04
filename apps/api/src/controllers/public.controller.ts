@@ -471,10 +471,8 @@ export class PublicController {
           messageSent: whatsappMessageId !== null,
           messageId: whatsappMessageId,
           error: whatsappError,
-          // Si l'API n'est pas disponible, retourner l'URL wa.me pour le frontend
-          waMeUrl: !whatsappApiEnabled || whatsappError 
-            ? `https://wa.me/${formatPhoneNumber(restaurant.whatsappNumber!)}?text=${encodeURIComponent(message)}`
-            : null,
+          // TOUJOURS retourner l'URL wa.me comme fallback (même si l'API est configurée)
+          waMeUrl: `https://wa.me/${formatPhoneNumber(restaurant.whatsappNumber!)}?text=${encodeURIComponent(message)}`,
         },
       });
     } catch (error: any) {
