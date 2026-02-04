@@ -333,7 +333,44 @@ ${body.notes ? `📝 Notes: ${body.notes}` : ''}`;
 
     console.log('📩 [PUBLIC API] Message créé dans l\'inbox');
 
-    // Retourner la réponse
+    // Générer le lien WhatsApp wa.me
+    const formatPhoneNumber = (phone: string): string => {
+      // Supprime tous les caractères non numériques sauf +
+      let cleaned = phone.replace(/[^\d+]/g, '');
+      // Si commence par +, supprime le +
+      if (cleaned.startsWith('+')) {
+        cleaned = cleaned.substring(1);
+      }
+      // Si commence par 00, supprime les 00
+      if (cleaned.startsWith('00')) {
+        cleaned = cleaned.substring(2);
+      }
+      return cleaned;
+    };
+
+    // Message WhatsApp formaté
+    const whatsappMessage = `🍽️ Nouvelle Commande - ${restaurant.name}
+
+📝 Numéro: ${order.orderNumber}
+
+👤 Client: ${body.customerName} (${body.customerPhone})
+🚚 Type: ${deliveryTypeLabels[body.deliveryType] || body.deliveryType}
+${body.deliveryAddress ? `📍 Adresse: ${body.deliveryAddress}` : ''}
+💳 Paiement: ${body.paymentMethod}
+💰 Total: ${order.total.toFixed(2)} EGP
+
+📦 Commande:
+${itemsList}
+${body.notes ? `\n📝 Notes: ${body.notes}` : ''}`;
+
+    // Générer le lien wa.me
+    const waMeUrl = restaurant.whatsappNumber 
+      ? `https://wa.me/${formatPhoneNumber(restaurant.whatsappNumber)}?text=${encodeURIComponent(whatsappMessage)}`
+      : null;
+
+    console.log('📱 [PUBLIC API] WhatsApp URL générée:', waMeUrl ? waMeUrl.substring(0, 50) + '...' : 'null');
+
+    // Retourner la réponse avec le lien WhatsApp
     return NextResponse.json({
       success: true,
       order: {
@@ -345,6 +382,13 @@ ${body.notes ? `📝 Notes: ${body.notes}` : ''}`;
       restaurant: {
         name: restaurant.name,
         whatsappNumber: restaurant.whatsappNumber,
+      },
+      whatsapp: {
+        apiEnabled: false, // Pas d'API WhatsApp Business configurée côté web
+        messageSent: false,
+        messageId: null,
+        error: null,
+        waMeUrl, // Lien wa.me pour ouvrir WhatsApp
       },
     }, { status: 201 });
 
