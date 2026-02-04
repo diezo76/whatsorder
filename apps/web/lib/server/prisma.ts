@@ -11,10 +11,18 @@ if (!process.env.DATABASE_URL) {
 }
 
 // Désactiver les prepared statements pour éviter les conflits avec le Connection Pooler
-// Ajouter ?pgbouncer=true à la DATABASE_URL si ce n'est pas déjà fait
-const databaseUrl = process.env.DATABASE_URL.includes('pgbouncer=true')
-  ? process.env.DATABASE_URL
-  : `${process.env.DATABASE_URL}${process.env.DATABASE_URL.includes('?') ? '&' : '?'}pgbouncer=true`;
+// Ajouter ?pgbouncer=true&statement_cache_size=0 à la DATABASE_URL
+let databaseUrl = process.env.DATABASE_URL;
+
+// Ajouter pgbouncer=true si ce n'est pas déjà présent
+if (!databaseUrl.includes('pgbouncer=true')) {
+  databaseUrl = `${databaseUrl}${databaseUrl.includes('?') ? '&' : '?'}pgbouncer=true`;
+}
+
+// Désactiver complètement le cache des prepared statements
+if (!databaseUrl.includes('statement_cache_size')) {
+  databaseUrl = `${databaseUrl}${databaseUrl.includes('?') ? '&' : '?'}statement_cache_size=0`;
+}
 
 export const prisma = global.prisma || new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
