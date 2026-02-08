@@ -1,26 +1,8 @@
 import { saveAs } from 'file-saver';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-
-// Types
-interface Order {
-  id: string;
-  orderNumber: string;
-  createdAt: string;
-  status: string;
-  customer: {
-    name: string;
-    phone: string;
-  };
-  deliveryType: string;
-  total: number;
-  items: Array<{
-    name: string;
-    quantity: number;
-    unitPrice: number;
-    subtotal: number;
-  }>;
-}
+import type { Order } from '@/types/order';
+import { DELIVERY_TYPE_LABELS, ORDER_STATUS_LABELS } from '@/lib/shared/labels';
 
 interface TopItem {
   name: string;
@@ -191,26 +173,11 @@ export async function exportCompleteReport(
   }
 }
 
-// Helpers
+// Helpers (utilisant les labels centralisés)
 function getDeliveryTypeLabel(type: string): string {
-  const labels: Record<string, string> = {
-    DELIVERY: 'Livraison',
-    PICKUP: 'À emporter',
-    DINE_IN: 'Sur place'
-  };
-  return labels[type] || type;
+  return DELIVERY_TYPE_LABELS[type] || type;
 }
 
 function getStatusLabel(status: string): string {
-  const labels: Record<string, string> = {
-    PENDING: 'En Attente',
-    CONFIRMED: 'Confirmée',
-    PREPARING: 'En Préparation',
-    READY: 'Prête',
-    OUT_FOR_DELIVERY: 'En Livraison',
-    DELIVERED: 'Livrée',
-    COMPLETED: 'Complétée',
-    CANCELLED: 'Annulée'
-  };
-  return labels[status] || status;
+  return ORDER_STATUS_LABELS[status] || status;
 }

@@ -5,22 +5,18 @@ import { createPortal } from 'react-dom';
 import { X, ShoppingCart, Plus, Minus, Trash2, MessageCircle } from 'lucide-react';
 import { useCartStore, CartItem } from '@/store/cartStore';
 import CheckoutModal from '@/components/checkout/CheckoutModal';
-
-interface Restaurant {
-  id?: string;
-  slug?: string;
-  name: string;
-  phone: string;
-  whatsappNumber?: string; // Optionnel car peut ne pas être défini
-}
+import { useLanguage } from '@/contexts/LanguageContext';
+import type { RestaurantCart } from '@/types/restaurant';
+import { formatPrice as sharedFormatPrice } from '@/lib/shared/pricing';
 
 interface CartDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  restaurant?: Restaurant;
+  restaurant?: RestaurantCart;
 }
 
 export default function CartDrawer({ isOpen, onClose, restaurant }: CartDrawerProps) {
+  const { t } = useLanguage();
   const items = useCartStore((state) => state.items);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const removeItem = useCartStore((state) => state.removeItem);
@@ -34,7 +30,8 @@ export default function CartDrawer({ isOpen, onClose, restaurant }: CartDrawerPr
   // Restaurant par défaut si non fourni (pour tests)
   // ATTENTION: Le slug est requis pour créer une commande !
   // Ne pas utiliser de numéro WhatsApp par défaut - le restaurant doit avoir son propre numéro
-  const defaultRestaurant: Restaurant = {
+  const defaultRestaurant: RestaurantCart = {
+    id: '',
     name: 'Restaurant',
     phone: '',
     whatsappNumber: undefined, // Pas de numéro par défaut - le restaurant doit définir son numéro
@@ -68,10 +65,8 @@ export default function CartDrawer({ isOpen, onClose, restaurant }: CartDrawerPr
     };
   }, [isOpen, onClose]);
 
-  // Formatage du prix
-  const formatPrice = (price: number) => {
-    return `${price.toFixed(2)} EGP`;
-  };
+  // Utilise la fonction centralisée
+  const formatPrice = (price: number) => sharedFormatPrice(price);
 
   // Calcul du sous-total d'un item
   const getItemSubtotal = (item: CartItem) => {
@@ -138,11 +133,11 @@ export default function CartDrawer({ isOpen, onClose, restaurant }: CartDrawerPr
       >
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-4 flex items-center justify-between z-10">
-          <h2 className="text-xl font-bold text-gray-900">Mon Panier</h2>
+          <h2 className="text-xl font-bold text-gray-900">{t.cart.myCart}</h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            aria-label="Fermer le panier"
+            aria-label={t.cart.closeCart}
           >
             <X className="w-5 h-5 text-gray-600" />
           </button>
@@ -154,9 +149,9 @@ export default function CartDrawer({ isOpen, onClose, restaurant }: CartDrawerPr
             // Panier vide
             <div className="flex flex-col items-center justify-center h-full text-center py-12">
               <ShoppingCart className="w-16 h-16 text-gray-300 mb-4" />
-              <p className="text-gray-500 text-lg font-medium">Votre panier est vide</p>
+              <p className="text-gray-500 text-lg font-medium">{t.cart.emptyCart}</p>
               <p className="text-gray-400 text-sm mt-2">
-                Ajoutez des items depuis le menu
+                {t.cart.addItemsFromMenu}
               </p>
             </div>
           ) : (
@@ -220,7 +215,7 @@ export default function CartDrawer({ isOpen, onClose, restaurant }: CartDrawerPr
                           <button
                             onClick={() => handleDecreaseQuantity(item.id, item.quantity)}
                             className="p-1 rounded-full bg-white border border-gray-300 hover:bg-gray-50 transition-colors"
-                            aria-label="Diminuer la quantité"
+                            aria-label={t.cart.decreaseQty}
                           >
                             <Minus className="w-4 h-4 text-gray-600" />
                           </button>
@@ -234,7 +229,7 @@ export default function CartDrawer({ isOpen, onClose, restaurant }: CartDrawerPr
                           <button
                             onClick={() => handleIncreaseQuantity(item.id, item.quantity)}
                             className="p-1 rounded-full bg-white border border-gray-300 hover:bg-gray-50 transition-colors"
-                            aria-label="Augmenter la quantité"
+                            aria-label={t.cart.increaseQty}
                           >
                             <Plus className="w-4 h-4 text-gray-600" />
                           </button>
@@ -244,7 +239,7 @@ export default function CartDrawer({ isOpen, onClose, restaurant }: CartDrawerPr
                         <button
                           onClick={() => removeItem(item.id)}
                           className="p-1.5 text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                          aria-label="Supprimer l'item"
+                          aria-label={t.cart.removeItem}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -253,7 +248,7 @@ export default function CartDrawer({ isOpen, onClose, restaurant }: CartDrawerPr
                       {/* Sous-total */}
                       <div className="mt-2 pt-2 border-t border-gray-200">
                         <p className="text-xs text-gray-600">
-                          Sous-total:{' '}
+                          {t.cart.subtotal}:{' '}
                           <span className="font-semibold text-gray-900">
                             {formatPrice(getItemSubtotal(item))}
                           </span>
@@ -275,19 +270,19 @@ export default function CartDrawer({ isOpen, onClose, restaurant }: CartDrawerPr
             <div className="space-y-2">
               {/* Sous-total */}
               <div className="flex justify-between text-sm text-gray-600">
-                <span>Sous-total</span>
+                <span>{t.cart.subtotal}</span>
                 <span className="font-medium">{formatPrice(total)}</span>
               </div>
 
               {/* Livraison */}
               <div className="flex justify-between text-sm text-gray-600">
-                <span>Livraison</span>
-                <span className="font-medium text-gray-400">À calculer</span>
+                <span>{t.cart.delivery}</span>
+                <span className="font-medium text-gray-400">{t.cart.toCalculate}</span>
               </div>
 
               {/* Total */}
               <div className="flex justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-200">
-                <span>Total</span>
+                <span>{t.cart.total}</span>
                 <span>{formatPrice(total)}</span>
               </div>
             </div>
@@ -303,7 +298,7 @@ export default function CartDrawer({ isOpen, onClose, restaurant }: CartDrawerPr
               }`}
             >
               <MessageCircle className="w-5 h-5" />
-              <span>Finaliser la commande</span>
+              <span>{t.cart.finalizeOrder}</span>
             </button>
           </div>
         )}

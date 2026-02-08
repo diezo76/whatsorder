@@ -4,18 +4,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { CartItem, useCartStore } from '@/store/cartStore';
+import { useLanguage } from '@/contexts/LanguageContext';
 import CheckoutStepCustomer, { validateCustomerInfo } from './CheckoutStepCustomer';
 import CheckoutStepDelivery, { validateDeliveryInfo, DeliveryType } from './CheckoutStepDelivery';
 import CheckoutStepPayment, { validatePaymentInfo, PaymentMethod } from './CheckoutStepPayment';
 import CheckoutStepConfirmation from './CheckoutStepConfirmation';
-
-interface Restaurant {
-  id?: string;
-  slug?: string;
-  name: string;
-  phone: string;
-  whatsappNumber?: string; // Optionnel car peut ne pas être défini
-}
+import type { RestaurantCart } from '@/types/restaurant';
 
 interface CheckoutFormData {
   customerName: string;
@@ -23,6 +17,8 @@ interface CheckoutFormData {
   customerEmail?: string;
   deliveryType: DeliveryType;
   deliveryAddress?: string;
+  deliveryZone?: string;
+  scheduledTime?: string;
   notes?: string;
   paymentMethod: PaymentMethod;
 }
@@ -30,7 +26,7 @@ interface CheckoutFormData {
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
-  restaurant: Restaurant;
+  restaurant: RestaurantCart;
   cartItems: CartItem[];
   cartTotal: number;
   onConfirm?: () => void;
@@ -46,6 +42,7 @@ export default function CheckoutModal({
   cartTotal,
   onConfirm,
 }: CheckoutModalProps) {
+  const { t } = useLanguage();
   const clearCart = useCartStore((state) => state.clearCart);
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [formData, setFormData] = useState<CheckoutFormData>({
@@ -54,6 +51,8 @@ export default function CheckoutModal({
     customerEmail: '',
     deliveryType: 'DELIVERY',
     deliveryAddress: '',
+    deliveryZone: '',
+    scheduledTime: '',
     notes: '',
     paymentMethod: 'CASH',
   });
@@ -68,6 +67,8 @@ export default function CheckoutModal({
         customerEmail: '',
         deliveryType: 'DELIVERY',
         deliveryAddress: '',
+        deliveryZone: '',
+        scheduledTime: '',
         notes: '',
         paymentMethod: 'CASH',
       });
@@ -84,7 +85,6 @@ export default function CheckoutModal({
 
     if (isOpen) {
       document.addEventListener('keydown', handleEscape);
-      // Empêcher le scroll du body quand le modal est ouvert
       document.body.style.overflow = 'hidden';
     }
 
@@ -121,6 +121,8 @@ export default function CheckoutModal({
       return validateDeliveryInfo({
         deliveryType: formData.deliveryType,
         deliveryAddress: formData.deliveryAddress,
+        deliveryZone: formData.deliveryZone,
+        scheduledTime: formData.scheduledTime,
         notes: formData.notes,
       });
     } else if (currentStep === 3) {
@@ -133,7 +135,6 @@ export default function CheckoutModal({
 
   // Navigation vers l'étape suivante avec validation
   const nextStep = () => {
-    // Validation selon l'étape actuelle
     if (currentStep === 1) {
       if (!validateCustomerInfo({
         customerName: formData.customerName,
@@ -146,6 +147,8 @@ export default function CheckoutModal({
       if (!validateDeliveryInfo({
         deliveryType: formData.deliveryType,
         deliveryAddress: formData.deliveryAddress,
+        deliveryZone: formData.deliveryZone,
+        scheduledTime: formData.scheduledTime,
         notes: formData.notes,
       })) {
         return;
@@ -170,7 +173,7 @@ export default function CheckoutModal({
     }
   };
 
-  // Gestion de la confirmation (vidage du panier et fermeture)
+  // Gestion de la confirmation
   const handleConfirm = () => {
     clearCart();
     onClose();
@@ -209,13 +212,13 @@ export default function CheckoutModal({
     );
   };
 
-  // Titres des étapes
+  // Titres des étapes (traduits)
   const getStepTitle = () => {
     switch (currentStep) {
-      case 1: return 'Vos informations';
-      case 2: return 'Livraison';
-      case 3: return 'Paiement';
-      case 4: return 'Confirmation';
+      case 1: return t.checkout.yourInfo;
+      case 2: return t.checkout.delivery;
+      case 3: return t.checkout.payment;
+      case 4: return t.checkout.confirmation;
       default: return '';
     }
   };
@@ -243,12 +246,15 @@ export default function CheckoutModal({
             formData={{
               deliveryType: formData.deliveryType,
               deliveryAddress: formData.deliveryAddress,
+              deliveryZone: formData.deliveryZone,
+              scheduledTime: formData.scheduledTime,
               notes: formData.notes,
             }}
             onChange={handleFormChange}
             onNext={nextStep}
             onPrev={prevStep}
             isValid={currentStep === 2 ? isStepValid : undefined}
+            restaurantDeliveryZones={restaurant.deliveryZones ?? undefined}
           />
         );
       case 3:
@@ -261,6 +267,12 @@ export default function CheckoutModal({
             onNext={nextStep}
             onPrev={prevStep}
             isValid={currentStep === 3 ? isStepValid : undefined}
+            paymentOptions={{
+              enableCashPayment: restaurant.enableCashPayment ?? true,
+              enableCardPayment: restaurant.enableCardPayment ?? true,
+              enableStripePayment: restaurant.enableStripePayment ?? false,
+              enablePaypalPayment: restaurant.enablePaypalPayment ?? false,
+            }}
           />
         );
       case 4:
@@ -272,6 +284,8 @@ export default function CheckoutModal({
               customerEmail: formData.customerEmail,
               deliveryType: formData.deliveryType,
               deliveryAddress: formData.deliveryAddress,
+              deliveryZone: formData.deliveryZone,
+              scheduledTime: formData.scheduledTime,
               notes: formData.notes,
               paymentMethod: formData.paymentMethod,
             }}
@@ -280,6 +294,7 @@ export default function CheckoutModal({
             restaurant={restaurant}
             onConfirm={handleConfirm}
             onPrev={prevStep}
+            restaurantDeliveryZones={restaurant.deliveryZones ?? undefined}
           />
         );
       default:
@@ -308,15 +323,15 @@ export default function CheckoutModal({
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10 rounded-t-lg">
           <div className="flex-1">
-            <h2 className="text-xl font-bold text-gray-900">Finaliser la commande</h2>
+            <h2 className="text-xl font-bold text-gray-900">{t.checkout.finalizeTitle}</h2>
             <p className="text-sm text-gray-500 mt-1">
-              Étape {currentStep}/{TOTAL_STEPS} - {getStepTitle()}
+              {t.checkout.step} {currentStep}/{TOTAL_STEPS} - {getStepTitle()}
             </p>
           </div>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors ml-4"
-            aria-label="Fermer le modal"
+            aria-label={t.checkout.closeModal}
           >
             <X className="w-5 h-5 text-gray-600" />
           </button>

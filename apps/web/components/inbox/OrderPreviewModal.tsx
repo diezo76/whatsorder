@@ -62,21 +62,20 @@ const calculateTotal = (parsedOrder: ParsedOrder) => {
     (sum, item) => sum + (item.menuItem?.price || 0) * item.quantity,
     0
   );
-  const deliveryFee = parsedOrder.deliveryType === 'DELIVERY' ? 20 : 0;
+  // NOTE: Le delivery fee est estimé ici. Le montant exact dépend de la zone
+  // et sera calculé au moment de la confirmation de commande.
+  const deliveryFee = parsedOrder.deliveryType === 'DELIVERY' ? 50 : 0;
   return { subtotal, deliveryFee, total: subtotal + deliveryFee };
 };
 
+const DELIVERY_TYPE_ICONS: Record<string, string> = {
+  DELIVERY: 'Livraison',
+  PICKUP: 'A emporter',
+  DINE_IN: 'Sur place',
+};
+
 const getDeliveryTypeLabel = (type?: string) => {
-  switch (type) {
-    case 'DELIVERY':
-      return '🚚 Livraison';
-    case 'PICKUP':
-      return '🏃 À emporter';
-    case 'DINE_IN':
-      return '🍽️ Sur place';
-    default:
-      return 'Non spécifié';
-  }
+  return type ? (DELIVERY_TYPE_ICONS[type] || 'Non specifie') : 'Non specifie';
 };
 
 const getConfidenceBadge = (confidence: number) => {

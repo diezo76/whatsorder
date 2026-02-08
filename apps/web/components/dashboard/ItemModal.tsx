@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom';
 import { X, Loader2, Tag, Clock, ToggleLeft, Plus } from 'lucide-react';
 import { VariantManager } from '@/components/menu/VariantManager';
 import { OptionManager } from '@/components/menu/OptionManager';
+import { OptionGroupManager } from '@/components/menu/OptionGroupManager';
+import ImageUpload from '@/components/ui/ImageUpload';
 
 // Interfaces TypeScript
 interface Category {
@@ -22,7 +24,7 @@ interface MenuItem {
   slug: string;
   description?: string;
   descriptionAr?: string;
-  price?: number;
+  price?: number | null;
   compareAtPrice?: number;
   image?: string;
   images?: string[];
@@ -155,9 +157,12 @@ export default function ItemModal({
       }
     }
 
-    if (touched.price || formData.price) {
-      if (formData.price <= 0) {
-        newErrors.price = 'Le prix doit être supérieur à 0';
+    // Le prix n'est pas obligatoire si l'item a des variants
+    if (!item?.hasVariants) {
+      if (touched.price || formData.price) {
+        if (formData.price <= 0) {
+          newErrors.price = 'Le prix doit être supérieur à 0 (ou ajoutez des variants)';
+        }
       }
     }
 
@@ -343,8 +348,8 @@ export default function ItemModal({
     }
 
     // Le prix est requis seulement si l'item n'a pas de variants
-    // Note: On vérifie hasVariants depuis l'item, mais pour un nouvel item, on exige un prix
-    if (!item || !item.hasVariants) {
+    // Si l'item a des variants (avec leurs propres prix), le prix de base peut être 0 ou vide
+    if (!item?.hasVariants) {
       if (!formData.price || formData.price <= 0 || isNaN(formData.price)) {
         newErrors.price = 'Le prix doit être supérieur à 0 (ou ajoutez des variants)';
       }
@@ -381,6 +386,33 @@ export default function ItemModal({
     return Object.keys(newErrors).length === 0;
   };
 
+  // Fonction pour nettoyer les données avant l'envoi (seulement les champs qui existent dans la DB)
+  const cleanFormData = (data: ItemFormData): any => {
+    const cleaned: any = {
+      name: data.name.trim(),
+      categoryId: data.categoryId,
+      price: data.price,
+      isAvailable: data.isAvailable,
+      isActive: data.isActive,
+    };
+
+    // Ajouter les champs optionnels seulement s'ils ont une valeur
+    if (data.nameAr && data.nameAr.trim()) {
+      cleaned.nameAr = data.nameAr.trim();
+    }
+    if (data.description && data.description.trim()) {
+      cleaned.description = data.description.trim();
+    }
+    if (data.descriptionAr && data.descriptionAr.trim()) {
+      cleaned.descriptionAr = data.descriptionAr.trim();
+    }
+    if (data.image && data.image.trim()) {
+      cleaned.image = data.image.trim();
+    }
+
+    return cleaned;
+  };
+
   // Fonction handleSave
   const handleSave = async () => {
     if (!validate()) {
@@ -389,7 +421,8 @@ export default function ItemModal({
 
     try {
       setLoading(true);
-      await onSave(formData);
+      const cleanedData = cleanFormData(formData);
+      await onSave(cleanedData as ItemFormData);
       onClose();
     } catch (error: any) {
       console.error('Erreur lors de la sauvegarde:', error);
@@ -582,9 +615,15 @@ export default function ItemModal({
                     className="block text-sm font-medium text-gray-700 mb-2"
                   >
                     Prix (EGP){' '}
-                    <span className="text-red-500" aria-label="requis">
-                      *
-                    </span>
+                    {item?.hasVariants ? (
+                      <span className="text-gray-400 text-xs font-normal ml-1">
+                        (optionnel - prix dans les variants)
+                      </span>
+                    ) : (
+                      <span className="text-red-500" aria-label="requis">
+                        *
+                      </span>
+                    )}
                   </label>
                   <div className="relative">
                     <input
@@ -617,7 +656,12 @@ export default function ItemModal({
                       EGP
                     </span>
                   </div>
-                  {errors.price && touched.price && (
+                  {item?.hasVariants && (
+                    <p className="mt-1 text-xs text-blue-600">
+                      💡 Les prix sont définis dans les variants ci-dessous
+                    </p>
+                  )}
+                  {errors.price && touched.price && !item?.hasVariants && (
                     <p className="mt-1 text-sm text-red-600" role="alert">
                       {errors.price}
                     </p>
@@ -667,51 +711,43 @@ export default function ItemModal({
             {/* Section: Image */}
             <div>
               <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">
-                Image
+                Image du plat
               </h3>
               <div className="space-y-4">
-                {/* URL de l'image */}
+                {/* Upload d'image */}
                 <div>
-                  <label
-                    htmlFor="image"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    URL de l'image
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Photo du plat
                     <span className="text-gray-400 text-xs font-normal ml-2">
                       (optionnel)
                     </span>
                   </label>
+                  <ImageUpload
+                    value={formData.image}
+                    onChange={(url) => handleChange('image', url)}
+                    onRemove={() => handleChange('image', '')}
+                    folder="items"
+                    aspectRatio="video"
+                  />
+                </div>
+
+                {/* Option URL manuelle */}
+                <div>
+                  <label
+                    htmlFor="image-url"
+                    className="block text-sm font-medium text-gray-500 mb-1"
+                  >
+                    Ou entrez une URL
+                  </label>
                   <input
                     type="url"
-                    id="image"
+                    id="image-url"
                     value={formData.image}
                     onChange={(e) => handleChange('image', e.target.value)}
                     placeholder="https://example.com/image.jpg"
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
                   />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Upload d'image sera ajouté dans la prochaine étape
-                  </p>
                 </div>
-
-                {/* Preview de l'image */}
-                {formData.image && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Aperçu
-                    </label>
-                    <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
-                      <img
-                        src={formData.image}
-                        alt="Preview"
-                        className="max-w-full h-auto max-h-48 rounded-lg object-cover mx-auto"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -873,7 +909,16 @@ export default function ItemModal({
                   </h3>
                   <div className="space-y-6">
                     <VariantManager menuItemId={item.id} />
-                    <OptionManager menuItemId={item.id} />
+                    
+                    {/* Groupes d'options avec quota inclus (ex: "Choix de 3 viandes") */}
+                    <div className="border-t pt-6">
+                      <OptionGroupManager menuItemId={item.id} />
+                    </div>
+                    
+                    {/* Options individuelles (pour compatibilité avec l'ancien système) */}
+                    <div className="border-t pt-6">
+                      <OptionManager menuItemId={item.id} />
+                    </div>
                   </div>
                 </div>
               </>
@@ -892,7 +937,7 @@ export default function ItemModal({
           </button>
           <button
             onClick={handleSave}
-            disabled={loading || !formData.name.trim() || !formData.categoryId || (!item && (!formData.price || formData.price <= 0))}
+            disabled={loading || !formData.name.trim() || !formData.categoryId || (!item && (!formData.price || formData.price <= 0 || isNaN(formData.price)))}
             className="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}

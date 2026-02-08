@@ -421,7 +421,7 @@ export class PublicController {
       const customerName = orderWithRelations.customer?.name || data.customerName;
       const customerPhone = orderWithRelations.customer?.phone || data.customerPhone;
       const itemsText = (orderWithRelations.items || []).map((item: any) => `• ${item.quantity}× ${item.name} - ${item.subtotal.toFixed(2)} EGP`).join('\n') || 'Aucun item';
-      const message = `🍽️ Nouvelle Commande - ${restaurant.name}\n\n📝 Numéro de commande: ${order.orderNumber}\n\n👤 Client: ${customerName} (${customerPhone})\n🚚 Type: ${data.deliveryType === 'DELIVERY' ? 'Livraison' : data.deliveryType === 'PICKUP' ? 'À emporter' : 'Sur place'}\n💳 Paiement: ${data.paymentMethod}\n💰 Total: ${total.toFixed(2)} EGP\n\n📦 Commande:\n${itemsText}${data.notes ? `\n\n📝 Notes: ${data.notes}` : ''}`;
+      const message = `Nouvelle Commande - ${restaurant.name}\n\nNuméro de commande: ${order.orderNumber}\n\nClient: ${customerName} (${customerPhone})\nType: ${data.deliveryType === 'DELIVERY' ? 'Livraison' : data.deliveryType === 'PICKUP' ? 'À emporter' : 'Sur place'}\nPaiement: ${data.paymentMethod}\nTotal: ${total.toFixed(2)} EGP\n\nCommande:\n${itemsText}${data.notes ? `\n\nNotes: ${data.notes}` : ''}`;
 
       // Vérifier si WhatsApp Business API est configuré
       const restaurantConfig = {

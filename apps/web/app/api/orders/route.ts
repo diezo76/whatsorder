@@ -3,22 +3,12 @@ import { NextResponse } from 'next/server';
 import { withAuth } from '@/lib/server/auth-app';
 import { prisma } from '@/lib/server/prisma';
 import { handleError, AppError } from '@/lib/server/errors-app';
+import { calculateDeliveryFee } from '@/lib/shared/pricing';
+import type { DeliveryZone } from '@/types/restaurant';
+import type { OrderStatus, DeliveryType } from '@/types/order';
 
 // Marquer la route comme dynamique car elle utilise request.headers pour l'authentification
 export const dynamic = 'force-dynamic';
-
-// Enum OrderStatus
-type OrderStatus =
-  | 'PENDING'
-  | 'CONFIRMED'
-  | 'PREPARING'
-  | 'READY'
-  | 'OUT_FOR_DELIVERY'
-  | 'DELIVERED'
-  | 'COMPLETED'
-  | 'CANCELLED';
-
-type DeliveryType = 'DELIVERY' | 'PICKUP' | 'DINE_IN';
 
 /**
  * GET /api/orders
@@ -215,7 +205,16 @@ export async function POST(request: Request) {
         };
       });
 
-      const deliveryFee = deliveryType === 'DELIVERY' ? 20 : 0;
+      // Calculer les frais de livraison dynamiquement
+      let deliveryFee = 0;
+      if (deliveryType === 'DELIVERY') {
+        const restaurant = await prisma.restaurant.findUnique({
+          where: { id: req.user!.restaurantId },
+          select: { deliveryZones: true },
+        });
+        const zones = (restaurant?.deliveryZones as unknown as DeliveryZone[]) || [];
+        deliveryFee = calculateDeliveryFee(deliveryType, body.deliveryZone, zones);
+      }
       const total = subtotal + deliveryFee;
 
       // Générer le numéro de commande

@@ -33,7 +33,7 @@ export async function GET(
     }
 
     // Récupérer les catégories actives avec leurs items
-    const categories = await prisma.category.findMany({
+    const categories = await (prisma.category.findMany as any)({
       where: {
         restaurantId: restaurant.id,
         isActive: true,
@@ -53,6 +53,17 @@ export async function GET(
               where: { isActive: true },
               orderBy: { sortOrder: 'asc' },
             },
+            // Inclure les groupes d'options avec leurs options
+            optionGroups: {
+              where: { isActive: true },
+              orderBy: { sortOrder: 'asc' },
+              include: {
+                options: {
+                  where: { isActive: true },
+                  orderBy: { sortOrder: 'asc' },
+                },
+              },
+            },
           },
           orderBy: {
             sortOrder: 'asc',
@@ -65,14 +76,14 @@ export async function GET(
     });
 
     // Formater la réponse
-    const formattedCategories = categories.map((category) => ({
+    const formattedCategories = categories.map((category: any) => ({
       id: category.id,
       name: category.name,
       nameAr: category.nameAr,
       slug: category.slug,
       description: category.description,
       sortOrder: category.sortOrder,
-      items: category.items.map((item) => ({
+      items: category.items.map((item: any) => ({
         id: item.id,
         name: item.name,
         nameAr: item.nameAr,
@@ -93,16 +104,41 @@ export async function GET(
           lowStockAlert: v.lowStockAlert,
           isActive: v.isActive,
         })),
-        options: item.options.map((o: any) => ({
-          id: o.id,
-          name: o.name,
-          nameAr: o.nameAr,
-          type: o.type,
-          priceModifier: o.priceModifier,
-          isRequired: o.isRequired,
-          isMultiple: o.isMultiple,
-          maxSelections: o.maxSelections,
-          isActive: o.isActive,
+        // Options individuelles (sans groupe)
+        options: item.options
+          .filter((o: any) => !o.optionGroupId)
+          .map((o: any) => ({
+            id: o.id,
+            name: o.name,
+            nameAr: o.nameAr,
+            type: o.type,
+            priceModifier: o.priceModifier,
+            isRequired: o.isRequired,
+            isMultiple: o.isMultiple,
+            maxSelections: o.maxSelections,
+            isActive: o.isActive,
+          })),
+        // Groupes d'options avec quota inclus
+        optionGroups: (item.optionGroups || []).map((g: any) => ({
+          id: g.id,
+          name: g.name,
+          nameAr: g.nameAr,
+          includedCount: g.includedCount,
+          minSelections: g.minSelections,
+          maxSelections: g.maxSelections,
+          isRequired: g.isRequired,
+          isActive: g.isActive,
+          sortOrder: g.sortOrder,
+          options: g.options.map((o: any) => ({
+            id: o.id,
+            name: o.name,
+            nameAr: o.nameAr,
+            type: o.type,
+            priceModifier: o.priceModifier,
+            optionGroupId: o.optionGroupId,
+            isActive: o.isActive,
+            sortOrder: o.sortOrder,
+          })),
         })),
         isAvailable: item.isAvailable,
         sortOrder: item.sortOrder,

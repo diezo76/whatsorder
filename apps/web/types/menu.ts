@@ -21,12 +21,30 @@ export interface MenuItemOption {
   name: string;
   nameAr?: string;
   type: 'ADDON' | 'MODIFICATION' | 'INSTRUCTION';
-  priceModifier: number;
+  priceModifier: number; // Prix supplément (appliqué au-delà du quota inclus)
+  optionGroupId?: string; // Lien vers le groupe d'options (optionnel)
   isRequired: boolean;
   isMultiple: boolean;
   maxSelections?: number;
   isActive: boolean;
   sortOrder: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+// Groupe d'options avec quota inclus (ex: "Choix de viandes" avec 3 incluses)
+export interface OptionGroup {
+  id: string;
+  menuItemId: string;
+  name: string;
+  nameAr?: string;
+  includedCount: number;  // Nombre de choix INCLUS gratuitement dans le prix
+  minSelections: number;  // Minimum requis
+  maxSelections?: number; // Maximum autorisé (null = illimité)
+  isRequired: boolean;
+  isActive: boolean;
+  sortOrder: number;
+  options: MenuItemOption[]; // Options dans ce groupe
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -44,7 +62,8 @@ export interface MenuItemWithVariantsAndOptions {
   isActive: boolean;
   isAvailable: boolean;
   variants: MenuItemVariant[];
-  options: MenuItemOption[];
+  options: MenuItemOption[];      // Options individuelles (sans groupe)
+  optionGroups: OptionGroup[];    // Groupes d'options avec quota inclus
   category: {
     id: string;
     name: string;
@@ -63,8 +82,11 @@ export interface CartItem {
   selectedOptions: {
     optionId: string;
     optionName: string;
-    priceModifier: number;
+    priceModifier: number; // Prix réel appliqué (0 si inclus, prix si supplément)
+    isIncluded?: boolean;  // true si dans le quota inclus du groupe
+    groupId?: string;      // ID du groupe d'options (si applicable)
+    groupName?: string;    // Nom du groupe (pour l'affichage)
   }[];
-  totalPrice: number; // basePrice + sum(options) * quantity
+  totalPrice: number; // basePrice + sum(options payantes) * quantity
   image?: string;
 }

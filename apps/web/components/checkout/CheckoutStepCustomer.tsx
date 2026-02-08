@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { User, Phone, Mail } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { Translations } from '@/lib/i18n/translations';
 
 interface CustomerFormData {
   customerName: string;
@@ -23,110 +25,87 @@ interface FieldErrors {
   customerEmail?: string;
 }
 
-// Fonction de validation du nom
-const validateName = (name: string): string | undefined => {
-  if (!name.trim()) {
-    return 'Le nom est requis';
-  }
-  if (name.trim().length < 3) {
-    return 'Le nom doit contenir au moins 3 caractères';
-  }
+// Fonction de validation du nom (interne, retourne la clé de traduction)
+const validateNameRaw = (name: string): boolean => {
+  return !!name.trim() && name.trim().length >= 3;
+};
+
+// Fonction de validation du téléphone (interne)
+const validatePhoneRaw = (phone: string): boolean => {
+  if (!phone.trim()) return false;
+  const cleanedPhone = phone.replace(/\s|-|\(|\)|\./g, '');
+  if (!/\d/.test(cleanedPhone)) return false;
+  const digitsOnly = cleanedPhone.replace(/\+/g, '');
+  if (digitsOnly.length < 9 || digitsOnly.length > 13) return false;
+  return true;
+};
+
+// Fonction de validation de l'email (interne)
+const validateEmailRaw = (email: string): boolean => {
+  if (!email.trim()) return true; // optionnel
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
+
+// Validation traduite du nom
+const validateName = (name: string, t: Translations): string | undefined => {
+  if (!name.trim()) return t.checkout.nameRequired;
+  if (name.trim().length < 3) return t.checkout.nameMinLength;
   return undefined;
 };
 
-// Fonction de validation du téléphone
-const validatePhone = (phone: string): string | undefined => {
-  if (!phone.trim()) {
-    return 'Le numéro de téléphone est requis';
-  }
+// Validation traduite du téléphone
+const validatePhone = (phone: string, t: Translations): string | undefined => {
+  if (!phone.trim()) return t.checkout.phoneRequired;
   
-  // Nettoyer le numéro (enlever espaces, tirets, parenthèses, points)
   const cleanedPhone = phone.replace(/\s|-|\(|\)|\./g, '');
+  if (!/\d/.test(cleanedPhone)) return t.checkout.phoneMustContainDigits;
   
-  // Vérifier qu'il contient au moins quelques chiffres
-  if (!/\d/.test(cleanedPhone)) {
-    return 'Le numéro doit contenir des chiffres';
-  }
-  
-  // Extraire uniquement les chiffres et le + éventuel au début
   const digitsOnly = cleanedPhone.replace(/\+/g, '');
-  
-  // Vérifier la longueur minimale (au moins 9 chiffres)
-  if (digitsOnly.length < 9) {
-    return 'Le numéro est trop court (minimum 9 chiffres)';
-  }
-  
-  // Vérifier la longueur maximale (max 13 chiffres)
-  if (digitsOnly.length > 13) {
-    return 'Le numéro est trop long (maximum 13 chiffres)';
-  }
-  
-  // Formats acceptés (plus flexibles) :
-  // - Commence par +20 ou 20 suivi de 10 chiffres (format international)
-  // - Commence par 01 suivi de 9 chiffres (format local égyptien)
-  // - Commence par 1 suivi de 10 chiffres (format local sans 0)
-  // - Ou simplement au moins 10 chiffres (validation basique)
+  if (digitsOnly.length < 9) return t.checkout.phoneTooShort;
+  if (digitsOnly.length > 13) return t.checkout.phoneTooLong;
   
   const startsWithPlus20 = cleanedPhone.startsWith('+20') || cleanedPhone.startsWith('20');
   const startsWith01 = cleanedPhone.startsWith('01');
   const startsWith1 = cleanedPhone.startsWith('1') && !cleanedPhone.startsWith('10');
   
   if (startsWithPlus20) {
-    // Format international : +20 ou 20 suivi de 10 chiffres
     const afterCountryCode = cleanedPhone.replace(/^\+?20/, '');
     if (afterCountryCode.length !== 10 || !/^\d{10}$/.test(afterCountryCode)) {
-      return 'Format international invalide. Utilisez: +20 123 456 7890';
+      return t.checkout.phoneInvalidInternational;
     }
   } else if (startsWith01) {
-    // Format local : 01 suivi de 9 chiffres (total 11)
     if (cleanedPhone.length !== 11 || !/^01\d{9}$/.test(cleanedPhone)) {
-      return 'Format local invalide. Utilisez: 01012345678';
+      return t.checkout.phoneInvalidLocal;
     }
   } else if (startsWith1) {
-    // Format local sans 0 : 1 suivi de 10 chiffres (total 11)
     if (cleanedPhone.length !== 11 || !/^1\d{10}$/.test(cleanedPhone)) {
-      return 'Format invalide. Utilisez: 01012345678 ou +20 123 456 7890';
+      return t.checkout.phoneInvalidFormat;
     }
   } else {
-    // Pour les autres formats, vérifier qu'il y a au moins 10 chiffres
     if (digitsOnly.length < 10) {
-      return 'Format invalide. Utilisez: +20 123 456 7890 ou 01012345678';
+      return t.checkout.phoneInvalidFormat;
     }
-    // Accepter si c'est un numéro valide avec au moins 10 chiffres
     if (!/^\d{10,13}$/.test(digitsOnly)) {
-      return 'Format invalide. Le numéro doit contenir entre 10 et 13 chiffres';
+      return t.checkout.phoneInvalidDigits;
     }
   }
   
   return undefined;
 };
 
-// Fonction de validation de l'email
-const validateEmail = (email: string): string | undefined => {
-  if (!email.trim()) {
-    // Email optionnel, pas d'erreur si vide
-    return undefined;
-  }
-  
-  // Regex basique pour email
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  
-  if (!emailRegex.test(email)) {
-    return 'Format d\'email invalide';
-  }
-  
+// Validation traduite de l'email
+const validateEmail = (email: string, t: Translations): string | undefined => {
+  if (!email.trim()) return undefined;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return t.checkout.emailInvalid;
   return undefined;
 };
 
-// Fonction de validation exportée
+// Fonction de validation exportée (retourne boolean, pas de traduction nécessaire)
 export const validateCustomerInfo = (data: CustomerFormData): boolean => {
-  const nameError = validateName(data.customerName);
-  const phoneError = validatePhone(data.customerPhone);
-  
-  // Email optionnel, on ne vérifie que s'il est rempli
-  const emailError = data.customerEmail ? validateEmail(data.customerEmail) : undefined;
-  
-  return !nameError && !phoneError && !emailError;
+  const nameOk = validateNameRaw(data.customerName);
+  const phoneOk = validatePhoneRaw(data.customerPhone);
+  const emailOk = data.customerEmail ? validateEmailRaw(data.customerEmail) : true;
+  return nameOk && phoneOk && emailOk;
 };
 
 export default function CheckoutStepCustomer({
@@ -136,6 +115,7 @@ export default function CheckoutStepCustomer({
   onPrev,
   isValid,
 }: CheckoutStepCustomerProps) {
+  const { t } = useLanguage();
   const [errors, setErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
@@ -144,33 +124,31 @@ export default function CheckoutStepCustomer({
     const newErrors: FieldErrors = {};
     
     if (touched.customerName || formData.customerName) {
-      newErrors.customerName = validateName(formData.customerName);
+      newErrors.customerName = validateName(formData.customerName, t);
     }
     
     if (touched.customerPhone || formData.customerPhone) {
-      newErrors.customerPhone = validatePhone(formData.customerPhone);
+      newErrors.customerPhone = validatePhone(formData.customerPhone, t);
     }
     
     if (touched.customerEmail || formData.customerEmail) {
-      newErrors.customerEmail = validateEmail(formData.customerEmail || '');
+      newErrors.customerEmail = validateEmail(formData.customerEmail || '', t);
     }
     
     setErrors(newErrors);
-  }, [formData, touched]);
+  }, [formData, touched, t]);
 
-  // Gestion du changement de valeur
   const handleChange = (field: string, value: string) => {
     onChange(field, value);
   };
 
-  // Gestion du blur (champ perdu le focus)
   const handleBlur = (field: string) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
   };
 
   return (
     <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-gray-900">Vos informations</h3>
+      <h3 className="text-lg font-semibold text-gray-900">{t.checkout.yourInfo}</h3>
 
       {/* Champ Nom complet */}
       <div>
@@ -178,7 +156,7 @@ export default function CheckoutStepCustomer({
           htmlFor="customerName"
           className="block text-sm font-medium text-gray-700 mb-2"
         >
-          Nom complet{' '}
+          {t.checkout.fullName}{' '}
           <span className="text-red-500" aria-label="requis">
             *
           </span>
@@ -193,7 +171,7 @@ export default function CheckoutStepCustomer({
             value={formData.customerName}
             onChange={(e) => handleChange('customerName', e.target.value)}
             onBlur={() => handleBlur('customerName')}
-            placeholder="Ex: Ahmed Mohamed"
+            placeholder={t.checkout.namePlaceholder}
             className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
               errors.customerName && touched.customerName
                 ? 'border-red-500 focus:ring-red-500'
@@ -220,7 +198,7 @@ export default function CheckoutStepCustomer({
           htmlFor="customerPhone"
           className="block text-sm font-medium text-gray-700 mb-2"
         >
-          Numéro de téléphone{' '}
+          {t.checkout.phoneNumber}{' '}
           <span className="text-red-500" aria-label="requis">
             *
           </span>
@@ -235,7 +213,7 @@ export default function CheckoutStepCustomer({
             value={formData.customerPhone}
             onChange={(e) => handleChange('customerPhone', e.target.value)}
             onBlur={() => handleBlur('customerPhone')}
-            placeholder="+20 123 456 7890 ou 01012345678"
+            placeholder={t.checkout.phonePlaceholder}
             className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
               errors.customerPhone && touched.customerPhone
                 ? 'border-red-500 focus:ring-red-500'
@@ -253,7 +231,7 @@ export default function CheckoutStepCustomer({
           id="customerPhone-help"
           className="mt-1 text-xs text-gray-500"
         >
-          Format: +20 123 456 7890 ou 01012345678
+          {t.checkout.phoneFormat}
         </p>
         {errors.customerPhone && touched.customerPhone && (
           <p
@@ -272,7 +250,7 @@ export default function CheckoutStepCustomer({
           htmlFor="customerEmail"
           className="block text-sm font-medium text-gray-700 mb-2"
         >
-          Email <span className="text-gray-400 text-xs">(optionnel)</span>
+          {t.checkout.email} <span className="text-gray-400 text-xs">({t.checkout.optional})</span>
         </label>
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -284,7 +262,7 @@ export default function CheckoutStepCustomer({
             value={formData.customerEmail || ''}
             onChange={(e) => handleChange('customerEmail', e.target.value)}
             onBlur={() => handleBlur('customerEmail')}
-            placeholder="exemple@email.com"
+            placeholder={t.checkout.emailPlaceholder}
             className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
               errors.customerEmail && touched.customerEmail
                 ? 'border-red-500 focus:ring-red-500'
@@ -316,9 +294,9 @@ export default function CheckoutStepCustomer({
                 ? 'bg-orange-600 hover:bg-orange-700 text-white cursor-pointer shadow-md hover:shadow-lg'
                 : 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'
             }`}
-            title={isValid === false ? 'Veuillez remplir correctement tous les champs requis' : ''}
+            title={isValid === false ? t.checkout.fillRequiredFields : ''}
           >
-            Suivant
+            {t.checkout.next}
           </button>
           
           {/* Bouton Retour */}
@@ -327,7 +305,7 @@ export default function CheckoutStepCustomer({
               onClick={onPrev}
               className="w-full px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
             >
-              Retour
+              {t.checkout.back}
             </button>
           )}
         </div>

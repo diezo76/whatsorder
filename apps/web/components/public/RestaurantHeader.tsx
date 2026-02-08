@@ -1,6 +1,8 @@
 'use client';
 
 import { Phone, MapPin, Clock } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { isRestaurantOpen } from '@/lib/shared/pricing';
 
 interface Restaurant {
   name: string;
@@ -9,7 +11,7 @@ interface Restaurant {
   coverImage?: string;
   phone: string;
   address: string;
-  openingHours?: Record<string, { open: string; close: string }> | string;
+  openingHours?: Record<string, { open: string; close: string; closed?: boolean }> | string;
 }
 
 interface RestaurantHeaderProps {
@@ -26,43 +28,9 @@ const getInitials = (name: string): string => {
     .slice(0, 2);
 };
 
-// Fonction pour formater les horaires
-const formatOpeningHours = (
-  openingHours?: Record<string, { open: string; close: string }> | string
-): string => {
-  if (!openingHours) {
-    return 'Horaires non disponibles';
-  }
-
-  if (typeof openingHours === 'string') {
-    return openingHours;
-  }
-
-  // Formater les horaires par jour
-  const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
-  const formattedDays = days.map((day) => {
-    const hours = openingHours[day];
-    if (!hours) return null;
-    return `${day.charAt(0).toUpperCase() + day.slice(1)}: ${hours.open} - ${hours.close}`;
-  });
-
-  const availableDays = formattedDays.filter(Boolean);
-  if (availableDays.length === 0) {
-    return 'Horaires non disponibles';
-  }
-
-  // Si tous les jours ont les mêmes horaires
-  const firstDayHours = formattedDays[0];
-  if (availableDays.every((day) => day === firstDayHours)) {
-    return `Tous les jours: ${openingHours[days[0]]?.open} - ${openingHours[days[0]]?.close}`;
-  }
-
-  // Sinon, afficher les jours de la semaine
-  return availableDays.join(', ');
-};
-
 export default function RestaurantHeader({ restaurant }: RestaurantHeaderProps) {
   const { name, description, logo, coverImage, phone, address, openingHours } = restaurant;
+  const { t } = useLanguage();
 
   return (
     <div className="relative w-full">
@@ -128,7 +96,7 @@ export default function RestaurantHeader({ restaurant }: RestaurantHeaderProps) 
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                  Téléphone
+                  {t.header.phone}
                 </h3>
                 <a
                   href={`tel:${phone}`}
@@ -146,24 +114,35 @@ export default function RestaurantHeader({ restaurant }: RestaurantHeaderProps) 
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                  Adresse
+                  {t.header.address}
                 </h3>
                 <p className="text-gray-900 font-medium break-words">{address}</p>
               </div>
             </div>
 
-            {/* Horaires */}
+            {/* Statut Ouvert/Fermé */}
             <div className="bg-white rounded-lg shadow p-4 flex items-start gap-3 hover:shadow-md transition-shadow">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-primary" />
+              <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                isRestaurantOpen(openingHours) ? 'bg-green-100' : 'bg-red-100'
+              }`}>
+                <Clock className={`w-5 h-5 ${
+                  isRestaurantOpen(openingHours) ? 'text-green-600' : 'text-red-600'
+                }`} />
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                  Horaires
+                  {t.header.status}
                 </h3>
-                <p className="text-gray-900 font-medium text-sm leading-relaxed">
-                  {formatOpeningHours(openingHours)}
-                </p>
+                <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
+                  isRestaurantOpen(openingHours)
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  <span className={`w-2 h-2 rounded-full mr-2 ${
+                    isRestaurantOpen(openingHours) ? 'bg-green-500 animate-pulse' : 'bg-red-500'
+                  }`}></span>
+                  {isRestaurantOpen(openingHours) ? t.header.open : t.header.closed}
+                </div>
               </div>
             </div>
           </div>

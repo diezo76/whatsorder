@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Loader2, Folder, ToggleLeft } from 'lucide-react';
+import ImageUpload from '@/components/ui/ImageUpload';
 
 // Interfaces TypeScript
 interface Category {
@@ -336,70 +337,52 @@ export default function CategoryModal({
             {/* Section: Image */}
             <div>
               <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">
-                Image
+                Image de la catégorie
               </h3>
               <div className="space-y-4">
-                {/* URL de l'image */}
+                {/* Upload d'image */}
                 <div>
-                  <label
-                    htmlFor="image"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    URL de l'image
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Photo de la catégorie
                     <span className="text-gray-400 text-xs font-normal ml-2">
                       (optionnel)
                     </span>
                   </label>
+                  <ImageUpload
+                    value={formData.image}
+                    onChange={(url) => handleChange('image', url)}
+                    onRemove={() => handleChange('image', '')}
+                    folder="categories"
+                    aspectRatio="banner"
+                  />
+                </div>
+
+                {/* Option URL manuelle */}
+                <div>
+                  <label
+                    htmlFor="image-url"
+                    className="block text-sm font-medium text-gray-500 mb-1"
+                  >
+                    Ou entrez une URL
+                  </label>
                   <input
                     type="url"
-                    id="image"
+                    id="image-url"
                     value={formData.image}
                     onChange={(e) => handleChange('image', e.target.value)}
                     onBlur={() => handleBlur('image')}
                     placeholder="https://example.com/image.jpg"
-                    className={`w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 transition-colors ${
+                    className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 transition-colors ${
                       errors.image && touched.image
                         ? 'border-red-500 focus:ring-red-500'
-                        : 'border-gray-300 focus:ring-orange-500'
+                        : 'border-gray-200 focus:ring-orange-500'
                     }`}
-                    aria-invalid={errors.image && touched.image ? 'true' : 'false'}
                   />
                   {errors.image && touched.image && (
                     <p className="mt-1 text-sm text-red-600" role="alert">
                       {errors.image}
                     </p>
                   )}
-                </div>
-
-                {/* Preview de l'image */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Aperçu
-                  </label>
-                  <div className="border border-gray-300 rounded-lg p-4 bg-gray-50 flex items-center justify-center">
-                    {formData.image && formData.image.trim() ? (
-                      <img
-                        src={formData.image}
-                        alt="Preview"
-                        className="w-[100px] h-[100px] rounded-lg object-cover"
-                        onError={(e) => {
-                          const img = e.target as HTMLImageElement;
-                          img.style.display = 'none';
-                          const container = img.parentElement;
-                          if (container) {
-                            const placeholder = document.createElement('div');
-                            placeholder.className = 'w-[100px] h-[100px] rounded-lg bg-gray-200 flex items-center justify-center';
-                            placeholder.innerHTML = '<svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>';
-                            container.appendChild(placeholder);
-                          }
-                        }}
-                      />
-                    ) : (
-                      <div className="w-[100px] h-[100px] rounded-lg bg-gray-200 flex items-center justify-center">
-                        <Folder className="w-8 h-8 text-gray-400" />
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
             </div>

@@ -7,6 +7,7 @@ import MessageBubble from './MessageBubble';
 import OrderPreviewModal, { ParsedOrder } from './OrderPreviewModal';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
+import { DELIVERY_TYPE_LABELS } from '@/lib/shared/labels';
 
 // Interface Message
 export interface Message {
@@ -101,12 +102,7 @@ export default function ChatArea({
 
   // Helper pour obtenir le label du type de livraison
   const getDeliveryTypeLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      DELIVERY: 'Livraison',
-      PICKUP: 'À emporter',
-      DINE_IN: 'Sur place'
-    };
-    return labels[type] || type;
+    return DELIVERY_TYPE_LABELS[type] || type;
   };
 
   // Handle parse with AI

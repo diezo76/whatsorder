@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Search, FolderPlus, Plus } from 'lucide-react';
+import { Search, FolderPlus, Plus, ChevronUp, ChevronDown, GripVertical } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
@@ -32,10 +32,11 @@ interface MenuItem {
   slug: string;
   description?: string;
   descriptionAr?: string;
-  price: number;
+  price?: number | null;
   compareAtPrice?: number;
   image?: string;
   images: string[];
+  hasVariants?: boolean;
   variants?: any;
   modifiers?: any;
   isAvailable: boolean;
@@ -311,6 +312,36 @@ export default function MenuPage() {
     }
   };
 
+  // Fonction pour déplacer une catégorie vers le haut ou le bas
+  const handleMoveCategory = async (categoryId: string, direction: 'up' | 'down') => {
+    const currentIndex = categories.findIndex((cat) => cat.id === categoryId);
+    if (currentIndex === -1) return;
+
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    
+    // Vérifier les limites
+    if (newIndex < 0 || newIndex >= categories.length) return;
+
+    // Créer une copie du tableau et échanger les positions
+    const newCategories = [...categories];
+    [newCategories[currentIndex], newCategories[newIndex]] = [newCategories[newIndex], newCategories[currentIndex]];
+
+    // Mettre à jour localement d'abord pour une UI réactive
+    setCategories(newCategories);
+
+    try {
+      // Envoyer le nouvel ordre au serveur
+      const categoryIds = newCategories.map((cat) => cat.id);
+      await api.put('/menu/categories/reorder', { categoryIds });
+      toast.success('Ordre mis à jour ✅');
+    } catch (error: any) {
+      // En cas d'erreur, remettre l'ancien ordre
+      setCategories(categories);
+      console.error('Erreur lors du déplacement de la catégorie:', error);
+      toast.error('Erreur lors du déplacement de la catégorie');
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
@@ -487,7 +518,9 @@ export default function MenuPage() {
                                 </p>
                               )}
                               <div className="mt-2 text-sm font-semibold text-slate-900">
-                                {item.price.toFixed(2)} EGP
+                                {item.hasVariants 
+                                  ? 'Voir variants' 
+                                  : `${(item.price ?? 0).toFixed(2)} EGP`}
                               </div>
                             </div>
                           </div>
@@ -504,8 +537,10 @@ export default function MenuPage() {
         {/* Tab: Catégories */}
         {selectedTab === 'categories' && (
           <div>
-            <div className="mb-4 text-sm text-slate-600">
-              {categories.length} catégorie{categories.length > 1 ? 's' : ''}
+            <div className="mb-4 flex items-center justify-between">
+              <span className="text-sm text-slate-600">
+                {categories.length} catégorie{categories.length > 1 ? 's' : ''} • Utilisez les flèches pour réorganiser
+              </span>
             </div>
             <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
               {categories.length === 0 ? (
@@ -514,15 +549,53 @@ export default function MenuPage() {
                 </div>
               ) : (
                 <div className="divide-y divide-slate-200">
-                  {categories.map((category) => (
+                  {categories.map((category, index) => (
                     <div
                       key={category.id}
                       className="p-4 hover:bg-slate-50 transition-colors"
                     >
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-4">
+                        {/* Boutons de réorganisation */}
+                        <div className="flex flex-col gap-1">
+                          <button
+                            onClick={() => handleMoveCategory(category.id, 'up')}
+                            disabled={index === 0}
+                            className={`p-1 rounded transition-colors ${
+                              index === 0
+                                ? 'text-slate-300 cursor-not-allowed'
+                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+                            }`}
+                            title="Monter"
+                          >
+                            <ChevronUp size={20} />
+                          </button>
+                          <button
+                            onClick={() => handleMoveCategory(category.id, 'down')}
+                            disabled={index === categories.length - 1}
+                            className={`p-1 rounded transition-colors ${
+                              index === categories.length - 1
+                                ? 'text-slate-300 cursor-not-allowed'
+                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+                            }`}
+                            title="Descendre"
+                          >
+                            <ChevronDown size={20} />
+                          </button>
+                        </div>
+
+                        {/* Icône de grip (visuel) */}
+                        <div className="text-slate-300">
+                          <GripVertical size={20} />
+                        </div>
+
+                        {/* Contenu de la catégorie */}
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-slate-400 w-6">#{index + 1}</span>
                             <h3 className="font-semibold text-slate-900">{category.name}</h3>
+                            {category.nameAr && (
+                              <span className="text-sm text-slate-500" dir="rtl">({category.nameAr})</span>
+                            )}
                             {!category.isActive && (
                               <span className="px-2 py-1 text-xs bg-slate-200 text-slate-600 rounded">
                                 Inactive
@@ -530,16 +603,16 @@ export default function MenuPage() {
                             )}
                           </div>
                           {category.description && (
-                            <p className="mt-1 text-sm text-slate-600 line-clamp-2">
+                            <p className="mt-1 text-sm text-slate-600 line-clamp-1 ml-6">
                               {category.description}
                             </p>
                           )}
-                          <div className="mt-2 text-sm text-slate-600">
+                          <div className="mt-1 text-sm text-slate-500 ml-6">
                             {category._count?.items || 0} item{(category._count?.items || 0) > 1 ? 's' : ''}
-                            {' • '}
-                            Ordre: {category.sortOrder}
                           </div>
                         </div>
+
+                        {/* Actions */}
                         <div className="flex gap-2">
                           <button
                             onClick={() => {

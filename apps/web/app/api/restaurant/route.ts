@@ -84,6 +84,7 @@ export async function PUT(request: Request) {
       // Construire l'objet de mise à jour avec seulement les champs fournis
       const updateData: any = {};
       
+      if (body.isBusy !== undefined) updateData.isBusy = body.isBusy;
       if (name !== undefined) updateData.name = name;
       if (description !== undefined) updateData.description = description || null;
       if (phone !== undefined) updateData.phone = phone;

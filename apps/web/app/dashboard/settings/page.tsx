@@ -11,15 +11,11 @@ import SettingsIntegrationsTab from '@/components/settings/SettingsIntegrationsT
 import SettingsShareTab from '@/components/settings/SettingsShareTab';
 import SettingsPaymentsTab from '@/components/settings/SettingsPaymentsTab';
 
+import type { DeliveryZone } from '@/types/restaurant';
+
 // Interfaces TypeScript
 interface OpeningHours {
   [day: string]: { open: string; close: string; closed: boolean };
-}
-
-interface DeliveryZone {
-  name: string;
-  fee: number;
-  radius?: number;
 }
 
 interface RestaurantFormData {

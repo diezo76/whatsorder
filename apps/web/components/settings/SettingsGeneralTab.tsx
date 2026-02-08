@@ -1,6 +1,7 @@
 'use client';
 
 import { Building2, Image as ImageIcon, Phone, ChevronDown } from 'lucide-react';
+import ImageUpload from '@/components/ui/ImageUpload';
 
 interface RestaurantFormData {
   name: string;
@@ -198,79 +199,73 @@ export default function SettingsGeneralTab({ formData, onChange }: SettingsGener
         <div className="space-y-6">
           {/* Logo */}
           <div>
-            <label htmlFor="logo" className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Logo du restaurant
             </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <p className="text-xs text-gray-500 mb-3">
+              Format carré recommandé (ex: 400x400px)
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <ImageUpload
+                value={formData.logo}
+                onChange={(url) => handleTextChange('logo', url)}
+                onRemove={() => handleTextChange('logo', '')}
+                folder="logos"
+                aspectRatio="square"
+              />
               <div>
+                <label
+                  htmlFor="logo-url"
+                  className="block text-sm font-medium text-gray-500 mb-1"
+                >
+                  Ou entrez une URL
+                </label>
                 <input
                   type="url"
-                  id="logo"
+                  id="logo-url"
                   value={formData.logo}
                   onChange={(e) => handleTextChange('logo', e.target.value)}
-                  className={`w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 transition-colors ${
-                    !logoUrlValid ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-orange-500'
+                  className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 transition-colors ${
+                    !logoUrlValid ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-orange-500'
                   }`}
                   placeholder="https://example.com/logo.png"
                 />
-                <p className="mt-1 text-xs text-gray-500">
-                  Upload sera ajouté prochainement
-                </p>
-              </div>
-              <div className="flex items-center justify-center">
-                {formData.logo && logoUrlValid ? (
-                  <img
-                    src={formData.logo}
-                    alt="Logo preview"
-                    className="w-[150px] h-[150px] rounded-lg object-cover border border-gray-200"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <div className="w-[150px] h-[150px] rounded-lg bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center">
-                    <Building2 className="w-8 h-8 text-gray-400" />
-                  </div>
-                )}
               </div>
             </div>
           </div>
 
           {/* Image de couverture */}
           <div>
-            <label htmlFor="coverImage" className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Image de couverture
             </label>
-            <div className="space-y-2">
+            <p className="text-xs text-gray-500 mb-3">
+              Format bannière recommandé (ex: 1200x400px)
+            </p>
+            <ImageUpload
+              value={formData.coverImage}
+              onChange={(url) => handleTextChange('coverImage', url)}
+              onRemove={() => handleTextChange('coverImage', '')}
+              folder="covers"
+              aspectRatio="banner"
+            />
+            <div className="mt-3">
+              <label
+                htmlFor="cover-url"
+                className="block text-sm font-medium text-gray-500 mb-1"
+              >
+                Ou entrez une URL
+              </label>
               <input
                 type="url"
-                id="coverImage"
+                id="cover-url"
                 value={formData.coverImage}
                 onChange={(e) => handleTextChange('coverImage', e.target.value)}
-                className={`w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 transition-colors ${
-                  !coverImageUrlValid ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-orange-500'
+                className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 transition-colors ${
+                  !coverImageUrlValid ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-orange-500'
                 }`}
                 placeholder="https://example.com/cover.jpg"
               />
-              <p className="text-xs text-gray-500">
-                Recommandé : 1200x400px
-              </p>
-              {formData.coverImage && coverImageUrlValid ? (
-                <div className="mt-2">
-                  <img
-                    src={formData.coverImage}
-                    alt="Cover preview"
-                    className="w-full max-w-[400px] h-[200px] rounded-lg object-cover border border-gray-200"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
-                  />
-                </div>
-              ) : (
-                <div className="w-full max-w-[400px] h-[200px] rounded-lg bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center mt-2">
-                  <ImageIcon className="w-12 h-12 text-gray-400" />
-                </div>
-              )}
             </div>
           </div>
         </div>

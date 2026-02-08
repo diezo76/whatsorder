@@ -3,35 +3,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/server/prisma';
+import { calculateDeliveryFee, formatPhoneNumber, generateWhatsAppUrl } from '@/lib/shared/pricing';
+import { DELIVERY_TYPE_LABELS, getDeliveryZoneLabel } from '@/lib/shared/labels';
+import type { DeliveryZone } from '@/types/restaurant';
+import type { CreateOrderInput, DeliveryType } from '@/types/order';
 
 // Marquer la route comme dynamique
 export const dynamic = 'force-dynamic';
-
-// Types
-type DeliveryType = 'DELIVERY' | 'PICKUP' | 'DINE_IN';
-type PaymentMethod = 'CASH' | 'CARD' | 'STRIPE' | 'PAYPAL';
-
-interface OrderItemInput {
-  menuItemId: string;
-  quantity: number;
-  unitPrice?: number;
-  customization?: {
-    variant?: string | null;
-    modifiers?: string[];
-    notes?: string | null;
-  };
-}
-
-interface CreateOrderInput {
-  items: OrderItemInput[];
-  customerName: string;
-  customerPhone: string;
-  customerEmail?: string;
-  deliveryType: DeliveryType;
-  deliveryAddress?: string;
-  notes?: string;
-  paymentMethod: PaymentMethod;
-}
 
 /**
  * Génère un numéro de commande unique
@@ -105,13 +83,21 @@ export async function POST(
     // Trouver le restaurant
     const restaurant = await prisma.restaurant.findUnique({
       where: { slug },
-      select: { id: true, name: true, slug: true, whatsappNumber: true },
+      select: { id: true, name: true, slug: true, whatsappNumber: true, deliveryZones: true, isBusy: true },
     });
 
     if (!restaurant) {
       return NextResponse.json(
         { error: 'Restaurant non trouvé' },
         { status: 404 }
+      );
+    }
+
+    // Vérifier si le restaurant est occupé
+    if (restaurant.isBusy) {
+      return NextResponse.json(
+        { error: 'Le restaurant est temporairement indisponible. Veuillez reessayer plus tard.' },
+        { status: 503 }
       );
     }
 
@@ -195,7 +181,9 @@ export async function POST(
       return sum + (price * item.quantity);
     }, 0);
     
-    const deliveryFee = body.deliveryType === 'DELIVERY' ? 20 : 0;
+    // Calculer les frais de livraison via la fonction centralisée
+    const zones = (restaurant.deliveryZones as unknown as DeliveryZone[]) || [];
+    const deliveryFee = calculateDeliveryFee(body.deliveryType, body.deliveryZone, zones);
     const total = subtotal + deliveryFee;
 
     // Générer un numéro de commande unique
@@ -227,7 +215,7 @@ export async function POST(
               quantity: item.quantity,
               unitPrice,
               subtotal: unitPrice * item.quantity,
-              customization: item.customization ? item.customization : undefined,
+              customization: item.customization ? (item.customization as any) : undefined,
               notes: item.customization?.notes || undefined,
             };
           }),
@@ -274,33 +262,46 @@ export async function POST(
       console.log('💬 [PUBLIC API] Nouvelle conversation créée:', conversation.id);
     }
 
-    // Formater le message de la commande
+    // Formater le message de la commande avec détails complets
     const itemsList = order.items
-      .map((item) => `• ${item.quantity}× ${item.name} - ${item.subtotal.toFixed(2)} EGP`)
+      .map((item) => {
+        const customization = item.customization as any;
+        let text = `• ${item.quantity}x ${item.name}`;
+        if (customization?.variant) {
+          text += ` (${customization.variant})`;
+        }
+        text += ` - ${item.subtotal.toFixed(2)} EGP`;
+        if (customization?.modifiers && customization.modifiers.length > 0) {
+          text += `\n  Options: ${customization.modifiers.join(', ')}`;
+        }
+        return text;
+      })
       .join('\n');
 
-    const deliveryTypeLabels: Record<string, string> = {
-      'DELIVERY': '🚚 Livraison',
-      'PICKUP': '🏪 À emporter',
-      'DINE_IN': '🍽️ Sur place',
-    };
+    // Labels centralisés
 
-    const orderMessage = `🛒 **Nouvelle Commande #${order.orderNumber}**
+    const scheduledTimeText = body.scheduledTime 
+      ? `Heure: ${body.scheduledTime}` 
+      : 'Heure: Des que possible';
 
-👤 Client: ${body.customerName}
-📞 Téléphone: ${body.customerPhone}
+    const orderMessage = `**Nouvelle Commande #${order.orderNumber}**
 
-${deliveryTypeLabels[body.deliveryType] || body.deliveryType}
-${body.deliveryAddress ? `📍 Adresse: ${body.deliveryAddress}` : ''}
+Client: ${body.customerName}
+Telephone: ${body.customerPhone}
 
-📦 Articles:
+${DELIVERY_TYPE_LABELS[body.deliveryType] || body.deliveryType}
+${body.deliveryZone ? `Zone: ${getDeliveryZoneLabel(body.deliveryZone, zones)}` : ''}
+${body.deliveryAddress ? `Adresse: ${body.deliveryAddress}` : ''}
+${scheduledTimeText}
+
+Articles:
 ${itemsList}
 
-💰 Sous-total: ${order.subtotal.toFixed(2)} EGP
-${order.deliveryFee > 0 ? `🚚 Frais de livraison: ${order.deliveryFee.toFixed(2)} EGP` : ''}
-💵 **Total: ${order.total.toFixed(2)} EGP**
+Sous-total: ${order.subtotal.toFixed(2)} EGP
+${order.deliveryFee > 0 ? `Frais de livraison: ${order.deliveryFee.toFixed(2)} EGP` : ''}
+**Total: ${order.total.toFixed(2)} EGP**
 
-${body.notes ? `📝 Notes: ${body.notes}` : ''}`;
+${body.notes ? `Notes: ${body.notes}` : ''}`;
 
     // Créer le message dans la conversation
     await prisma.message.create({
@@ -333,39 +334,27 @@ ${body.notes ? `📝 Notes: ${body.notes}` : ''}`;
 
     console.log('📩 [PUBLIC API] Message créé dans l\'inbox');
 
-    // Générer le lien WhatsApp wa.me
-    const formatPhoneNumber = (phone: string): string => {
-      // Supprime tous les caractères non numériques sauf +
-      let cleaned = phone.replace(/[^\d+]/g, '');
-      // Si commence par +, supprime le +
-      if (cleaned.startsWith('+')) {
-        cleaned = cleaned.substring(1);
-      }
-      // Si commence par 00, supprime les 00
-      if (cleaned.startsWith('00')) {
-        cleaned = cleaned.substring(2);
-      }
-      return cleaned;
-    };
+    // Message WhatsApp formaté avec détails complets (labels centralisés)
+    const whatsappMessage = `Nouvelle Commande - ${restaurant.name}
 
-    // Message WhatsApp formaté
-    const whatsappMessage = `🍽️ Nouvelle Commande - ${restaurant.name}
+Numero: ${order.orderNumber}
 
-📝 Numéro: ${order.orderNumber}
+Client: ${body.customerName} (${body.customerPhone})
+Type: ${DELIVERY_TYPE_LABELS[body.deliveryType] || body.deliveryType}
+${body.deliveryZone ? `Zone: ${getDeliveryZoneLabel(body.deliveryZone, zones)}` : ''}
+${body.deliveryAddress ? `Adresse: ${body.deliveryAddress}` : ''}
+${scheduledTimeText}
+Paiement: ${body.paymentMethod}
 
-👤 Client: ${body.customerName} (${body.customerPhone})
-🚚 Type: ${deliveryTypeLabels[body.deliveryType] || body.deliveryType}
-${body.deliveryAddress ? `📍 Adresse: ${body.deliveryAddress}` : ''}
-💳 Paiement: ${body.paymentMethod}
-💰 Total: ${order.total.toFixed(2)} EGP
-
-📦 Commande:
+Commande:
 ${itemsList}
-${body.notes ? `\n📝 Notes: ${body.notes}` : ''}`;
 
-    // Générer le lien wa.me
+Total: ${order.total.toFixed(2)} EGP
+${body.notes ? `\nNotes: ${body.notes}` : ''}`;
+
+    // Générer le lien WhatsApp direct (protocole whatsapp:// via fonction centralisée)
     const waMeUrl = restaurant.whatsappNumber 
-      ? `https://wa.me/${formatPhoneNumber(restaurant.whatsappNumber)}?text=${encodeURIComponent(whatsappMessage)}`
+      ? generateWhatsAppUrl(restaurant.whatsappNumber, whatsappMessage)
       : null;
 
     console.log('📱 [PUBLIC API] WhatsApp URL générée:', waMeUrl ? waMeUrl.substring(0, 50) + '...' : 'null');

@@ -50,21 +50,21 @@ export function generateStatusMessage(order: any, status: OrderStatus): string {
 
   const messages: Record<OrderStatus, string> = {
     PENDING: `
-🍽️ *${restaurantName}*
+*${restaurantName}*
 
 Merci pour votre commande !
 
-📝 Commande: ${orderNumber}
-⏳ Statut: En attente de confirmation
+Commande: ${orderNumber}
+Statut: En attente de confirmation
 
 Nous traiterons votre commande dans les plus brefs délais.
     `.trim(),
 
     CONFIRMED: `
-✅ *Commande Confirmée*
+*Commande Confirmée*
 
-📝 ${orderNumber}
-🍽️ ${restaurantName}
+${orderNumber}
+${restaurantName}
 
 Votre commande a été confirmée et sera bientôt préparée.
 
@@ -72,17 +72,17 @@ Temps estimé: 30-40 minutes
     `.trim(),
 
     PREPARING: `
-👨‍🍳 *En Préparation*
+*En Préparation*
 
-📝 ${orderNumber}
+${orderNumber}
 
 Nos chefs préparent votre commande avec soin !
     `.trim(),
 
     READY: `
-✅ *Commande Prête !*
+*Commande Prête !*
 
-📝 ${orderNumber}
+${orderNumber}
 
 ${order.deliveryType === 'DELIVERY'
   ? 'Votre commande sera livrée dans quelques minutes !'
@@ -90,38 +90,38 @@ ${order.deliveryType === 'DELIVERY'
     `.trim(),
 
     OUT_FOR_DELIVERY: `
-🚗 *En Route !*
+*En Route !*
 
-📝 ${orderNumber}
+${orderNumber}
 
 Votre commande est en route vers vous !
 Arrivée estimée: 15-20 minutes
     `.trim(),
 
     DELIVERED: `
-✅ *Livré !*
+*Livré !*
 
-📝 ${orderNumber}
+${orderNumber}
 
 Votre commande a été livrée.
-Bon appétit ! 😋
+Bon appétit !
 
 Merci d'avoir choisi ${restaurantName} !
     `.trim(),
 
     COMPLETED: `
-✅ *Commande Terminée*
+*Commande Terminée*
 
-📝 ${orderNumber}
+${orderNumber}
 
 Merci pour votre commande !
-Nous espérons vous revoir bientôt ! 🙏
+Nous espérons vous revoir bientôt !
     `.trim(),
 
     CANCELLED: `
-❌ *Commande Annulée*
+*Commande Annulée*
 
-📝 ${orderNumber}
+${orderNumber}
 
 ${order.cancellationReason
   ? `Raison: ${order.cancellationReason}`

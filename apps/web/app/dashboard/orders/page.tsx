@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { RefreshCw, Loader2 } from 'lucide-react';
+import { RefreshCw, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
 import { toast as sonnerToast } from 'sonner';
@@ -20,46 +20,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import KanbanColumn from '@/components/orders/KanbanColumn';
 import OrderCard from '@/components/orders/OrderCard';
 import OrderDetailsModal from '@/components/orders/OrderDetailsModal';
-
-// Types
-interface OrderItem {
-  id: string;
-  quantity: number;
-  unitPrice: number;
-  subtotal: number;
-  menuItem: {
-    id: string;
-    name: string;
-    price: number;
-    image?: string;
-  };
-}
-
-interface Order {
-  id: string;
-  orderNumber: string;
-  status: string;
-  customer: {
-    id: string;
-    name: string;
-    phone: string;
-    email?: string;
-  };
-  items: OrderItem[];
-  total: number;
-  subtotal: number;
-  discount?: number;
-  deliveryType: string;
-  deliveryAddress?: string;
-  deliveryFee?: number;
-  customerNotes?: string;
-  createdAt: string;
-  assignedTo?: {
-    id: string;
-    name: string;
-    avatar?: string;
-  };
-}
+import type { Order } from '@/types/order';
 
 interface Column {
   id: string;
@@ -84,6 +45,9 @@ export default function OrdersPage() {
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
   const [animatingOrders, setAnimatingOrders] = useState<Set<string>>(new Set());
   const [newOrders, setNewOrders] = useState<Set<string>>(new Set());
+  const [isBusy, setIsBusy] = useState(false);
+  const [togglingBusy, setTogglingBusy] = useState(false);
+  const [restaurantName, setRestaurantName] = useState<string>('');
   const [filters, setFilters] = useState({
     date: 'today',
     assignedTo: 'all',
@@ -147,6 +111,40 @@ export default function OrdersPage() {
       audio.play().catch((err) => console.log('Audio play failed:', err));
     } catch (error) {
       console.log('Notification sound not available');
+    }
+  };
+
+  // Charger le statut busy du restaurant
+  useEffect(() => {
+    const loadBusyStatus = async () => {
+      try {
+        const response = await api.get('/restaurant');
+        if (response.data?.restaurant?.isBusy !== undefined) {
+          setIsBusy(response.data.restaurant.isBusy);
+        }
+        if (response.data?.restaurant?.name) {
+          setRestaurantName(response.data.restaurant.name);
+        }
+      } catch (error) {
+        console.error('Error loading busy status:', error);
+      }
+    };
+    loadBusyStatus();
+  }, []);
+
+  // Toggle le mode busy
+  const toggleBusy = async () => {
+    setTogglingBusy(true);
+    try {
+      const newBusy = !isBusy;
+      await api.put('/restaurant', { isBusy: newBusy });
+      setIsBusy(newBusy);
+      toast.success(newBusy ? 'Restaurant marque comme occupe' : 'Restaurant ouvert aux commandes');
+    } catch (error) {
+      console.error('Error toggling busy:', error);
+      toast.error('Erreur lors du changement de statut');
+    } finally {
+      setTogglingBusy(false);
     }
   };
 
@@ -492,6 +490,30 @@ export default function OrdersPage() {
               {orders.length} commande{orders.length > 1 ? 's' : ''}
             </div>
 
+            {/* Bouton toggle busy */}
+            <button
+              onClick={toggleBusy}
+              disabled={togglingBusy}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                isBusy
+                  ? 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300'
+                  : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-300'
+              } ${togglingBusy ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title={isBusy ? 'Cliquer pour rouvrir aux commandes' : 'Cliquer pour passer en mode occupe'}
+            >
+              {isBusy ? (
+                <>
+                  <AlertTriangle className="w-4 h-4" />
+                  <span className="hidden sm:inline">Occupe</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4" />
+                  <span className="hidden sm:inline">Ouvert</span>
+                </>
+              )}
+            </button>
+
             {/* Bouton rafraîchir */}
             <button
               onClick={loadOrders}
@@ -595,6 +617,7 @@ export default function OrdersPage() {
           order={selectedOrder}
           onClose={() => setSelectedOrder(null)}
           onStatusChange={handleStatusChange}
+          restaurantName={restaurantName}
         />
       )}
     </div>

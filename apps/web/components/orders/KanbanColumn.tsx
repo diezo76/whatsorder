@@ -4,46 +4,7 @@ import { Package } from 'lucide-react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import SortableOrderCard from './SortableOrderCard';
-
-// Types
-interface OrderItem {
-  id: string;
-  quantity: number;
-  unitPrice: number;
-  subtotal: number;
-  menuItem: {
-    id: string;
-    name: string;
-    price: number;
-    image?: string;
-  };
-}
-
-interface Order {
-  id: string;
-  orderNumber: string;
-  status: string;
-  customer: {
-    id: string;
-    name: string;
-    phone: string;
-    email?: string;
-  };
-  items: OrderItem[];
-  total: number;
-  subtotal: number;
-  discount?: number;
-  deliveryType: string;
-  deliveryAddress?: string;
-  deliveryFee?: number;
-  customerNotes?: string;
-  createdAt: string;
-  assignedTo?: {
-    id: string;
-    name: string;
-    avatar?: string;
-  };
-}
+import type { Order } from '@/types/order';
 
 interface Column {
   id: string;

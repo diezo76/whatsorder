@@ -8,15 +8,161 @@ import {
   Zap, 
   BarChart3, 
   Users, 
-  CheckCircle, 
-  ArrowRight,
   Smartphone,
   TrendingUp,
   Clock,
-  Star,
   Menu,
-  X
+  X,
+  ExternalLink
 } from 'lucide-react';
+
+import type { RestaurantListing } from '@/types/restaurant';
+import { isRestaurantOpen } from '@/lib/shared/pricing';
+
+function RestaurantsSection() {
+  const [restaurants, setRestaurants] = useState<RestaurantListing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchRestaurants = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/public/restaurants');
+        const data = await response.json();
+        
+        if (data.success && data.restaurants) {
+          setRestaurants(data.restaurants);
+        } else {
+          setError('Impossible de charger les restaurants');
+        }
+      } catch (err) {
+        console.error('Error fetching restaurants:', err);
+        setError('Erreur lors du chargement des restaurants');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRestaurants();
+  }, []);
+
+  if (loading) {
+    return (
+      <section className="py-20 px-4 bg-gradient-to-b from-white to-gray-50">
+        <div className="container mx-auto max-w-6xl">
+          <div className="text-center">
+            <p className="text-gray-600">Chargement des restaurants...</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (error || restaurants.length === 0) {
+    return null; // Ne rien afficher si erreur ou aucun restaurant
+  }
+
+  return (
+    <section className="py-20 px-4 bg-gradient-to-b from-white to-gray-50">
+      <div className="container mx-auto max-w-6xl">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            Découvrez nos restaurants partenaires
+          </h2>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Commandez directement depuis leurs menus en ligne
+          </p>
+        </div>
+
+        {/* Restaurants Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {restaurants.map((restaurant) => (
+            <div
+              key={restaurant.id}
+              className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 group"
+            >
+              {/* Logo/Cover Image */}
+              <div className="relative h-48 bg-gradient-to-br from-orange-100 to-orange-200 overflow-hidden">
+                {restaurant.coverImage ? (
+                  <Image
+                    src={restaurant.coverImage}
+                    alt={restaurant.name}
+                    fill
+                    className="object-cover"
+                    onError={(e) => {
+                      // Fallback si l'image ne charge pas
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                ) : restaurant.logo ? (
+                  <div className="absolute inset-0 flex items-center justify-center p-4 bg-gradient-to-br from-orange-50 to-orange-100">
+                    <Image
+                      src={restaurant.logo}
+                      alt={restaurant.name}
+                      width={120}
+                      height={120}
+                      className="object-contain max-w-full max-h-full rounded-lg"
+                      onError={(e) => {
+                        // Fallback si l'image ne charge pas
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-100 to-orange-200">
+                    <div className="w-24 h-24 bg-orange-500 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-lg">
+                      {restaurant.name.charAt(0).toUpperCase()}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Content */}
+              <div className="p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-1">
+                  {restaurant.name}
+                </h3>
+                
+                {/* Statut Ouvert/Fermé */}
+                <div className="mb-4">
+                  {isRestaurantOpen(restaurant.openingHours) ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-100 text-green-700 text-sm font-semibold rounded-full">
+                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                      Ouvert
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-100 text-red-600 text-sm font-semibold rounded-full">
+                      <span className="w-2 h-2 bg-red-500 rounded-full" />
+                      {"Fermé"}
+                    </span>
+                  )}
+                </div>
+
+                {/* Description */}
+                {restaurant.description && (
+                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                    {restaurant.description}
+                  </p>
+                )}
+
+                {/* CTA Button */}
+                <Link
+                  href={`/${restaurant.slug}`}
+                  className="w-full px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition flex items-center justify-center gap-2 font-semibold group-hover:shadow-md"
+                >
+                  Voir le menu
+                  <ExternalLink className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -63,8 +209,6 @@ export default function LandingPage() {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-gray-600 hover:text-orange-500 transition">Fonctionnalités</a>
-            <a href="#pricing" className="text-gray-600 hover:text-orange-500 transition">Tarifs</a>
-            <a href="#demo" className="text-gray-600 hover:text-orange-500 transition">Démo</a>
             <Link 
               href="/login" 
               className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition"
@@ -92,8 +236,6 @@ export default function LandingPage() {
           <nav className="md:hidden border-t bg-white">
             <div className="container mx-auto px-4 py-4 flex flex-col gap-4">
               <a href="#features" className="text-gray-600 hover:text-orange-500 transition py-2">Fonctionnalités</a>
-              <a href="#pricing" className="text-gray-600 hover:text-orange-500 transition py-2">Tarifs</a>
-              <a href="#demo" className="text-gray-600 hover:text-orange-500 transition py-2">Démo</a>
               <Link 
                 href="/login" 
                 className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition text-center"
@@ -108,11 +250,11 @@ export default function LandingPage() {
       {/* HERO SECTION */}
       <section className="pt-32 pb-20 px-4">
         <div className="container mx-auto max-w-6xl">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            {/* Left: Text */}
+          <div className="max-w-4xl mx-auto text-center">
+            {/* Text */}
             <div>
               <div className="inline-block mb-4 px-4 py-2 bg-orange-100 text-orange-600 rounded-full text-sm font-semibold">
-                🚀 Propulsé par l'IA
+                Propulsé par Whataybo
               </div>
               <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
                 Gérez vos commandes WhatsApp
@@ -124,25 +266,21 @@ export default function LandingPage() {
                 Parfait pour les restaurants en Égypte.
               </p>
               
-              {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link 
-                  href="/nile-bites" 
+              {/* CTA Button */}
+              <div className="flex justify-center">
+                <a 
+                  href={`https://wa.me/201276921081?text=${encodeURIComponent('Bonjour, je souhaite en savoir plus sur Whataybo')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="px-8 py-4 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition flex items-center justify-center gap-2 text-lg font-semibold shadow-lg hover:shadow-xl"
                 >
-                  Essayer la démo
-                  <ArrowRight className="w-5 h-5" />
-                </Link>
-                <a 
-                  href="#demo" 
-                  className="px-8 py-4 border-2 border-gray-300 text-gray-700 rounded-lg hover:border-orange-500 hover:text-orange-500 transition flex items-center justify-center gap-2 text-lg font-semibold"
-                >
-                  Voir la vidéo
+                  Contactez-nous
+                  <MessageSquare className="w-5 h-5" />
                 </a>
               </div>
 
               {/* Stats */}
-              <div className="mt-12 grid grid-cols-3 gap-4 md:gap-8">
+              <div className="mt-12 grid grid-cols-3 gap-4 md:gap-8 max-w-2xl mx-auto">
                 <div>
                   <div className="text-2xl md:text-3xl font-bold text-orange-500">500+</div>
                   <div className="text-xs md:text-sm text-gray-600">Restaurants</div>
@@ -157,40 +295,12 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
-
-            {/* Right: Screenshot/Demo */}
-            <div className="relative">
-              <div className="relative z-10 rounded-2xl overflow-hidden shadow-2xl border-8 border-white">
-                <Image 
-                  src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&h=600&fit=crop" 
-                  alt="Whataybo Dashboard"
-                  width={800}
-                  height={600}
-                  quality={85}
-                  priority
-                  className="w-full h-auto"
-                />
-              </div>
-              {/* Decorative elements */}
-              <div className="absolute -top-4 -right-4 w-72 h-72 bg-orange-200 rounded-full blur-3xl opacity-50 -z-10"></div>
-              <div className="absolute -bottom-4 -left-4 w-72 h-72 bg-orange-300 rounded-full blur-3xl opacity-30 -z-10"></div>
-            </div>
           </div>
         </div>
       </section>
 
-      {/* SOCIAL PROOF BANNER */}
-      <section className="py-8 bg-white border-y">
-        <div className="container mx-auto px-4">
-          <p className="text-center text-gray-600 mb-6">Ils nous font confiance :</p>
-          <div className="flex flex-wrap justify-center items-center gap-12 opacity-60 grayscale">
-            <div className="text-2xl font-bold">🍔 Burger King</div>
-            <div className="text-2xl font-bold">🍕 Pizza Hut</div>
-            <div className="text-2xl font-bold">🥙 Shawarma Express</div>
-            <div className="text-2xl font-bold">🍜 Nile Bites</div>
-          </div>
-        </div>
-      </section>
+      {/* RESTAURANTS SECTION */}
+      <RestaurantsSection />
 
       {/* FEATURES SECTION */}
       <section id="features" className="py-20 px-4 bg-white">
@@ -299,363 +409,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* DEMO / SCREENSHOTS SECTION */}
-      <section id="demo" className="py-20 px-4 bg-gradient-to-b from-gray-50 to-white">
-        <div className="container mx-auto max-w-6xl">
-          {/* Header */}
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Découvrez Whataybo en action
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Une interface intuitive conçue pour les restaurateurs égyptiens
-            </p>
-          </div>
-
-          {/* Video Demo */}
-          <div className="mb-16">
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl max-w-4xl mx-auto">
-              {/* Placeholder for video - Replace with actual video later */}
-              <div className="aspect-video bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
-                <div className="text-center text-white">
-                  <div className="w-20 h-20 bg-white/30 rounded-full flex items-center justify-center mx-auto mb-4 cursor-pointer hover:bg-white/40 transition">
-                    <svg className="w-10 h-10" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z"/>
-                    </svg>
-                  </div>
-                  <p className="text-xl font-semibold">Voir la démo vidéo (2 min)</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Screenshots Grid */}
-          <div className="grid md:grid-cols-2 gap-8">
-            {/* Screenshot 1 - Dashboard */}
-            <div className="relative group">
-              <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-pink-500 rounded-2xl blur-xl opacity-0 group-hover:opacity-50 transition duration-300"></div>
-              <div className="relative bg-white rounded-2xl overflow-hidden shadow-lg border-4 border-white">
-                <Image 
-                  src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600&h=400&fit=crop" 
-                  alt="Dashboard Analytics"
-                  width={600}
-                  height={400}
-                  quality={85}
-                  className="w-full h-auto"
-                />
-                <div className="p-4 bg-white">
-                  <h3 className="font-bold text-gray-900 mb-1">Dashboard Analytics</h3>
-                  <p className="text-sm text-gray-600">Suivez vos KPIs en temps réel</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Screenshot 2 - Kanban */}
-            <div className="relative group">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl blur-xl opacity-0 group-hover:opacity-50 transition duration-300"></div>
-              <div className="relative bg-white rounded-2xl overflow-hidden shadow-lg border-4 border-white">
-                <Image 
-                  src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&h=400&fit=crop" 
-                  alt="Kanban Orders"
-                  width={600}
-                  height={400}
-                  quality={85}
-                  className="w-full h-auto"
-                />
-                <div className="p-4 bg-white">
-                  <h3 className="font-bold text-gray-900 mb-1">Kanban des Commandes</h3>
-                  <p className="text-sm text-gray-600">Drag & drop intuitif</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Screenshot 3 - Inbox */}
-            <div className="relative group">
-              <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-teal-500 rounded-2xl blur-xl opacity-0 group-hover:opacity-50 transition duration-300"></div>
-              <div className="relative bg-white rounded-2xl overflow-hidden shadow-lg border-4 border-white">
-                <Image 
-                  src="https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=600&h=400&fit=crop" 
-                  alt="WhatsApp Inbox"
-                  width={600}
-                  height={400}
-                  quality={85}
-                  className="w-full h-auto"
-                />
-                <div className="p-4 bg-white">
-                  <h3 className="font-bold text-gray-900 mb-1">Inbox WhatsApp</h3>
-                  <p className="text-sm text-gray-600">Conversations en temps réel</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Screenshot 4 - Menu */}
-            <div className="relative group">
-              <div className="absolute inset-0 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-2xl blur-xl opacity-0 group-hover:opacity-50 transition duration-300"></div>
-              <div className="relative bg-white rounded-2xl overflow-hidden shadow-lg border-4 border-white">
-                <Image 
-                  src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600&h=400&fit=crop" 
-                  alt="Menu Management"
-                  width={600}
-                  height={400}
-                  quality={85}
-                  className="w-full h-auto"
-                />
-                <div className="p-4 bg-white">
-                  <h3 className="font-bold text-gray-900 mb-1">Gestion du Menu</h3>
-                  <p className="text-sm text-gray-600">CRUD facile et rapide</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* PRICING SECTION */}
-      <section id="pricing" className="py-20 px-4 bg-white">
-        <div className="container mx-auto max-w-6xl">
-          {/* Header */}
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Des tarifs simples et transparents
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Choisissez le plan adapté à la taille de votre restaurant
-            </p>
-          </div>
-
-          {/* Pricing Cards */}
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {/* Plan Starter */}
-            <div className="rounded-2xl border-2 border-gray-200 p-8 hover:border-orange-300 transition">
-              <div className="text-sm font-semibold text-gray-600 mb-2">STARTER</div>
-              <div className="mb-6">
-                <span className="text-5xl font-bold text-gray-900">Gratuit</span>
-              </div>
-              <p className="text-gray-600 mb-6">
-                Parfait pour tester la plateforme
-              </p>
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700">Jusqu'à 50 commandes/mois</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700">Menu public</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700">Dashboard basique</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700">1 utilisateur</span>
-                </li>
-              </ul>
-              <button className="w-full py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:border-orange-500 hover:text-orange-500 transition font-semibold">
-                Commencer gratuitement
-              </button>
-            </div>
-
-            {/* Plan Pro - POPULAR */}
-            <div className="rounded-2xl border-2 border-orange-500 p-8 relative shadow-xl scale-105">
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-orange-500 text-white text-sm font-bold rounded-full">
-                LE PLUS POPULAIRE
-              </div>
-              <div className="text-sm font-semibold text-orange-600 mb-2">PRO</div>
-              <div className="mb-6">
-                <span className="text-5xl font-bold text-gray-900">299</span>
-                <span className="text-xl text-gray-600"> EGP/mois</span>
-              </div>
-              <p className="text-gray-600 mb-6">
-                Pour les restaurants en croissance
-              </p>
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700"><strong>Commandes illimitées</strong></span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700">Parsing IA activé</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700">Analytics avancé</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700">Temps réel</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700">5 utilisateurs</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700">Support prioritaire</span>
-                </li>
-              </ul>
-              <button className="w-full py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition font-semibold">
-                Démarrer maintenant
-              </button>
-            </div>
-
-            {/* Plan Enterprise */}
-            <div className="rounded-2xl border-2 border-gray-200 p-8 hover:border-orange-300 transition">
-              <div className="text-sm font-semibold text-gray-600 mb-2">ENTERPRISE</div>
-              <div className="mb-6">
-                <span className="text-5xl font-bold text-gray-900">Sur mesure</span>
-              </div>
-              <p className="text-gray-600 mb-6">
-                Pour les chaînes de restaurants
-              </p>
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700">Tout du plan Pro</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700">Multi-restaurants</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700">API personnalisée</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700">Utilisateurs illimités</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700">Support dédié 24/7</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700">Formation équipe</span>
-                </li>
-              </ul>
-              <button className="w-full py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:border-orange-500 hover:text-orange-500 transition font-semibold">
-                Nous contacter
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* TESTIMONIALS SECTION */}
-      <section className="py-20 px-4 bg-gradient-to-b from-gray-50 to-white">
-        <div className="container mx-auto max-w-6xl">
-          {/* Header */}
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Ce que disent nos clients
-            </h2>
-            <p className="text-xl text-gray-600">
-              +500 restaurateurs nous font confiance
-            </p>
-          </div>
-
-          {/* Testimonials Grid */}
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Testimonial 1 */}
-            <div className="bg-white p-8 rounded-2xl shadow-lg">
-              <div className="flex gap-1 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                ))}
-              </div>
-              <p className="text-gray-700 mb-6 leading-relaxed">
-                "Whataybo a transformé notre façon de gérer les commandes. 
-                L'IA comprend parfaitement l'arabe et le français. 
-                Un gain de temps incroyable !"
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-lg">
-                  A
-                </div>
-                <div>
-                  <div className="font-bold text-gray-900">Ahmed Hassan</div>
-                  <div className="text-sm text-gray-600">Propriétaire, Cairo Kitchen</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Testimonial 2 */}
-            <div className="bg-white p-8 rounded-2xl shadow-lg">
-              <div className="flex gap-1 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                ))}
-              </div>
-              <p className="text-gray-700 mb-6 leading-relaxed">
-                "Le Kanban est génial ! On voit toutes les commandes d'un coup d'œil. 
-                Plus de confusion entre les équipes. Interface très intuitive."
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-lg">
-                  S
-                </div>
-                <div>
-                  <div className="font-bold text-gray-900">Sara Mohamed</div>
-                  <div className="text-sm text-gray-600">Manager, Shawarma Express</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Testimonial 3 */}
-            <div className="bg-white p-8 rounded-2xl shadow-lg">
-              <div className="flex gap-1 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                ))}
-              </div>
-              <p className="text-gray-700 mb-6 leading-relaxed">
-                "Les analytics nous ont aidé à optimiser notre menu. 
-                On sait exactement quels plats se vendent le mieux. ROI rapide !"
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-lg">
-                  K
-                </div>
-                <div>
-                  <div className="font-bold text-gray-900">Karim Ali</div>
-                  <div className="text-sm text-gray-600">Chef, Nile Bites</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* FOOTER CTA */}
-      <section className="py-20 px-4 bg-gradient-to-br from-orange-500 to-orange-600 text-white">
-        <div className="container mx-auto max-w-4xl text-center">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">
-            Prêt à simplifier vos commandes ?
-          </h2>
-          <p className="text-xl mb-8 opacity-90">
-            Rejoignez +500 restaurants qui utilisent Whataybo chaque jour
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link 
-              href="/nile-bites" 
-              className="px-8 py-4 bg-white text-orange-500 rounded-lg hover:bg-gray-100 transition flex items-center justify-center gap-2 text-lg font-semibold shadow-lg"
-            >
-              Essayer gratuitement
-              <ArrowRight className="w-5 h-5" />
-            </Link>
-            <a 
-              href="mailto:contact@whataybo.com" 
-              className="px-8 py-4 border-2 border-white text-white rounded-lg hover:bg-white hover:text-orange-500 transition flex items-center justify-center gap-2 text-lg font-semibold"
-            >
-              Nous contacter
-            </a>
-          </div>
-        </div>
-      </section>
-
       {/* FOOTER */}
       <footer className="py-12 px-4 bg-gray-900 text-gray-400">
         <div className="container mx-auto max-w-6xl">
@@ -677,8 +430,6 @@ export default function LandingPage() {
               <h3 className="text-white font-semibold mb-4">Produit</h3>
               <ul className="space-y-2 text-sm">
                 <li><a href="#features" className="hover:text-orange-500 transition">Fonctionnalités</a></li>
-                <li><a href="#pricing" className="hover:text-orange-500 transition">Tarifs</a></li>
-                <li><a href="#demo" className="hover:text-orange-500 transition">Démo</a></li>
                 <li><Link href="/nile-bites" className="hover:text-orange-500 transition">Exemple live</Link></li>
               </ul>
             </div>

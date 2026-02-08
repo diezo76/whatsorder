@@ -1,6 +1,7 @@
 'use client';
 
 import { Banknote, CreditCard, Wallet } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export type PaymentMethod = 'CASH' | 'CARD' | 'STRIPE' | 'PAYPAL';
 
@@ -28,10 +29,10 @@ interface CheckoutStepPaymentProps {
 interface PaymentOption {
   value: PaymentMethod;
   icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  description: string;
+  titleKey: 'cash' | 'cardDelivery' | 'creditCard' | 'paypal';
+  descriptionKey: 'cashDescription' | 'cardDeliveryDescription' | 'creditCardDescription' | 'paypalDescription';
   emoji: string;
-  badge?: string;
+  badgeKey?: 'online';
   enabledKey: keyof PaymentOptions;
 }
 
@@ -39,33 +40,33 @@ const allPaymentOptions: PaymentOption[] = [
   {
     value: 'CASH',
     icon: Banknote,
-    title: 'Espèces',
-    description: 'Paiement à la livraison',
+    titleKey: 'cash',
+    descriptionKey: 'cashDescription',
     emoji: '💵',
     enabledKey: 'enableCashPayment',
   },
   {
     value: 'CARD',
     icon: CreditCard,
-    title: 'Carte (à la livraison)',
-    description: 'TPE mobile à la livraison',
+    titleKey: 'cardDelivery',
+    descriptionKey: 'cardDeliveryDescription',
     emoji: '💳',
     enabledKey: 'enableCardPayment',
   },
   {
     value: 'STRIPE',
     icon: CreditCard,
-    title: 'Carte bancaire',
-    description: 'Paiement sécurisé en ligne',
+    titleKey: 'creditCard',
+    descriptionKey: 'creditCardDescription',
     emoji: '🔒',
-    badge: 'En ligne',
+    badgeKey: 'online',
     enabledKey: 'enableStripePayment',
   },
   {
     value: 'PAYPAL',
     icon: Wallet,
-    title: 'PayPal',
-    description: 'Paiement via votre compte PayPal',
+    titleKey: 'paypal',
+    descriptionKey: 'paypalDescription',
     emoji: '🅿️',
     enabledKey: 'enablePaypalPayment',
   },
@@ -89,17 +90,17 @@ export default function CheckoutStepPayment({
     enablePaypalPayment: false,
   },
 }: CheckoutStepPaymentProps) {
+  const { t } = useLanguage();
+
   // Filtrer les options de paiement activées
   const availableOptions = allPaymentOptions.filter(
     (option) => paymentOptions[option.enabledKey] !== false
   );
 
-  // Gestion du changement de mode de paiement
   const handlePaymentMethodChange = (method: PaymentMethod) => {
     onChange('paymentMethod', method);
   };
 
-  // Vérifier si le paiement est en ligne (nécessite redirection)
   const isOnlinePayment = formData.paymentMethod === 'STRIPE' || formData.paymentMethod === 'PAYPAL';
 
   // S'il n'y a qu'une seule option, la sélectionner automatiquement
@@ -109,12 +110,12 @@ export default function CheckoutStepPayment({
 
   return (
     <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-gray-900">Mode de paiement</h3>
+      <h3 className="text-lg font-semibold text-gray-900">{t.checkout.paymentMode}</h3>
 
       {availableOptions.length === 0 ? (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
           <p className="text-sm text-amber-800">
-            ⚠️ Aucun mode de paiement n'est configuré pour ce restaurant.
+            {t.checkout.noPaymentMethod}
           </p>
         </div>
       ) : (
@@ -141,9 +142,9 @@ export default function CheckoutStepPayment({
                   aria-pressed={isSelected}
                 >
                   {/* Badge */}
-                  {option.badge && (
+                  {option.badgeKey && (
                     <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">
-                      {option.badge}
+                      {t.checkout[option.badgeKey]}
                     </span>
                   )}
 
@@ -161,9 +162,9 @@ export default function CheckoutStepPayment({
                     {/* Contenu */}
                     <div className="flex-1">
                       <h4 className="font-semibold text-gray-900 mb-1">
-                        {option.emoji} {option.title}
+                        {option.emoji} {t.checkout[option.titleKey]}
                       </h4>
-                      <p className="text-sm text-gray-500">{option.description}</p>
+                      <p className="text-sm text-gray-500">{t.checkout[option.descriptionKey]}</p>
                     </div>
 
                     {/* Radio indicator */}
@@ -190,7 +191,7 @@ export default function CheckoutStepPayment({
           {isOnlinePayment && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
-                🔒 Vous serez redirigé vers une page de paiement sécurisée après avoir confirmé votre commande.
+                {t.checkout.onlinePaymentRedirect}
               </p>
             </div>
           )}
@@ -199,7 +200,7 @@ export default function CheckoutStepPayment({
           {(formData.paymentMethod === 'CASH' || formData.paymentMethod === 'CARD') && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
               <p className="text-sm text-amber-800">
-                💡 Le paiement sera effectué à la réception de votre commande.
+                {t.checkout.paymentOnDelivery}
               </p>
             </div>
           )}
@@ -218,7 +219,7 @@ export default function CheckoutStepPayment({
                 : 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'
             }`}
           >
-            Suivant
+            {t.checkout.next}
           </button>
           
           {/* Bouton Retour */}
@@ -227,7 +228,7 @@ export default function CheckoutStepPayment({
               onClick={onPrev}
               className="w-full px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
             >
-              Retour
+              {t.checkout.back}
             </button>
           )}
         </div>

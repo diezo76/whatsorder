@@ -52,6 +52,9 @@ model Restaurant {
   enableStripePayment   Boolean   @default(false)  // Activé quand Stripe connecté
   enablePaypalPayment   Boolean   @default(false)  // Activé quand PayPal connecté
   
+  // Mode occupé - bloque les nouvelles commandes
+  isBusy                Boolean   @default(false)
+  
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   users              User[]
@@ -159,6 +162,7 @@ model MenuItem {
   restaurant    Restaurant        @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   variants      MenuItemVariant[]
   options       MenuItemOption[]
+  optionGroups  OptionGroup[]     // Groupes d'options avec quota inclus
   orderItems    OrderItem[]
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
@@ -351,6 +355,31 @@ model MenuItemVariant {
   @@map("menu_item_variants")
 }
 
+// Modèle pour les groupes d'options (ex: "Choix de viandes" avec X inclus)
+model OptionGroup {
+  id            String  @id @default(uuid())
+  menuItemId    String
+  name          String  // "Choix de viandes", "Sauces", etc.
+  nameAr        String?
+  
+  includedCount Int     @default(1)  // Nombre de choix INCLUS gratuitement dans le prix
+  minSelections Int     @default(1)  // Minimum requis
+  maxSelections Int?                 // Maximum autorisé (null = illimité)
+  
+  isRequired    Boolean @default(true)
+  isActive      Boolean @default(true)
+  sortOrder     Int     @default(0)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  menuItem      MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  options       MenuItemOption[]
+  
+  @@index([menuItemId])
+  @@map("option_groups")
+}
+
 // Modèle pour les options (add-ons)
 model MenuItemOption {
   id         String  @id @default(uuid())
@@ -361,10 +390,14 @@ model MenuItemOption {
   // Type d'option
   type MenuItemOptionType @default(ADDON)
 
-  // Prix (0 si gratuit)
+  // Prix supplément (appliqué au-delà du quota inclus du groupe)
   priceModifier Float @default(0)
 
-  // Contrôles
+  // Lien vers un groupe d'options (optionnel pour rétrocompatibilité)
+  optionGroupId String?
+  optionGroup   OptionGroup? @relation(fields: [optionGroupId], references: [id], onDelete: Cascade)
+
+  // Contrôles (utilisés si pas dans un groupe)
   isRequired    Boolean @default(false) // Le client doit choisir
   isMultiple    Boolean @default(false) // Peut choisir plusieurs
   maxSelections Int? // Max de sélections si isMultiple
@@ -379,6 +412,7 @@ model MenuItemOption {
   orderItemOptions OrderItemOption[]
 
   @@index([menuItemId])
+  @@index([optionGroupId])
   @@map("menu_item_options")
 }
 

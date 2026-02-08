@@ -24,11 +24,12 @@ interface MenuItem {
   nameAr?: string;
   slug: string;
   description?: string;
-  price: number;
+  price?: number | null;
   compareAtPrice?: number;
   image?: string;
   images: string[];
   tags: string[];
+  hasVariants?: boolean;
   isAvailable: boolean;
   isActive: boolean;
   isFeatured: boolean;
@@ -188,9 +189,11 @@ export default function MenuItemsTable({
                   <td className="p-4">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-gray-900">
-                        {item.price.toFixed(2)} EGP
+                        {item.hasVariants 
+                          ? 'Variants' 
+                          : `${(item.price ?? 0).toFixed(2)} EGP`}
                       </span>
-                      {item.compareAtPrice && item.compareAtPrice > item.price && (
+                      {!item.hasVariants && item.compareAtPrice && item.compareAtPrice > (item.price ?? 0) && (
                         <span className="text-sm text-gray-500 line-through">
                           {item.compareAtPrice.toFixed(2)} EGP
                         </span>
@@ -345,9 +348,11 @@ export default function MenuItemsTable({
                   {/* Prix */}
                   <div className="flex items-center gap-2 mb-3">
                     <span className="font-bold text-gray-900">
-                      {item.price.toFixed(2)} EGP
+                      {item.hasVariants 
+                        ? 'Variants' 
+                        : `${(item.price ?? 0).toFixed(2)} EGP`}
                     </span>
-                    {item.compareAtPrice && item.compareAtPrice > item.price && (
+                    {!item.hasVariants && item.compareAtPrice && item.compareAtPrice > (item.price ?? 0) && (
                       <span className="text-sm text-gray-500 line-through">
                         {item.compareAtPrice.toFixed(2)} EGP
                       </span>

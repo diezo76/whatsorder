@@ -2,17 +2,9 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
+import type { Order } from '@/types/order';
 
-export interface Order {
-  id: string;
-  orderNumber: string;
-  status: string;
-  total: number;
-  deliveryType: string;
-  customerId: string;
-  restaurantId: string;
-  createdAt: string;
-}
+export type { Order };
 
 interface UseRealtimeOrdersProps {
   restaurantId: string;

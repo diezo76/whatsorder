@@ -7,57 +7,21 @@ import {
   Truck,
   ShoppingBag,
   UtensilsCrossed,
+  FileDown,
   Printer,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
-
-// Types
-interface OrderItem {
-  id: string;
-  quantity: number;
-  unitPrice: number;
-  subtotal: number;
-  notes?: string;
-  menuItem: {
-    id: string;
-    name: string;
-    price: number;
-    image?: string;
-  };
-}
-
-interface Order {
-  id: string;
-  orderNumber: string;
-  status: string;
-  customer: {
-    id: string;
-    name: string;
-    phone: string;
-    email?: string;
-  };
-  items: OrderItem[];
-  total: number;
-  subtotal: number;
-  discount?: number;
-  deliveryType: string;
-  deliveryAddress?: string;
-  deliveryFee?: number;
-  customerNotes?: string;
-  createdAt: string;
-  assignedTo?: {
-    id: string;
-    name: string;
-    avatar?: string;
-  };
-}
+import { generateOrderPDF } from '@/lib/generateOrderPDF';
+import type { Order, OrderItem } from '@/types/order';
+import { DELIVERY_TYPE_LABELS } from '@/lib/shared/labels';
 
 interface OrderDetailsModalProps {
   order: Order;
   onClose: () => void;
   onStatusChange: (orderId: string, newStatus: string) => Promise<void>;
   onAssign?: (orderId: string, userId: string) => Promise<void>; // Pour usage futur
+  restaurantName?: string;
 }
 
 // Composant helper InfoRow
@@ -133,14 +97,9 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
-// Fonctions utilitaires
+// Fonctions utilitaires - utilise labels centralisés
 const getDeliveryTypeLabel = (type: string) => {
-  const labels: Record<string, string> = {
-    DELIVERY: '🚗 Livraison à domicile',
-    PICKUP: '🏃 À emporter',
-    DINE_IN: '🍽️ Sur place',
-  };
-  return labels[type] || type;
+  return DELIVERY_TYPE_LABELS[type] || type;
 };
 
 const formatDateTime = (dateString: string) => {
@@ -158,6 +117,7 @@ export default function OrderDetailsModal({
   onClose,
   onStatusChange,
   onAssign: _onAssign, // Préfixé avec _ pour indiquer qu'il n'est pas utilisé pour l'instant
+  restaurantName,
 }: OrderDetailsModalProps) {
   const [isChangingStatus, setIsChangingStatus] = useState(false);
 
@@ -329,10 +289,20 @@ export default function OrderDetailsModal({
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-900">
                       {item.menuItem.name}
+                      {(item.customization as any)?.variant && (
+                        <span className="text-sm text-orange-600 ml-1">
+                          ({(item.customization as any).variant})
+                        </span>
+                      )}
                     </p>
                     <p className="text-sm text-gray-600">
-                      {item.quantity} × {item.menuItem.price.toFixed(2)} EGP
+                      {item.quantity} × {(item.unitPrice ?? item.menuItem?.price ?? 0).toFixed(2)} EGP
                     </p>
+                    {(item.customization as any)?.modifiers && (item.customization as any).modifiers.length > 0 && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Options: {(item.customization as any).modifiers.join(', ')}
+                      </p>
+                    )}
                     {item.notes && (
                       <p className="text-xs text-gray-500 mt-1">
                         Note: {item.notes}
@@ -402,6 +372,22 @@ export default function OrderDetailsModal({
 
           {/* Actions secondaires */}
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                try {
+                  generateOrderPDF(order, restaurantName);
+                  toast.success('PDF telecharge');
+                } catch (error) {
+                  console.error('Error generating PDF:', error);
+                  toast.error('Erreur lors de la generation du PDF');
+                }
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            >
+              <FileDown className="w-4 h-4" />
+              <span className="hidden sm:inline">Ticket PDF</span>
+            </button>
+
             <button
               onClick={() => window.print()}
               className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-2"
