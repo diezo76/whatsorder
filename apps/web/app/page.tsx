@@ -271,11 +271,9 @@ export default function LandingPage() {
 
       {/* PAGE SECTIONS */}
       <HeroSection />
-      <SocialProof />
       <RestaurantsSection />
       <ProblemSolution />
       <BentoGrid />
-      <Testimonials />
       <Pricing />
       <FAQ />
       <CTASection />
