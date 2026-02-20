@@ -41,6 +41,8 @@ export interface Restaurant {
   enableStripePayment?: boolean;
   enablePaypalPayment?: boolean;
   isBusy?: boolean;
+  busyTitle?: string | null;
+  busyMessage?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -54,7 +56,7 @@ export type RestaurantCheckout = Pick<Restaurant, 'id' | 'slug' | 'name' | 'what
 export type RestaurantCart = Pick<Restaurant,
   'id' | 'slug' | 'name' | 'phone' | 'whatsappNumber' |
   'enableCashPayment' | 'enableCardPayment' | 'enableStripePayment' | 'enablePaypalPayment' |
-  'deliveryZones'
+  'deliveryZones' | 'openingHours'
 >;
 
 /** Pour le header public */

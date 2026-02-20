@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Truck, ShoppingBag, UtensilsCrossed, MapPin, Clock, Info } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Truck, ShoppingBag, UtensilsCrossed, MapPin, Clock, Info, AlertCircle } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export type DeliveryType = 'DELIVERY' | 'PICKUP' | 'DINE_IN';
-export type DeliveryZone = 'NASR_CITY' | 'NEW_CAIRO' | '';
+export type DeliveryZone = string;
 
 interface DeliveryFormData {
   deliveryType: DeliveryType;
@@ -15,6 +15,41 @@ interface DeliveryFormData {
   notes?: string;
 }
 
+type OpeningHoursMap = Record<string, { open: string; close: string; closed?: boolean }>;
+
+// Helper exporté : vérifie si le restaurant est actuellement ouvert
+export function isCurrentlyOpenCheck(openingHours?: OpeningHoursMap | null): boolean {
+  if (!openingHours || typeof openingHours === 'string') return true; // Pas d'horaires configurés = on considère ouvert
+  
+  const daysEn = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const frToEn: Record<string, string> = {
+    lundi: 'monday', mardi: 'tuesday', mercredi: 'wednesday',
+    jeudi: 'thursday', vendredi: 'friday', samedi: 'saturday', dimanche: 'sunday',
+  };
+
+  const now = new Date();
+  const currentDayEn = daysEn[now.getDay()];
+
+  let todayHours = openingHours[currentDayEn];
+  if (!todayHours) {
+    const dayFr = Object.keys(frToEn).find((fr) => frToEn[fr] === currentDayEn);
+    if (dayFr) todayHours = openingHours[dayFr];
+  }
+
+  if (!todayHours || todayHours.closed) return false;
+
+  const currentTime = now.getHours() * 60 + now.getMinutes();
+  const [openH, openM] = todayHours.open.split(':').map(Number);
+  const [closeH, closeM] = todayHours.close.split(':').map(Number);
+  const openTime = openH * 60 + openM;
+  const closeTime = closeH * 60 + closeM;
+
+  if (closeTime < openTime) {
+    return currentTime >= openTime || currentTime < closeTime;
+  }
+  return currentTime >= openTime && currentTime <= closeTime;
+}
+
 interface CheckoutStepDeliveryProps {
   formData: DeliveryFormData;
   onChange: (field: string, value: string) => void;
@@ -22,15 +57,18 @@ interface CheckoutStepDeliveryProps {
   onPrev?: () => void;
   isValid?: boolean;
   restaurantDeliveryZones?: Array<{ name: string; fee: number }>;
+  openingHours?: OpeningHoursMap | null;
 }
 
 // Fonction de validation exportée
-export const validateDeliveryInfo = (data: DeliveryFormData): boolean => {
+export const validateDeliveryInfo = (data: DeliveryFormData, openingHours?: OpeningHoursMap | null): boolean => {
   if (!data.deliveryType) return false;
   if (data.deliveryType === 'DELIVERY') {
     if (!data.deliveryAddress?.trim() || data.deliveryAddress.trim().length < 10) return false;
     if (!data.deliveryZone) return false;
   }
+  // Si le restaurant est fermé, scheduledTime est obligatoire
+  if (!isCurrentlyOpenCheck(openingHours) && !data.scheduledTime) return false;
   return true;
 };
 
@@ -41,6 +79,7 @@ export default function CheckoutStepDelivery({
   onPrev,
   isValid,
   restaurantDeliveryZones,
+  openingHours,
 }: CheckoutStepDeliveryProps) {
   const { t } = useLanguage();
   const [addressError, setAddressError] = useState<string | undefined>();
@@ -48,6 +87,72 @@ export default function CheckoutStepDelivery({
     formData.deliveryType === 'DELIVERY'
   );
   const [useScheduledTime, setUseScheduledTime] = useState(!!formData.scheduledTime);
+
+  // === Calcul des bornes horaires basées sur les heures d'ouverture ===
+  const todaySchedule = useMemo(() => {
+    if (!openingHours || typeof openingHours === 'string') return null;
+
+    const daysEn = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const frToEn: Record<string, string> = {
+      lundi: 'monday', mardi: 'tuesday', mercredi: 'wednesday',
+      jeudi: 'thursday', vendredi: 'friday', samedi: 'saturday', dimanche: 'sunday',
+    };
+
+    const now = new Date();
+    const currentDayEn = daysEn[now.getDay()];
+
+    let todayHours = openingHours[currentDayEn];
+    if (!todayHours) {
+      const dayFr = Object.keys(frToEn).find((fr) => frToEn[fr] === currentDayEn);
+      if (dayFr) {
+        todayHours = openingHours[dayFr];
+      }
+    }
+
+    if (!todayHours || todayHours.closed) {
+      return { closed: true as const, open: '', close: '' };
+    }
+
+    return { closed: false as const, open: todayHours.open, close: todayHours.close };
+  }, [openingHours]);
+
+  const timeBounds = useMemo(() => {
+    // Pas d'heures d'ouverture configurées : fallback sur le comportement actuel (now + 30min)
+    if (!todaySchedule || todaySchedule.closed) {
+      const now = new Date(Date.now() + 30 * 60 * 1000);
+      return {
+        min: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+        max: '23:59',
+      };
+    }
+
+    // Calculer min = max(now + 30min, heure ouverture)
+    const now = new Date();
+    const minFromNow = new Date(now.getTime() + 30 * 60 * 1000);
+    const minFromNowMinutes = minFromNow.getHours() * 60 + minFromNow.getMinutes();
+
+    const [openH, openM] = todaySchedule.open.split(':').map(Number);
+    const openMinutes = openH * 60 + openM;
+
+    const effectiveMinMinutes = Math.max(minFromNowMinutes, openMinutes);
+    const minHours = String(Math.floor(effectiveMinMinutes / 60)).padStart(2, '0');
+    const minMins = String(effectiveMinMinutes % 60).padStart(2, '0');
+
+    return {
+      min: `${minHours}:${minMins}`,
+      max: todaySchedule.close,
+    };
+  }, [todaySchedule]);
+
+  const isClosedToday = todaySchedule?.closed === true;
+  const isCurrentlyOpen = useMemo(() => isCurrentlyOpenCheck(openingHours), [openingHours]);
+
+  // Forcer le mode planifier quand le restaurant est fermé
+  useEffect(() => {
+    if (!isCurrentlyOpen && !useScheduledTime) {
+      setUseScheduledTime(true);
+    }
+  }, [isCurrentlyOpen]);
 
   // Delivery options (translated)
   const deliveryOptions = [
@@ -101,10 +206,6 @@ export default function CheckoutStepDelivery({
     if (type !== 'DELIVERY') {
       if (formData.deliveryAddress) onChange('deliveryAddress', '');
       if (formData.deliveryZone) onChange('deliveryZone', '');
-    }
-    if (type === 'DELIVERY') {
-      onChange('scheduledTime', '');
-      setUseScheduledTime(false);
     }
   };
 
@@ -190,57 +291,123 @@ export default function CheckoutStepDelivery({
         })}
       </div>
 
-      {/* Sélecteur d'heure pour emporter / sur place */}
-      {(formData.deliveryType === 'PICKUP' || formData.deliveryType === 'DINE_IN') && (
-        <div className="space-y-3">
-          <label className="block text-sm font-medium text-gray-700">
-            <Clock className="w-4 h-4 inline-block mr-1 mb-0.5" />
-            {t.checkout.whenDoYouWant}
-          </label>
-          
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => handleScheduleToggle(false)}
-              className={`p-3 border-2 rounded-lg text-center transition-all ${
-                !useScheduledTime
-                  ? 'border-orange-500 bg-orange-50 text-orange-700'
-                  : 'border-gray-300 hover:border-gray-400 text-gray-700'
-              }`}
-            >
-              <p className="font-semibold text-sm">{t.checkout.asap}</p>
-              <p className="text-xs text-gray-500 mt-1">{t.checkout.immediatePreparation}</p>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleScheduleToggle(true)}
-              className={`p-3 border-2 rounded-lg text-center transition-all ${
-                useScheduledTime
-                  ? 'border-orange-500 bg-orange-50 text-orange-700'
-                  : 'border-gray-300 hover:border-gray-400 text-gray-700'
-              }`}
-            >
-              <p className="font-semibold text-sm">{t.checkout.schedule}</p>
-              <p className="text-xs text-gray-500 mt-1">{t.checkout.chooseTime}</p>
-            </button>
-          </div>
+      {/* Sélecteur d'heure — pour TOUS les types de livraison */}
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-gray-700">
+          <Clock className="w-4 h-4 inline-block mr-1 mb-0.5" />
+          {t.checkout.whenDoYouWant}
+        </label>
 
-          {useScheduledTime && (
-            <div className="transition-all duration-300">
-              <label htmlFor="scheduledTime" className="block text-sm font-medium text-gray-700 mb-2">
-                {t.checkout.desiredTime} <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="time"
-                id="scheduledTime"
-                value={formData.scheduledTime || ''}
-                onChange={(e) => onChange('scheduledTime', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors text-lg"
-              />
-            </div>
-          )}
-        </div>
-      )}
+        {/* Message si fermé aujourd'hui (jour de fermeture) */}
+        {isClosedToday && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-red-700">
+              Le restaurant est fermé aujourd&apos;hui. Vous ne pouvez pas planifier de commande.
+            </p>
+          </div>
+        )}
+
+        {/* Message si hors horaires (restaurant fermé maintenant mais ouvert aujourd'hui) */}
+        {!isCurrentlyOpen && !isClosedToday && (
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 flex items-start gap-2">
+            <AlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-orange-700">
+              Le restaurant est actuellement fermé. Veuillez choisir une heure de commande dans les horaires d&apos;ouverture.
+            </p>
+          </div>
+        )}
+
+        {/* Toggle ASAP / Planifier — masquer ASAP si fermé */}
+        {!isClosedToday && (
+          <>
+            {isCurrentlyOpen ? (
+              /* Restaurant ouvert : choix ASAP ou Planifier */
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleScheduleToggle(false)}
+                  className={`p-3 border-2 rounded-lg text-center transition-all ${
+                    !useScheduledTime
+                      ? 'border-orange-500 bg-orange-50 text-orange-700'
+                      : 'border-gray-300 hover:border-gray-400 text-gray-700'
+                  }`}
+                >
+                  <p className="font-semibold text-sm">{t.checkout.asap}</p>
+                  <p className="text-xs text-gray-500 mt-1">{t.checkout.immediatePreparation}</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleScheduleToggle(true)}
+                  className={`p-3 border-2 rounded-lg text-center transition-all ${
+                    useScheduledTime
+                      ? 'border-orange-500 bg-orange-50 text-orange-700'
+                      : 'border-gray-300 hover:border-gray-400 text-gray-700'
+                  }`}
+                >
+                  <p className="font-semibold text-sm">{t.checkout.schedule}</p>
+                  <p className="text-xs text-gray-500 mt-1">{t.checkout.chooseTime}</p>
+                </button>
+              </div>
+            ) : (
+              /* Restaurant fermé maintenant : pas de choix, planifier obligatoire */
+              <div className="grid grid-cols-1 gap-3">
+                <div className="p-3 border-2 border-orange-500 bg-orange-50 text-orange-700 rounded-lg text-center">
+                  <p className="font-semibold text-sm">{t.checkout.schedule}</p>
+                  <p className="text-xs text-orange-600 mt-1">{t.checkout.chooseTime}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Time picker */}
+            {useScheduledTime && (
+              <div className="transition-all duration-300">
+                <label htmlFor="scheduledTime" className="block text-sm font-medium text-gray-700 mb-2">
+                  {t.checkout.desiredTime} <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="time"
+                  id="scheduledTime"
+                  value={formData.scheduledTime || ''}
+                  onChange={(e) => {
+                    const timeValue = e.target.value;
+                    if (!timeValue) return;
+
+                    // Convertir en minutes pour comparer
+                    const [hours, minutes] = timeValue.split(':').map(Number);
+                    const selectedMinutes = hours * 60 + minutes;
+
+                    const [minH, minM] = timeBounds.min.split(':').map(Number);
+                    const minMinutes = minH * 60 + minM;
+
+                    const [maxH, maxM] = timeBounds.max.split(':').map(Number);
+                    const maxMinutes = maxH * 60 + maxM;
+
+                    // Corriger si hors bornes
+                    if (selectedMinutes < minMinutes) {
+                      onChange('scheduledTime', timeBounds.min);
+                    } else if (selectedMinutes > maxMinutes) {
+                      onChange('scheduledTime', timeBounds.max);
+                    } else {
+                      onChange('scheduledTime', timeValue);
+                    }
+                  }}
+                  min={timeBounds.min}
+                  max={timeBounds.max}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors text-lg"
+                />
+                {/* Message informatif heures d'ouverture */}
+                {todaySchedule && !todaySchedule.closed && (
+                  <p className="mt-2 text-xs text-gray-500 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    Heures d&apos;ouverture aujourd&apos;hui : {todaySchedule.open} - {todaySchedule.close}
+                  </p>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Section livraison : zone + message + adresse */}
       {showAddressField && (
@@ -270,7 +437,7 @@ export default function CheckoutStepDelivery({
                         ? 'border-orange-500 bg-orange-50'
                         : 'border-gray-300 hover:border-gray-400'
                     }`}
-                  >
+        >
                     <p className="font-semibold text-sm text-gray-900">{zone.label}</p>
                     <p className={`text-sm mt-1 font-medium ${isSelected ? 'text-orange-600' : 'text-gray-500'}`}>
                       {zone.fee} EGP
@@ -296,40 +463,40 @@ export default function CheckoutStepDelivery({
 
           {/* Champ adresse */}
           <div>
-            <label
-              htmlFor="deliveryAddress"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
+          <label
+            htmlFor="deliveryAddress"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
               {t.checkout.deliveryAddress}{' '}
-              <span className="text-red-500" aria-label="requis">
-                *
-              </span>
-            </label>
-            <textarea
-              id="deliveryAddress"
-              value={formData.deliveryAddress || ''}
-              onChange={(e) => handleAddressChange(e.target.value)}
+            <span className="text-red-500" aria-label="requis">
+              *
+            </span>
+          </label>
+          <textarea
+            id="deliveryAddress"
+            value={formData.deliveryAddress || ''}
+            onChange={(e) => handleAddressChange(e.target.value)}
               placeholder={t.checkout.addressPlaceholder}
-              rows={3}
-              className={`
-                w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 transition-colors
-                ${addressError
-                  ? 'border-red-500 focus:ring-red-500'
-                  : 'border-gray-300 focus:ring-orange-500'
-                }
-              `}
-              aria-invalid={addressError ? 'true' : 'false'}
-              aria-describedby={addressError ? 'deliveryAddress-error' : undefined}
-            />
-            {addressError && (
-              <p
-                id="deliveryAddress-error"
-                className="mt-1 text-sm text-red-600"
-                role="alert"
-              >
-                {addressError}
-              </p>
-            )}
+            rows={3}
+            className={`
+              w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 transition-colors
+              ${addressError
+                ? 'border-red-500 focus:ring-red-500'
+                : 'border-gray-300 focus:ring-orange-500'
+              }
+            `}
+            aria-invalid={addressError ? 'true' : 'false'}
+            aria-describedby={addressError ? 'deliveryAddress-error' : undefined}
+          />
+          {addressError && (
+            <p
+              id="deliveryAddress-error"
+              className="mt-1 text-sm text-red-600"
+              role="alert"
+            >
+              {addressError}
+            </p>
+          )}
           </div>
         </div>
       )}

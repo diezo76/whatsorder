@@ -14,7 +14,7 @@ import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
 import { generateOrderPDF } from '@/lib/generateOrderPDF';
 import type { Order, OrderItem } from '@/types/order';
-import { DELIVERY_TYPE_LABELS } from '@/lib/shared/labels';
+import { DELIVERY_TYPE_LABELS, PAYMENT_METHOD_LABELS } from '@/lib/shared/labels';
 
 interface OrderDetailsModalProps {
   order: Order;
@@ -254,6 +254,12 @@ export default function OrderDetailsModal({
                 />
                 {order.customerNotes && (
                   <InfoRow label="Notes client" value={order.customerNotes} />
+                )}
+                {order.paymentMethod && (
+                  <InfoRow
+                    label="Paiement"
+                    value={PAYMENT_METHOD_LABELS[order.paymentMethod] || order.paymentMethod}
+                  />
                 )}
               </div>
             </div>

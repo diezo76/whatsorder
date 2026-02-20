@@ -1,6 +1,6 @@
 'use client';
 
-import { Building2, Image as ImageIcon, Phone, ChevronDown } from 'lucide-react';
+import { Building2, Image as ImageIcon, Phone, ChevronDown, Ban } from 'lucide-react';
 import ImageUpload from '@/components/ui/ImageUpload';
 
 interface RestaurantFormData {
@@ -19,6 +19,8 @@ interface RestaurantFormData {
   whatsappNumber: string;
   whatsappApiToken: string;
   whatsappBusinessId: string;
+  busyTitle: string;
+  busyMessage: string;
 }
 
 interface SettingsGeneralTabProps {
@@ -328,6 +330,65 @@ export default function SettingsGeneralTab({ formData, onChange }: SettingsGener
               className="w-full border border-gray-300 rounded-lg px-4 py-2 min-h-20 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
               placeholder="123 Rue Example, Ville, Pays"
             />
+          </div>
+        </div>
+      </div>
+
+      {/* Section : Message mode occupé */}
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <Ban className="w-5 h-5 text-red-600" />
+          <h3 className="text-lg font-semibold text-gray-900">Message mode occupé</h3>
+        </div>
+        <p className="text-sm text-gray-500 mb-4">
+          Ce message s'affiche lorsque vous activez le mode occupé depuis la page Commandes.
+        </p>
+
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="busyTitle" className="block text-sm font-medium text-gray-700 mb-1">
+              Titre du bandeau
+            </label>
+            <input
+              type="text"
+              id="busyTitle"
+              value={formData.busyTitle}
+              onChange={(e) => handleTextChange('busyTitle', e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+              placeholder="Restaurant temporairement indisponible"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="busyMessage" className="block text-sm font-medium text-gray-700 mb-1">
+              Description du bandeau
+            </label>
+            <textarea
+              id="busyMessage"
+              value={formData.busyMessage}
+              onChange={(e) => handleTextChange('busyMessage', e.target.value)}
+              rows={2}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 min-h-16 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors"
+              placeholder="Trop de commandes en cours. Veuillez réessayer plus tard."
+            />
+          </div>
+
+          {/* Preview */}
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-2">Aperçu du bandeau</p>
+            <div className="bg-red-600 text-white py-4 px-4 rounded-lg">
+              <div className="flex items-center justify-center gap-3">
+                <Ban className="w-6 h-6 flex-shrink-0" />
+                <div className="text-center">
+                  <p className="font-bold text-lg">
+                    {formData.busyTitle || 'Restaurant temporairement indisponible'}
+                  </p>
+                  <p className="text-sm text-red-100">
+                    {formData.busyMessage || 'Trop de commandes en cours. Veuillez réessayer plus tard.'}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

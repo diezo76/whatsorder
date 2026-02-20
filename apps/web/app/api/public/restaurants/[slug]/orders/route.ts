@@ -83,12 +83,20 @@ export async function POST(
     // Trouver le restaurant
     const restaurant = await prisma.restaurant.findUnique({
       where: { slug },
-      select: { id: true, name: true, slug: true, whatsappNumber: true, deliveryZones: true, isBusy: true },
+      select: { id: true, name: true, slug: true, whatsappNumber: true, deliveryZones: true, isBusy: true, isApproved: true },
     });
 
     if (!restaurant) {
       return NextResponse.json(
         { error: 'Restaurant non trouvé' },
+        { status: 404 }
+      );
+    }
+
+    // Bloquer les commandes pour les restaurants non approuvés
+    if (!restaurant.isApproved) {
+      return NextResponse.json(
+        { error: 'Restaurant non disponible' },
         { status: 404 }
       );
     }

@@ -37,6 +37,14 @@ export async function PUT(
         throw new AppError('Variant introuvable', 404);
       }
 
+      // Validation des champs requis
+      if (name !== undefined && (!name || typeof name !== 'string' || name.trim().length < 1)) {
+        throw new AppError('Le nom du variant est requis', 400);
+      }
+      if (price !== undefined && (typeof price !== 'number' || price < 0)) {
+        throw new AppError('Le prix doit être un nombre positif', 400);
+      }
+
       // Mettre à jour
       const updatedVariant = await prisma.menuItemVariant.update({
         where: { id: params.variantId },

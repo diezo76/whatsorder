@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { RefreshCw, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { RefreshCw, Loader2, AlertTriangle, CheckCircle, LayoutGrid, List } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
 import { toast as sonnerToast } from 'sonner';
@@ -20,6 +20,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import KanbanColumn from '@/components/orders/KanbanColumn';
 import OrderCard from '@/components/orders/OrderCard';
 import OrderDetailsModal from '@/components/orders/OrderDetailsModal';
+import OrdersListView from '@/components/orders/OrdersListView';
 import type { Order } from '@/types/order';
 
 interface Column {
@@ -52,6 +53,13 @@ export default function OrdersPage() {
     date: 'today',
     assignedTo: 'all',
     search: '',
+  });
+  const [viewMode, setViewMode] = useState<'kanban' | 'list'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('orders-view-mode');
+      if (saved === 'list' || saved === 'kanban') return saved;
+    }
+    return 'list';
   });
 
   // Auth hook pour obtenir restaurantId
@@ -113,6 +121,13 @@ export default function OrdersPage() {
       console.log('Notification sound not available');
     }
   };
+
+  // Persister le mode de vue
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('orders-view-mode', viewMode);
+    }
+  }, [viewMode]);
 
   // Charger le statut busy du restaurant
   useEffect(() => {
@@ -514,6 +529,34 @@ export default function OrdersPage() {
               )}
             </button>
 
+            {/* Toggle Kanban / Liste */}
+            <div className="flex items-center border rounded-lg overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setViewMode('kanban')}
+                className={`p-2 transition-colors ${
+                  viewMode === 'kanban'
+                    ? 'bg-orange-100 text-orange-700'
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+                title="Vue Kanban"
+              >
+                <LayoutGrid className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                className={`p-2 transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-orange-100 text-orange-700'
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+                title="Vue Liste"
+              >
+                <List className="w-5 h-5" />
+              </button>
+            </div>
+
             {/* Bouton rafraîchir */}
             <button
               onClick={loadOrders}
@@ -580,6 +623,13 @@ export default function OrdersPage() {
           <div className="flex justify-center items-center h-64">
             <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
           </div>
+        ) : viewMode === 'list' ? (
+          <OrdersListView
+            orders={orders}
+            onOrderClick={(order) => setSelectedOrder(order)}
+            newOrders={newOrders}
+            animatingOrders={animatingOrders}
+          />
         ) : (
           <DndContext
             sensors={sensors}

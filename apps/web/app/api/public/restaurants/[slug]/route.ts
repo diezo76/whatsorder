@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/server/prisma';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { slug: string } }
@@ -15,26 +17,22 @@ export async function GET(
       );
     }
 
-    // Récupérer le restaurant depuis Prisma
+    // Récupérer le restaurant depuis Prisma (sans données sensibles des utilisateurs)
     const restaurant = await prisma.restaurant.findUnique({
       where: { 
         slug,
       },
-      include: {
-        users: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        },
-      },
     });
 
     if (!restaurant) {
+      return NextResponse.json(
+        { error: 'Restaurant not found' },
+        { status: 404 }
+      );
+    }
+
+    // Bloquer les restaurants non approuvés par le super admin
+    if (!restaurant.isApproved) {
       return NextResponse.json(
         { error: 'Restaurant not found' },
         { status: 404 }

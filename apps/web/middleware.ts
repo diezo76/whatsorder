@@ -23,9 +23,8 @@ export function middleware(request: NextRequest) {
   // Routes protégées - vérification basique du token
   // Note: Le token est stocké dans localStorage côté client, donc on vérifie seulement les cookies
   // La vraie vérification se fait côté client dans AuthContext
-  if (pathname.startsWith('/dashboard')) {
+  if (pathname.startsWith('/dashboard') || pathname.startsWith('/admin')) {
     // On laisse passer et la vérification se fera côté client
-    // Si pas de token dans les cookies, le client redirigera si nécessaire
     return NextResponse.next();
   }
 

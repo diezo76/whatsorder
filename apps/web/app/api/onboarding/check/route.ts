@@ -43,6 +43,7 @@ export async function GET(request: Request) {
         needsOnboarding,
         hasBasicInfo,
         hasMenu,
+        isApproved: restaurant.isApproved ?? true,
         restaurant: {
           id: restaurant.id,
           name: restaurant.name,

@@ -37,6 +37,17 @@ export async function PUT(
         throw new AppError('Option introuvable', 404);
       }
 
+      // Validation des champs
+      if (name !== undefined && (!name || typeof name !== 'string' || name.trim().length < 1)) {
+        throw new AppError('Le nom de l\'option est requis', 400);
+      }
+      if (type !== undefined && !['ADDON', 'MODIFICATION', 'INSTRUCTION'].includes(type)) {
+        throw new AppError('Type d\'option invalide (ADDON, MODIFICATION ou INSTRUCTION)', 400);
+      }
+      if (priceModifier !== undefined && (typeof priceModifier !== 'number' || priceModifier < 0)) {
+        throw new AppError('Le prix doit être un nombre positif ou zéro', 400);
+      }
+
       // Mettre à jour
       const updatedOption = await prisma.menuItemOption.update({
         where: { id: params.optionId },

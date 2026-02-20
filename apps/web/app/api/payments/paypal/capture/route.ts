@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 // Configuration PayPal
 const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || '';
 const PAYPAL_SECRET = process.env.PAYPAL_SECRET || '';
-const PAYPAL_MODE = process.env.PAYPAL_MODE || 'sandbox';
+const PAYPAL_MODE = process.env.PAYPAL_MODE || 'live';
 
 const PAYPAL_API_URL = PAYPAL_MODE === 'live' 
   ? 'https://api-m.paypal.com'
@@ -76,8 +76,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 🔒 SÉCURITÉ : Validation du format PayPal Order ID
-    if (!/^[A-Z0-9]{17,}$/.test(paypalOrderId)) {
+    // 🔒 SÉCURITÉ : Validation du format PayPal Order ID (lettres, chiffres, tirets)
+    if (!/^[A-Za-z0-9-]{10,50}$/.test(paypalOrderId)) {
       return NextResponse.json(
         { error: 'Format PayPal Order ID invalide' },
         { status: 400 }
@@ -120,10 +120,56 @@ export async function POST(request: NextRequest) {
       // Créer un message dans la conversation si elle existe
       const order = await prisma.order.findUnique({
         where: { id: orderId },
-        include: { customer: true },
+        include: {
+          customer: true,
+          items: {
+            include: {
+              menuItem: { select: { name: true } },
+            },
+          },
+        },
       });
 
       if (order) {
+        // Formater la liste des articles
+        const itemsList = order.items
+          .map((item) => {
+            const customization = item.customization as any;
+            let text = `  • ${item.quantity}x ${item.name}`;
+            if (customization?.variant) {
+              text += ` (${customization.variant})`;
+            }
+            text += ` - ${item.subtotal.toFixed(2)} EGP`;
+            if (customization?.modifiers && customization.modifiers.length > 0) {
+              text += `\n    Options: ${customization.modifiers.join(', ')}`;
+            }
+            return text;
+          })
+          .join('\n');
+
+        // Construire le message détaillé
+        const deliveryLabel = order.deliveryType === 'DELIVERY' ? 'Livraison' : order.deliveryType === 'PICKUP' ? 'A emporter' : 'Sur place';
+        let messageContent = `✅ **Paiement PayPal confirmé** - Commande #${orderNumber}\n\n`;
+        messageContent += `👤 Client: ${order.customer.name} (${order.customer.phone})\n`;
+        messageContent += `🚚 Type: ${deliveryLabel}\n`;
+        if (order.deliveryAddress) {
+          messageContent += `📍 Adresse: ${order.deliveryAddress}\n`;
+        }
+        messageContent += `\n🛒 **Articles:**\n${itemsList}\n\n`;
+        messageContent += `────────────────\n`;
+        messageContent += `Sous-total: ${order.subtotal.toFixed(2)} EGP\n`;
+        if ((order.deliveryFee || 0) > 0) {
+          messageContent += `Livraison: ${(order.deliveryFee || 0).toFixed(2)} EGP\n`;
+        }
+        if ((order.discount || 0) > 0) {
+          messageContent += `Remise: -${(order.discount || 0).toFixed(2)} EGP\n`;
+        }
+        messageContent += `💰 **Total: ${order.total.toFixed(2)} EGP**\n`;
+        messageContent += `🅿️ Paiement: PayPal\n`;
+        if (order.customerNotes) {
+          messageContent += `\n📝 Notes: ${order.customerNotes}`;
+        }
+
         const conversation = await prisma.conversation.findFirst({
           where: {
             customerPhone: order.customer.phone,
@@ -136,9 +182,9 @@ export async function POST(request: NextRequest) {
             data: {
               conversationId: conversation.id,
               type: 'TEXT',
-              content: `✅ **Paiement PayPal confirmé** pour la commande #${orderNumber}\n\n🅿️ Paiement via PayPal\n💰 Montant: ${order.total} EGP`,
+              content: messageContent,
               sender: 'SYSTEM',
-              direction: 'outbound', // Message système sortant
+              direction: 'outbound',
               isSystemMessage: true,
               metadata: {
                 type: 'payment_confirmation',

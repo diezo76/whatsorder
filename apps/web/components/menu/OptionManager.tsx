@@ -1,10 +1,117 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, X } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Plus, Edit, Trash2, X, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { MenuItemOption } from '@/types/menu';
+
+function SortableStandaloneOption({
+  option,
+  onEdit,
+  onDelete,
+  loading,
+  getTypeLabel,
+}: {
+  option: MenuItemOption;
+  onEdit: () => void;
+  onDelete: () => void;
+  loading: boolean;
+  getTypeLabel: (type: string) => string;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: option.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+    >
+      <div className="flex items-center gap-3 flex-1">
+        <button
+          className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 touch-none"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical size={18} />
+        </button>
+        <div>
+          <div className="flex items-center gap-2">
+            <p className="font-medium">
+              {option.name}
+              {option.nameAr && <span className="text-gray-500 ml-2">({option.nameAr})</span>}
+            </p>
+            <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
+              {getTypeLabel(option.type)}
+            </span>
+          </div>
+          <div className="flex items-center gap-4 mt-1">
+            <p className="text-sm text-gray-600">
+              {option.priceModifier > 0 ? `+${option.priceModifier} EGP` : 'Gratuit'}
+            </p>
+            {option.isRequired && (
+              <span className="text-xs text-red-600">Requis</span>
+            )}
+            {option.isMultiple && (
+              <span className="text-xs text-gray-500">
+                Multiple {option.maxSelections ? `(max: ${option.maxSelections})` : ''}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onEdit}
+          disabled={loading}
+          className="p-2 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
+          title="Modifier"
+        >
+          <Edit size={16} />
+        </button>
+        <button
+          onClick={onDelete}
+          disabled={loading}
+          className="p-2 hover:bg-red-100 text-red-600 rounded transition-colors disabled:opacity-50"
+          title="Supprimer"
+        >
+          <Trash2 size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 interface OptionManagerProps {
   menuItemId: string;
@@ -27,7 +134,11 @@ export function OptionManager({ menuItemId, initialOptions = [], onOptionsChange
     maxSelections: undefined as number | undefined,
   });
 
-  // Charger les options au montage
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
   useEffect(() => {
     const fetchOptions = async () => {
       try {
@@ -47,6 +158,28 @@ export function OptionManager({ menuItemId, initialOptions = [], onOptionsChange
       fetchOptions();
     }
   }, [menuItemId, onOptionsChange]);
+
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = options.findIndex(o => o.id === active.id);
+    const newIndex = options.findIndex(o => o.id === over.id);
+
+    const reordered = arrayMove(options, oldIndex, newIndex);
+    setOptions(reordered);
+    if (onOptionsChange) onOptionsChange(reordered);
+
+    try {
+      await api.put(`/menu/items/${menuItemId}/options/reorder`, {
+        optionIds: reordered.map(o => o.id),
+      });
+    } catch (error) {
+      console.error('Failed to reorder options:', error);
+      toast.error('Erreur lors du réordonnancement');
+      setOptions(options);
+    }
+  }, [options, menuItemId, onOptionsChange]);
 
   const handleAddOption = async () => {
     if (!newOption.name || !newOption.type) {
@@ -71,20 +204,9 @@ export function OptionManager({ menuItemId, initialOptions = [], onOptionsChange
 
       const updatedOptions = [...options, response.data.option];
       setOptions(updatedOptions);
-      if (onOptionsChange) {
-        onOptionsChange(updatedOptions);
-      }
-      setNewOption({
-        name: '',
-        nameAr: '',
-        type: 'ADDON',
-        priceModifier: 0,
-        isRequired: false,
-        isMultiple: false,
-        maxSelections: undefined,
-      });
-      setIsAdding(false);
-      toast.success('Option ajoutée ✅');
+      if (onOptionsChange) onOptionsChange(updatedOptions);
+      cancelEditing();
+      toast.success('Option ajoutée');
     } catch (error: any) {
       console.error('Failed to add option:', error);
       toast.error(error.response?.data?.error || 'Erreur lors de l\'ajout de l\'option');
@@ -103,11 +225,9 @@ export function OptionManager({ menuItemId, initialOptions = [], onOptionsChange
 
       const updatedOptions = options.map(o => o.id === optionId ? response.data.option : o);
       setOptions(updatedOptions);
-      if (onOptionsChange) {
-        onOptionsChange(updatedOptions);
-      }
+      if (onOptionsChange) onOptionsChange(updatedOptions);
       setEditingId(null);
-      toast.success('Option modifiée ✅');
+      toast.success('Option modifiée');
     } catch (error: any) {
       console.error('Failed to update option:', error);
       toast.error(error.response?.data?.error || 'Erreur lors de la modification de l\'option');
@@ -125,10 +245,8 @@ export function OptionManager({ menuItemId, initialOptions = [], onOptionsChange
 
       const updatedOptions = options.filter(o => o.id !== optionId);
       setOptions(updatedOptions);
-      if (onOptionsChange) {
-        onOptionsChange(updatedOptions);
-      }
-      toast.success('Option supprimée ✅');
+      if (onOptionsChange) onOptionsChange(updatedOptions);
+      toast.success('Option supprimée');
     } catch (error: any) {
       console.error('Failed to delete option:', error);
       toast.error(error.response?.data?.error || 'Erreur lors de la suppression de l\'option');
@@ -167,14 +285,10 @@ export function OptionManager({ menuItemId, initialOptions = [], onOptionsChange
 
   const getTypeLabel = (type: string) => {
     switch (type) {
-      case 'ADDON':
-        return 'Add-on payant';
-      case 'MODIFICATION':
-        return 'Modification gratuite';
-      case 'INSTRUCTION':
-        return 'Instruction spéciale';
-      default:
-        return type;
+      case 'ADDON': return 'Add-on payant';
+      case 'MODIFICATION': return 'Modification gratuite';
+      case 'INSTRUCTION': return 'Instruction spéciale';
+      default: return type;
     }
   };
 
@@ -183,7 +297,7 @@ export function OptionManager({ menuItemId, initialOptions = [], onOptionsChange
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">Options (Add-ons)</h3>
-          <p className="text-sm text-gray-500">Ajoutez des extras payants ou des modifications gratuites</p>
+          <p className="text-sm text-gray-500">Glissez-déposez pour réorganiser l&apos;ordre</p>
         </div>
         {!isAdding && (
           <button
@@ -197,59 +311,24 @@ export function OptionManager({ menuItemId, initialOptions = [], onOptionsChange
         )}
       </div>
 
-      {/* Liste des options */}
+      {/* Liste des options avec drag-and-drop */}
       {options.length > 0 && (
-        <div className="space-y-2">
-          {options.map((option) => (
-            <div
-              key={option.id}
-              className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="font-medium">
-                    {option.name}
-                    {option.nameAr && <span className="text-gray-500 ml-2">({option.nameAr})</span>}
-                  </p>
-                  <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
-                    {getTypeLabel(option.type)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-4 mt-1">
-                  <p className="text-sm text-gray-600">
-                    {option.priceModifier > 0 ? `+${option.priceModifier} EGP` : 'Gratuit'}
-                  </p>
-                  {option.isRequired && (
-                    <span className="text-xs text-red-600">Requis</span>
-                  )}
-                  {option.isMultiple && (
-                    <span className="text-xs text-gray-500">
-                      Multiple {option.maxSelections ? `(max: ${option.maxSelections})` : ''}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => startEditing(option)}
-                  disabled={loading}
-                  className="p-2 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
-                  title="Modifier"
-                >
-                  <Edit size={16} />
-                </button>
-                <button
-                  onClick={() => handleDeleteOption(option.id)}
-                  disabled={loading}
-                  className="p-2 hover:bg-red-100 text-red-600 rounded transition-colors disabled:opacity-50"
-                  title="Supprimer"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={options.map(o => o.id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-2">
+              {options.map((option) => (
+                <SortableStandaloneOption
+                  key={option.id}
+                  option={option}
+                  onEdit={() => startEditing(option)}
+                  onDelete={() => handleDeleteOption(option.id)}
+                  loading={loading}
+                  getTypeLabel={getTypeLabel}
+                />
+              ))}
             </div>
-          ))}
-        </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {/* Formulaire d'ajout/modification */}
@@ -257,10 +336,7 @@ export function OptionManager({ menuItemId, initialOptions = [], onOptionsChange
         <div className="p-4 border rounded-lg bg-gray-50 space-y-3">
           <div className="flex items-center justify-between mb-2">
             <h4 className="font-semibold">{editingId ? 'Modifier l\'option' : 'Nouvelle option'}</h4>
-            <button
-              onClick={cancelEditing}
-              className="p-1 hover:bg-gray-200 rounded"
-            >
+            <button onClick={cancelEditing} className="p-1 hover:bg-gray-200 rounded">
               <X size={16} />
             </button>
           </div>
@@ -275,7 +351,7 @@ export function OptionManager({ menuItemId, initialOptions = [], onOptionsChange
             />
             <input
               type="text"
-              placeholder="Nom arabe (ex: جبنة إضافية)"
+              placeholder="Nom arabe"
               value={newOption.nameAr}
               onChange={(e) => setNewOption({ ...newOption, nameAr: e.target.value })}
               className="w-full px-3 py-2 border rounded"
@@ -337,10 +413,7 @@ export function OptionManager({ menuItemId, initialOptions = [], onOptionsChange
             >
               {editingId ? 'Enregistrer' : 'Ajouter'}
             </button>
-            <button
-              onClick={cancelEditing}
-              className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
-            >
+            <button onClick={cancelEditing} className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
               Annuler
             </button>
           </div>
@@ -349,7 +422,7 @@ export function OptionManager({ menuItemId, initialOptions = [], onOptionsChange
 
       {options.length === 0 && !isAdding && (
         <p className="text-sm text-gray-500 text-center py-4">
-          Aucune option. Cliquez sur "Ajouter une option" pour commencer.
+          Aucune option. Cliquez sur &quot;Ajouter une option&quot; pour commencer.
         </p>
       )}
     </div>

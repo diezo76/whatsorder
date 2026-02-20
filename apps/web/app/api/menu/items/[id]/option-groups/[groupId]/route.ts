@@ -8,36 +8,41 @@ export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/menu/items/[id]/option-groups/[groupId]
- * Récupérer un groupe d'options avec ses options
+ * Récupérer un groupe d'options avec ses options (protégé par auth)
  */
 export async function GET(
   request: Request,
   { params }: { params: { id: string; groupId: string } }
 ) {
-  try {
-    const optionGroup = await (prisma as any).optionGroup.findFirst({
-      where: {
-        id: params.groupId,
-        menuItemId: params.id,
-      },
-      include: {
-        options: {
-          orderBy: { sortOrder: 'asc' },
+  return withAuth(async (req) => {
+    try {
+      const optionGroup = await (prisma as any).optionGroup.findFirst({
+        where: {
+          id: params.groupId,
+          menuItemId: params.id,
+          menuItem: {
+            restaurantId: req.user!.restaurantId,
+          },
         },
-      },
-    });
+        include: {
+          options: {
+            orderBy: { sortOrder: 'asc' },
+          },
+        },
+      });
 
-    if (!optionGroup) {
-      throw new AppError('Groupe d\'options introuvable', 404);
+      if (!optionGroup) {
+        throw new AppError('Groupe d\'options introuvable', 404);
+      }
+
+      return NextResponse.json({
+        success: true,
+        optionGroup,
+      });
+    } catch (error) {
+      return handleError(error);
     }
-
-    return NextResponse.json({
-      success: true,
-      optionGroup,
-    });
-  } catch (error) {
-    return handleError(error);
-  }
+  })(request);
 }
 
 /**

@@ -36,11 +36,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Restaurant non trouvé' }, { status: 404 });
     }
 
+    const isConnected = (!!restaurant.paypalEmail || !!restaurant.paypalMerchantId) && restaurant.paypalOnboardingComplete;
+
     return NextResponse.json({
-      connected: !!restaurant.paypalMerchantId && restaurant.paypalOnboardingComplete,
+      connected: isConnected,
       merchantId: restaurant.paypalMerchantId,
       email: restaurant.paypalEmail,
-      canAcceptPayments: restaurant.enablePaypalPayment,
+      canAcceptPayments: isConnected,
       connectedAt: restaurant.paypalConnectedAt,
     });
   } catch (error: any) {

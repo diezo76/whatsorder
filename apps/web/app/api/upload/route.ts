@@ -1,21 +1,27 @@
 import { NextResponse } from 'next/server';
 import { withAuth } from '@/lib/server/auth-app';
 import { handleError, AppError } from '@/lib/server/errors-app';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Marquer la route comme dynamique
 export const dynamic = 'force-dynamic';
 
-// Créer un client Supabase avec la clé service pour l'upload
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+// Client Supabase créé à la demande (évite l'erreur "supabaseKey is required" durant le build)
+let supabaseAdmin: SupabaseClient | null = null;
 
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
+function getSupabaseAdmin(): SupabaseClient {
+  if (!supabaseAdmin) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) {
+      throw new Error('Supabase non configuré. Ajoutez NEXT_PUBLIC_SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY aux variables d\'environnement.');
+    }
+    supabaseAdmin = createClient(url, key, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+  }
+  return supabaseAdmin;
+}
 
 /**
  * POST /api/upload
@@ -54,7 +60,7 @@ export async function POST(request: Request) {
       const buffer = new Uint8Array(arrayBuffer);
 
       // Upload vers Supabase Storage
-      const { data, error } = await supabaseAdmin.storage
+      const { data, error } = await getSupabaseAdmin().storage
         .from('menu-images')
         .upload(fileName, buffer, {
           contentType: file.type,
@@ -68,7 +74,7 @@ export async function POST(request: Request) {
       }
 
       // Construire l'URL publique
-      const { data: { publicUrl } } = supabaseAdmin.storage
+      const { data: { publicUrl } } = getSupabaseAdmin().storage
         .from('menu-images')
         .getPublicUrl(fileName);
 
@@ -102,7 +108,7 @@ export async function DELETE(request: Request) {
         throw new AppError('Non autorisé à supprimer ce fichier', 403);
       }
 
-      const { error } = await supabaseAdmin.storage
+      const { error } = await getSupabaseAdmin().storage
         .from('menu-images')
         .remove([path]);
 

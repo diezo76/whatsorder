@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import Image from 'next/image';
 import { X, Check } from 'lucide-react';
 import { MenuItemWithVariantsAndOptions, CartItem, OptionGroup, MenuItemOption } from '@/types/menu';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -36,6 +37,23 @@ const VIANDES_NAMES = [
   'Boeuf effiloché',
 ];
 
+// Sauces disponibles pour le Menu (sauce accompagnement frites)
+const SAUCES_MENU = [
+  'Algérienne',
+  'Barbecue',
+  'Ketchup',
+  'Mayonnaise',
+  'Dynamite',
+  'Creamy tartare',
+  'Sauce Burger',
+];
+
+// Plats du Menu Enfant
+const KIDS_PLATS = ['Petit tacos', 'Smasheese', 'Nuggets'];
+
+// Jus du Menu Enfant
+const KIDS_JUS = ['Jus Mangue enfant', 'Jus Orange enfant'];
+
 export function ProductModal({ product, onClose, onAddToCart }: ProductModalProps) {
   const { t } = useLanguage();
   const [selectedVariant, setSelectedVariant] = useState<string | null>(
@@ -44,6 +62,12 @@ export function ProductModal({ product, onClose, onAddToCart }: ProductModalProp
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [quantity, setQuantity] = useState(1);
   const [addFrites, setAddFrites] = useState(false);
+
+  // Détecter si le produit est un Menu Enfant
+  const isKidsMenu = useMemo(() => {
+    const name = product.name.toLowerCase();
+    return name.includes('menu enfant') || name.includes('kids') || name.includes('menu kid');
+  }, [product.name]);
 
   // Détecter si la variante sélectionnée est un "Menu"
   const isMenuVariant = useMemo(() => {
@@ -65,7 +89,7 @@ export function ProductModal({ product, onClose, onAddToCart }: ProductModalProp
 
   // Options sans groupe (ancien système)
   const standaloneOptions = useMemo(() => 
-    product.options.filter(opt => !opt.optionGroupId),
+    (product.options ?? []).filter(opt => opt && !opt.optionGroupId),
     [product.options]
   );
 
@@ -75,33 +99,186 @@ export function ProductModal({ product, onClose, onAddToCart }: ProductModalProp
     [standaloneOptions]
   );
 
-  const otherStandaloneOptions = useMemo(() => 
-    standaloneOptions.filter(opt => !VIANDES_NAMES.includes(opt.name)),
-    [standaloneOptions]
-  );
-
   // Compter les viandes sélectionnées
   const selectedViandesCount = useMemo(() => 
     viandeOptions.filter(opt => selectedOptions.includes(opt.id)).length,
     [viandeOptions, selectedOptions]
   );
 
-  // Groupes d'options
+  // Groupes d'options depuis la BDD (fallback si undefined)
   const optionGroups = useMemo(() => 
-    product.optionGroups || [],
+    (product.optionGroups ?? []).filter(g => g && Array.isArray(g.options)),
     [product.optionGroups]
   );
 
-  // Séparer les groupes de sauces et de boissons
-  const sauceGroup = useMemo(() => 
-    optionGroups.find(g => g.name.toLowerCase().includes('sauce')),
+  // Détecter le groupe "Formule Menu" (pattern ochicken : option group au lieu de variants)
+  const formuleMenuGroup = useMemo(() => 
+    optionGroups.find(g => {
+      const name = (g.name || '').toLowerCase();
+      return name.includes('formule menu');
+    }),
     [optionGroups]
   );
 
-  const boissonGroup = useMemo(() => 
-    optionGroups.find(g => g.name.toLowerCase().includes('boisson')),
+  // Vérifier si l'option Formule Menu est cochée
+  const isFormuleMenuSelected = useMemo(() => {
+    if (!formuleMenuGroup) return false;
+    return formuleMenuGroup.options.some(opt => selectedOptions.includes(opt.id));
+  }, [formuleMenuGroup, selectedOptions]);
+
+  // Séparer les groupes de sauces et de boissons depuis la BDD (détection élargie)
+  const sauceGroupFromDB = useMemo(() => 
+    optionGroups.find(g => {
+      const name = (g.name || '').toLowerCase();
+      return name.includes('sauce') || name.includes('sauces');
+    }),
     [optionGroups]
   );
+
+  const boissonGroupFromDB = useMemo(() => 
+    optionGroups.find(g => {
+      const name = (g.name || '').toLowerCase();
+      return name.includes('boisson') || name.includes('boissons') || name.includes('drink') || name.includes('boisson au choix');
+    }),
+    [optionGroups]
+  );
+
+  // Groupe de viandes (pour tacos "À composer")
+  const viandeGroup = useMemo(() => 
+    optionGroups.find(g => {
+      const name = (g.name || '').toLowerCase();
+      return name.includes('viande');
+    }),
+    [optionGroups]
+  );
+
+  // Groupes synthétiques (fallback quand les groupes n'existent pas en BDD)
+  const syntheticSauceGroup: OptionGroup | null = useMemo(() => {
+    if (sauceGroupFromDB) return null;
+    if (!product.hasVariants) return null;
+    return {
+      id: 'syn-sauce-group',
+      menuItemId: product.id,
+      name: 'Sauce au choix',
+      includedCount: 1,
+      minSelections: 0,
+      maxSelections: 1,
+      isRequired: false,
+      isActive: true,
+      sortOrder: 100,
+      options: SAUCES_MENU.map((sauceName, i): MenuItemOption => ({
+        id: `syn-sauce-${i}`,
+        menuItemId: product.id,
+        name: sauceName,
+        type: 'ADDON',
+        priceModifier: 0,
+        optionGroupId: 'syn-sauce-group',
+        isRequired: false,
+        isMultiple: true,
+        isActive: true,
+        sortOrder: i,
+      })),
+    };
+  }, [sauceGroupFromDB, product.hasVariants, product.id]);
+
+  const syntheticBoissonGroup: OptionGroup | null = useMemo(() => {
+    if (boissonGroupFromDB) return null;
+    if (!product.hasVariants) return null;
+    const drinks = Object.entries(BOISSONS_PRIX_COMPLET);
+    return {
+      id: 'syn-boisson-group',
+      menuItemId: product.id,
+      name: 'Boisson au choix',
+      includedCount: 1,
+      minSelections: 0,
+      maxSelections: 1,
+      isRequired: false,
+      isActive: true,
+      sortOrder: 101,
+      options: drinks.map(([drinkName, fullPrice], i): MenuItemOption => ({
+        id: `syn-boisson-${i}`,
+        menuItemId: product.id,
+        name: drinkName,
+        type: 'ADDON',
+        priceModifier: fullPrice > 40 ? fullPrice - 40 : 0,
+        optionGroupId: 'syn-boisson-group',
+        isRequired: false,
+        isMultiple: true,
+        isActive: true,
+        sortOrder: i,
+      })),
+    };
+  }, [boissonGroupFromDB, product.hasVariants, product.id]);
+
+  // Le "Plat au choix" du Menu Enfant est géré par le vrai groupe DB "Choix principal"
+  const kidsPlatsGroup: OptionGroup | null = null;
+
+  const kidsSauceGroup: OptionGroup | null = useMemo(() => {
+    if (!isKidsMenu) return null;
+    return {
+      id: 'syn-kids-sauce-group',
+      menuItemId: product.id,
+      name: 'Sauce au choix',
+      includedCount: 1,
+      minSelections: 0,
+      maxSelections: 1,
+      isRequired: false,
+      isActive: true,
+      sortOrder: 51,
+      options: SAUCES_MENU.map((sauceName, i): MenuItemOption => ({
+        id: `syn-kids-sauce-${i}`,
+        menuItemId: product.id,
+        name: sauceName,
+        type: 'ADDON',
+        priceModifier: 0,
+        optionGroupId: 'syn-kids-sauce-group',
+        isRequired: false,
+        isMultiple: false,
+        isActive: true,
+        sortOrder: i,
+      })),
+    };
+  }, [isKidsMenu, product.id]);
+
+  const kidsJusGroup: OptionGroup | null = useMemo(() => {
+    if (!isKidsMenu) return null;
+    return {
+      id: 'syn-kids-jus-group',
+      menuItemId: product.id,
+      name: 'Jus au choix',
+      includedCount: 1,
+      minSelections: 1,
+      maxSelections: 1,
+      isRequired: true,
+      isActive: true,
+      sortOrder: 52,
+      options: KIDS_JUS.map((jusName, i): MenuItemOption => ({
+        id: `syn-kids-jus-${i}`,
+        menuItemId: product.id,
+        name: jusName,
+        type: 'ADDON',
+        priceModifier: 0,
+        optionGroupId: 'syn-kids-jus-group',
+        isRequired: false,
+        isMultiple: false,
+        isActive: true,
+        sortOrder: i,
+      })),
+    };
+  }, [isKidsMenu, product.id]);
+
+  // Groupes finaux : BDD si disponible, sinon synthétique
+  const sauceGroup = useMemo(() => sauceGroupFromDB ?? syntheticSauceGroup, [sauceGroupFromDB, syntheticSauceGroup]);
+  const boissonGroup = useMemo(() => boissonGroupFromDB ?? syntheticBoissonGroup, [boissonGroupFromDB, syntheticBoissonGroup]);
+
+  // Autres options standalone (exclure viandes + sauces couvertes par le groupe synthétique)
+  const otherStandaloneOptions = useMemo(() => {
+    const sauceNamesLower = syntheticSauceGroup ? SAUCES_MENU.map(s => s.toLowerCase()) : [];
+    return standaloneOptions.filter(opt =>
+      !VIANDES_NAMES.includes(opt.name) &&
+      !sauceNamesLower.includes(opt.name.toLowerCase())
+    );
+  }, [standaloneOptions, syntheticSauceGroup]);
 
   // Réinitialiser les sélections quand le produit ou la variante change
   useEffect(() => {
@@ -118,12 +295,21 @@ export function ProductModal({ product, onClose, onAddToCart }: ProductModalProp
   // Réinitialiser les options de sauce quand on change de mode (Solo <-> Menu)
   useEffect(() => {
     // Si on passe en mode Solo et qu'on n'a pas de frites, on désélectionne les sauces
-    if (!isMenuVariant && !addFrites && sauceGroup) {
+    if (!isMenuVariant && !addFrites && sauceGroup?.options) {
       setSelectedOptions(prev => prev.filter(id => 
         !sauceGroup.options.some(opt => opt.id === id)
       ));
     }
   }, [isMenuVariant, addFrites, sauceGroup]);
+
+  // Vider la sélection de boisson quand on décoche Formule Menu
+  useEffect(() => {
+    if (!isFormuleMenuSelected && boissonGroupFromDB?.options) {
+      setSelectedOptions(prev => prev.filter(id =>
+        !boissonGroupFromDB.options.some(opt => opt.id === id)
+      ));
+    }
+  }, [isFormuleMenuSelected, boissonGroupFromDB]);
 
   // Calculer le prix de base
   const getBasePrice = () => {
@@ -233,7 +419,16 @@ export function ProductModal({ product, onClose, onAddToCart }: ProductModalProp
   const getTotalOptionsPrice = (): number => {
     let total = getStandaloneOptionsPrice();
     total += getFritesPrice();
-    for (const group of optionGroups) {
+    // Groupes DB + synthétiques + kids
+    const allGroups: OptionGroup[] = [
+      ...optionGroups,
+      ...(syntheticSauceGroup ? [syntheticSauceGroup] : []),
+      ...(syntheticBoissonGroup ? [syntheticBoissonGroup] : []),
+      ...(kidsPlatsGroup ? [kidsPlatsGroup] : []),
+      ...(kidsSauceGroup ? [kidsSauceGroup] : []),
+      ...(kidsJusGroup ? [kidsJusGroup] : []),
+    ];
+    for (const group of allGroups) {
       total += getGroupOptionsPrice(group);
     }
     return total;
@@ -261,11 +456,24 @@ export function ProductModal({ product, onClose, onAddToCart }: ProductModalProp
       if (sauceGroup && getSelectedInGroup(sauceGroup).length < 1) return false;
       if (boissonGroup && getSelectedInGroup(boissonGroup).length < 1) return false;
     }
+    // Si Formule Menu est cochée, la boisson est obligatoire
+    if (isFormuleMenuSelected && boissonGroup) {
+      if (getSelectedInGroup(boissonGroup).length < 1) return false;
+    }
     return true;
   };
 
   // Vérifier si les options requises sont sélectionnées (ancien système)
-  const requiredOptions = standaloneOptions.filter(opt => opt.isRequired);
+  // Exclure les options couvertes par les groupes synthétiques (viandes, sauces) car elles sont validées séparément
+  const sauceNamesLowerForValidation = syntheticSauceGroup ? SAUCES_MENU.map(s => s.toLowerCase()) : [];
+  const requiredOptions = standaloneOptions.filter(opt => {
+    if (!opt.isRequired) return false;
+    // Exclure les viandes (gérées par le sélecteur de viandes)
+    if (VIANDES_NAMES.includes(opt.name)) return false;
+    // Exclure les sauces couvertes par le groupe synthétique
+    if (sauceNamesLowerForValidation.includes(opt.name.toLowerCase())) return false;
+    return true;
+  });
   const hasAllRequiredStandalone = requiredOptions.every(opt => selectedOptions.includes(opt.id));
   const hasAllRequiredOptions = hasAllRequiredStandalone && hasRequiredGroupSelections();
 
@@ -341,8 +549,16 @@ export function ProductModal({ product, onClose, onAddToCart }: ProductModalProp
       });
     }
 
-    // Options des groupes
-    for (const group of optionGroups) {
+    // Options des groupes (DB + synthétiques + kids)
+    const allCartGroups: OptionGroup[] = [
+      ...optionGroups,
+      ...(syntheticSauceGroup ? [syntheticSauceGroup] : []),
+      ...(syntheticBoissonGroup ? [syntheticBoissonGroup] : []),
+      ...(kidsPlatsGroup ? [kidsPlatsGroup] : []),
+      ...(kidsSauceGroup ? [kidsSauceGroup] : []),
+      ...(kidsJusGroup ? [kidsJusGroup] : []),
+    ];
+    for (const group of allCartGroups) {
       const selectedInGroup = getSelectedInGroup(group);
       selectedInGroup.forEach((optId, index) => {
         const opt = group.options.find(o => o.id === optId);
@@ -388,9 +604,9 @@ export function ProductModal({ product, onClose, onAddToCart }: ProductModalProp
     for (const opt of standaloneOptions) {
       if (selectedOptions.includes(opt.id)) {
         selectedOptionsData.push({
-          optionId: opt.id,
-          optionName: opt.name,
-          priceModifier: opt.priceModifier,
+        optionId: opt.id,
+        optionName: opt.name,
+        priceModifier: opt.priceModifier,
         });
       }
     }
@@ -576,11 +792,16 @@ export function ProductModal({ product, onClose, onAddToCart }: ProductModalProp
         <div className="p-6 space-y-6">
           {/* Image */}
           {product.image && (
-            <img
-              src={product.image}
-              alt={product.name}
-              className="w-full h-64 object-cover rounded-lg"
-            />
+            <div className="relative w-full aspect-square rounded-lg overflow-hidden">
+              <Image
+                src={product.image}
+                alt={product.name}
+                fill
+                sizes="(max-width: 768px) 100vw, 640px"
+                className="object-cover"
+                priority
+              />
+            </div>
           )}
 
           {/* Description */}
@@ -596,37 +817,60 @@ export function ProductModal({ product, onClose, onAddToCart }: ProductModalProp
                 {product.variants.map((variant) => {
                   const isMenu = variant.name.toLowerCase().includes('menu');
                   return (
-                    <button
-                      key={variant.id}
-                      onClick={() => setSelectedVariant(variant.id)}
-                      className={`p-3 border-2 rounded-lg text-center transition-all ${
-                        selectedVariant === variant.id
-                          ? 'border-blue-600 bg-blue-50'
-                          : 'border-gray-300 hover:border-blue-400'
-                      }`}
-                    >
-                      <p className="font-medium">{variant.name}</p>
-                      <p className="text-sm text-gray-600">{variant.price} EGP</p>
+                  <button
+                    key={variant.id}
+                    onClick={() => setSelectedVariant(variant.id)}
+                    className={`p-3 border-2 rounded-lg text-center transition-all ${
+                      selectedVariant === variant.id
+                        ? 'border-blue-600 bg-blue-50'
+                        : 'border-gray-300 hover:border-blue-400'
+                    }`}
+                  >
+                    <p className="font-medium">{variant.name}</p>
+                    <p className="text-sm text-gray-600">{variant.price} EGP</p>
                       {isMenu && (
                         <p className="text-xs text-green-600 mt-1">{t.product.friesAndDrinkIncluded}</p>
                       )}
-                    </button>
+                  </button>
                   );
                 })}
               </div>
             </div>
           )}
 
+          {/* === MENU ENFANT === */}
+          {isKidsMenu && (
+            <>
+              {/* Plat au choix */}
+              {kidsPlatsGroup && renderOptionGroup(kidsPlatsGroup, 'menu')}
+
+              {/* Sauce au choix */}
+              {kidsSauceGroup && renderOptionGroup(kidsSauceGroup, 'menu')}
+
+              {/* Jus au choix */}
+              {kidsJusGroup && renderOptionGroup(kidsJusGroup, 'menu')}
+            </>
+          )}
+
           {/* === ARTICLES SIMPLES (sans variantes) avec sauce incluse === */}
-          {!product.hasVariants && sauceGroup && sauceGroup.options.length > 0 && !boissonGroup && (
+          {!product.hasVariants && !isKidsMenu && sauceGroup && (sauceGroup.options?.length ?? 0) > 0 && (
             renderOptionGroup(sauceGroup, 'menu')
+          )}
+
+          {/* === BOISSON pour articles sans variantes === */}
+          {/* Si Formule Menu existe : afficher seulement quand cochée */}
+          {/* Sinon (ex: L'Assiette) : toujours afficher */}
+          {!product.hasVariants && !isKidsMenu && boissonGroup && (boissonGroup.options?.length ?? 0) > 0 && (
+            formuleMenuGroup
+              ? (isFormuleMenuSelected && renderOptionGroup(boissonGroup, 'menu'))
+              : renderOptionGroup(boissonGroup, 'menu')
           )}
 
           {/* === MODE SOLO (articles avec variantes) === */}
           {!isMenuVariant && product.hasVariants && (
             <>
               {/* Option Frites (Solo uniquement) */}
-              {sauceGroup && sauceGroup.options.length > 0 && (
+              {sauceGroup && (sauceGroup.options?.length ?? 0) > 0 && (
                 <div className="space-y-3">
                   <h3 className="font-semibold text-lg">{t.product.side}</h3>
                   <label
@@ -653,13 +897,15 @@ export function ProductModal({ product, onClose, onAddToCart }: ProductModalProp
                 </div>
               )}
 
-              {/* Sauces (Solo - uniquement si frites cochées) */}
-              {addFrites && sauceGroup && sauceGroup.options.length > 0 && (
-                renderOptionGroup(sauceGroup, 'solo-frites')
+              {/* Sauces (Solo) - Pour les composés (avec viandes) : toujours incluse. Pour burgers/bowls : uniquement si frites cochées */}
+              {sauceGroup && (sauceGroup.options?.length ?? 0) > 0 && (
+                (viandeGroup || viandeOptions.length > 0)
+                  ? renderOptionGroup(sauceGroup, 'menu')
+                  : addFrites && renderOptionGroup(sauceGroup, 'solo-frites')
               )}
 
               {/* Boissons en supplément (Solo) */}
-              {boissonGroup && boissonGroup.options.length > 0 && (
+              {boissonGroup && (boissonGroup.options?.length ?? 0) > 0 && (
                 renderOptionGroup(boissonGroup, 'solo-boisson')
               )}
             </>
@@ -668,85 +914,163 @@ export function ProductModal({ product, onClose, onAddToCart }: ProductModalProp
           {/* === MODE MENU === */}
           {isMenuVariant && (
             <>
-              {/* Sauces (Menu) */}
-              {sauceGroup && sauceGroup.options.length > 0 && (
+              {/* Choix de viandes via optionGroup (tacos "À composer") - affiché en premier */}
+              {viandeGroup && (viandeGroup.options?.length ?? 0) > 0 && (
+                renderOptionGroup(viandeGroup, 'menu')
+              )}
+
+              {/* Choix de viandes standalone (ancien système) - affiché en premier */}
+              {!viandeGroup && viandeOptions.length > 0 && maxViandesFromVariant && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-lg">{maxViandesFromVariant > 1 ? t.product.meatChoicePlural : t.product.meatChoice}</h3>
+                    <span className={`text-sm font-medium ${
+                      selectedViandesCount === maxViandesFromVariant ? 'text-green-600' : 'text-orange-600'
+                    }`}>
+                      {selectedViandesCount > 1 
+                        ? t.product.selectedCountPlural.replace('{count}', String(selectedViandesCount)).replace('{max}', String(maxViandesFromVariant))
+                        : t.product.selectedCount.replace('{count}', String(selectedViandesCount)).replace('{max}', String(maxViandesFromVariant))}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {viandeOptions.map((option) => {
+                      const isSelected = selectedOptions.includes(option.id);
+                      const isDisabled = !isSelected && selectedViandesCount >= maxViandesFromVariant;
+                      
+                      return (
+                        <label
+                          key={option.id}
+                          className={`flex items-center justify-between p-3 border-2 rounded-lg transition-all ${
+                            isDisabled
+                              ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-50'
+                              : isSelected
+                                ? 'border-blue-600 bg-blue-50 cursor-pointer'
+                                : 'border-gray-300 hover:border-gray-400 cursor-pointer'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => !isDisabled && handleOptionToggle(option.id)}
+                              disabled={isDisabled}
+                              className="w-5 h-5 rounded"
+                            />
+                            <div>
+                              <span className="font-medium">{option.name}</span>
+                              {isSelected && (
+                                <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                  {t.product.selected}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <span className={`text-sm font-medium ${
+                            option.priceModifier > 0 ? 'text-orange-600' : 'text-green-600'
+                          }`}>
+                            {option.priceModifier > 0 ? `+${option.priceModifier} EGP` : t.product.included}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {selectedViandesCount < maxViandesFromVariant && (
+                    <p className="text-sm text-orange-600">
+                      {t.product.pleaseSelectMore.replace('{count}', String(maxViandesFromVariant - selectedViandesCount))}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Sauces (Menu) - affiché avant les boissons */}
+              {sauceGroup && (sauceGroup.options?.length ?? 0) > 0 && (
                 renderOptionGroup(sauceGroup, 'menu')
               )}
 
-              {/* Boissons (Menu) */}
-              {boissonGroup && boissonGroup.options.length > 0 && (
+              {/* Boissons (Menu) - affiché après les sauces */}
+              {boissonGroup && (boissonGroup.options?.length ?? 0) > 0 && (
                 renderOptionGroup(boissonGroup, 'menu')
               )}
             </>
           )}
 
-          {/* Autres groupes d'options (ni sauce ni boisson) */}
-          {optionGroups
-            .filter(g => g !== sauceGroup && g !== boissonGroup)
-            .map((group) => renderOptionGroup(group, isMenuVariant ? 'menu' : 'solo-frites'))}
-
-          {/* Choix de viandes (avec limitation selon la variante) */}
-          {viandeOptions.length > 0 && maxViandesFromVariant && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-lg">{maxViandesFromVariant > 1 ? t.product.meatChoicePlural : t.product.meatChoice}</h3>
-                <span className={`text-sm font-medium ${
-                  selectedViandesCount === maxViandesFromVariant ? 'text-green-600' : 'text-orange-600'
-                }`}>
-                  {selectedViandesCount > 1 
-                    ? t.product.selectedCountPlural.replace('{count}', String(selectedViandesCount)).replace('{max}', String(maxViandesFromVariant))
-                    : t.product.selectedCount.replace('{count}', String(selectedViandesCount)).replace('{max}', String(maxViandesFromVariant))}
-                </span>
-              </div>
-              <div className="space-y-2">
-                {viandeOptions.map((option) => {
-                  const isSelected = selectedOptions.includes(option.id);
-                  const isDisabled = !isSelected && selectedViandesCount >= maxViandesFromVariant;
-                  
-                  return (
-                    <label
-                      key={option.id}
-                      className={`flex items-center justify-between p-3 border-2 rounded-lg transition-all ${
-                        isDisabled
-                          ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-50'
-                          : isSelected
-                            ? 'border-blue-600 bg-blue-50 cursor-pointer'
-                            : 'border-gray-300 hover:border-gray-400 cursor-pointer'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => !isDisabled && handleOptionToggle(option.id)}
-                          disabled={isDisabled}
-                          className="w-5 h-5 rounded"
-                        />
-                        <div>
-                          <span className="font-medium">{option.name}</span>
-                          {isSelected && (
-                            <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                              {t.product.selected}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <span className={`text-sm font-medium ${
-                        option.priceModifier > 0 ? 'text-orange-600' : 'text-green-600'
-                      }`}>
-                        {option.priceModifier > 0 ? `+${option.priceModifier} EGP` : t.product.included}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-              {selectedViandesCount < maxViandesFromVariant && (
-                <p className="text-sm text-orange-600">
-                  {t.product.pleaseSelectMore.replace('{count}', String(maxViandesFromVariant - selectedViandesCount))}
-                </p>
+          {/* === MODE SOLO : viandes, autres groupes === */}
+          {!isMenuVariant && (
+            <>
+              {/* Choix de viandes via optionGroup (tacos "À composer") */}
+              {viandeGroup && (viandeGroup.options?.length ?? 0) > 0 && (
+                renderOptionGroup(viandeGroup, 'solo-frites')
               )}
-            </div>
+
+              {/* Choix de viandes standalone (ancien système) */}
+              {!viandeGroup && viandeOptions.length > 0 && maxViandesFromVariant && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-lg">{maxViandesFromVariant > 1 ? t.product.meatChoicePlural : t.product.meatChoice}</h3>
+                    <span className={`text-sm font-medium ${
+                      selectedViandesCount === maxViandesFromVariant ? 'text-green-600' : 'text-orange-600'
+                    }`}>
+                      {selectedViandesCount > 1 
+                        ? t.product.selectedCountPlural.replace('{count}', String(selectedViandesCount)).replace('{max}', String(maxViandesFromVariant))
+                        : t.product.selectedCount.replace('{count}', String(selectedViandesCount)).replace('{max}', String(maxViandesFromVariant))}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {viandeOptions.map((option) => {
+                      const isSelected = selectedOptions.includes(option.id);
+                      const isDisabled = !isSelected && selectedViandesCount >= maxViandesFromVariant;
+                      
+                      return (
+                        <label
+                          key={option.id}
+                          className={`flex items-center justify-between p-3 border-2 rounded-lg transition-all ${
+                            isDisabled
+                              ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-50'
+                              : isSelected
+                                ? 'border-blue-600 bg-blue-50 cursor-pointer'
+                                : 'border-gray-300 hover:border-gray-400 cursor-pointer'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => !isDisabled && handleOptionToggle(option.id)}
+                              disabled={isDisabled}
+                              className="w-5 h-5 rounded"
+                            />
+                            <div>
+                              <span className="font-medium">{option.name}</span>
+                              {isSelected && (
+                                <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                  {t.product.selected}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <span className={`text-sm font-medium ${
+                            option.priceModifier > 0 ? 'text-orange-600' : 'text-green-600'
+                          }`}>
+                            {option.priceModifier > 0 ? `+${option.priceModifier} EGP` : t.product.included}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {selectedViandesCount < maxViandesFromVariant && (
+                    <p className="text-sm text-orange-600">
+                      {t.product.pleaseSelectMore.replace('{count}', String(maxViandesFromVariant - selectedViandesCount))}
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
           )}
+
+          {/* Autres groupes d'options (ni sauce, ni boisson, ni viande) */}
+          {optionGroups
+            .filter(g => g !== sauceGroup && g !== boissonGroup && g !== viandeGroup)
+            .map((group) => renderOptionGroup(group, isMenuVariant ? 'menu' : 'solo-frites'))}
 
           {/* Options individuelles (ancien système - hors viandes) */}
           {otherStandaloneOptions.length > 0 && (

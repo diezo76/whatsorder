@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
+import Image from 'next/image';
 import { UtensilsCrossed, ShoppingCart } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { ProductModal } from './ProductModal';
@@ -14,7 +15,7 @@ interface MenuItemCardProps {
 }
 
 export default function MenuItemCard({ item }: MenuItemCardProps) {
-  const { id, name, nameAr, description, descriptionAr, price, image, hasVariants, variants, options } = item;
+  const { id, name, nameAr, description, descriptionAr, price, image, hasVariants, variants, options, optionGroups } = item;
   const addItem = useCartStore((state) => state.addItem);
   const { t } = useLanguage();
   const [showModal, setShowModal] = useState(false);
@@ -23,11 +24,14 @@ export default function MenuItemCard({ item }: MenuItemCardProps) {
     addItem(cartItem);
   };
 
+  // Détecter si c'est un Menu Enfant (nécessite le modal pour les choix)
+  const isKidsMenu = name.toLowerCase().includes('menu enfant') || name.toLowerCase().includes('kids') || name.toLowerCase().includes('menu kid');
+
   const handleButtonClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Empêcher la propagation
-    // Si l'item a des variants ou options, ouvrir le modal
+    // Si l'item a des variants, options, ou est un menu enfant, ouvrir le modal
     // Sinon, ajouter directement au panier
-    if (hasVariants || (options && options.length > 0)) {
+    if (hasVariants || (options && options.length > 0) || (optionGroups && optionGroups.length > 0) || isKidsMenu) {
       setShowModal(true);
     } else {
       // Ajouter directement au panier pour les items simples
@@ -52,13 +56,16 @@ export default function MenuItemCard({ item }: MenuItemCardProps) {
   return (
     <>
       <div className="bg-white rounded-lg shadow hover:shadow-lg transition-all duration-300 hover:scale-105 overflow-hidden flex flex-col">
-        {/* Image avec hauteur fixe h-48 */}
-        <div className="relative w-full h-48 overflow-hidden bg-gray-100 rounded-t-lg">
+        {/* Image format carré */}
+        <div className="relative w-full aspect-square overflow-hidden bg-gray-100 rounded-t-lg">
           {image ? (
-            <img
+            <Image
               src={image}
               alt={name}
-              className="w-full h-full object-cover"
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-cover"
+              loading="lazy"
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">

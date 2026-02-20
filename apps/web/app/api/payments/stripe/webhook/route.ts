@@ -17,7 +17,15 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.text();
     const signature = request.headers.get('stripe-signature');
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    if (!webhookSecret) {
+      console.error('❌ STRIPE_WEBHOOK_SECRET non configuré');
+      return NextResponse.json(
+        { error: 'Webhook non configuré' },
+        { status: 500 }
+      );
+    }
 
     if (!signature) {
       return NextResponse.json(

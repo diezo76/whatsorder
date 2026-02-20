@@ -22,8 +22,8 @@ interface MenuCategoryProps {
 export default function MenuCategory({ category, onAddToCart }: MenuCategoryProps) {
   const { id, name, nameAr, description, items } = category;
   const { t } = useLanguage();
-  const [isVisible, setIsVisible] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(true);
   const sectionRef = useRef<HTMLElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -70,20 +70,20 @@ export default function MenuCategory({ category, onAddToCart }: MenuCategoryProp
       >
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col gap-2 flex-1">
-            {/* Nom de la catégorie */}
-            <h2 className="text-2xl font-bold text-gray-900">{name}</h2>
+          {/* Nom de la catégorie */}
+          <h2 className="text-2xl font-bold text-gray-900">{name}</h2>
 
-            {/* Nom arabe si disponible */}
-            {nameAr && (
-              <p className="text-lg text-gray-600" dir="rtl">
-                {nameAr}
-              </p>
-            )}
+          {/* Nom arabe si disponible */}
+          {nameAr && (
+            <p className="text-lg text-gray-600" dir="rtl">
+              {nameAr}
+            </p>
+          )}
 
-            {/* Description si disponible */}
-            {description && (
-              <p className="text-gray-500 mt-2">{description}</p>
-            )}
+          {/* Description si disponible */}
+          {description && (
+            <p className="text-gray-500 mt-2">{description}</p>
+          )}
           </div>
 
           {/* Chevron toggle */}
@@ -109,24 +109,24 @@ export default function MenuCategory({ category, onAddToCart }: MenuCategoryProp
             : 'max-h-0 opacity-0'
         }`}
       >
-        {/* Grid d'items */}
-        {items && items.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {items.map((item) => (
-              <MenuItemCard
-                key={item.id}
-                item={item}
-                onAddToCart={onAddToCart}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-            <p className="text-gray-500 text-lg">
+      {/* Grid d'items */}
+      {items && items.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {items.map((item) => (
+            <MenuItemCard
+              key={item.id}
+              item={item}
+              onAddToCart={onAddToCart}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+          <p className="text-gray-500 text-lg">
               {t.menu.noItemsAvailable}
-            </p>
-          </div>
-        )}
+          </p>
+        </div>
+      )}
       </div>
     </section>
   );

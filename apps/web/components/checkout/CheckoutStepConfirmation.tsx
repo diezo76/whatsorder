@@ -239,11 +239,25 @@ export default function CheckoutStepConfirmation({
 
   // Créer la commande dans la base de données
   const createOrder = async () => {
+    // 🔒 Vérifier que le restaurant n'est pas occupé avant de créer la commande
+    try {
+      const checkResponse = await fetch(`/api/public/restaurants/${restaurant.slug}`);
+      if (checkResponse.ok) {
+        const restaurantData = await checkResponse.json();
+        if (restaurantData.isBusy) {
+          toast.error(t.menu?.restaurantBusy || 'Restaurant temporairement indisponible. Veuillez réessayer plus tard.', { duration: 6000 });
+          return null;
+        }
+      }
+    } catch {
+      // En cas d'erreur réseau, on continue (l'API orders vérifiera aussi)
+    }
+
     const orderData = {
       items: cartItems.map((item) => ({
         menuItemId: item.menuItemId,
         quantity: item.quantity,
-        unitPrice: item.totalPrice ? (item.totalPrice / item.quantity) : item.basePrice,
+        unitPrice: item.basePrice + item.selectedOptions.reduce((sum, opt) => sum + opt.priceModifier, 0),
         customization: {
           variant: item.variantName || null,
           modifiers: item.selectedOptions?.map(opt => opt.optionName) || [],
@@ -362,7 +376,11 @@ export default function CheckoutStepConfirmation({
 
     try {
       const result = await createOrder();
-      if (!result) return;
+      if (!result) {
+        toast.error(t.checkout.configMissing, { id: 'creating-order' });
+        setIsProcessing(false);
+        return;
+      }
 
       const orderNumber = result.order?.orderNumber;
       const orderId = result.order?.id;
@@ -383,7 +401,8 @@ export default function CheckoutStepConfirmation({
       });
 
       if (!paymentResponse.ok) {
-        throw new Error('Payment session creation error');
+        const errorData = await paymentResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Payment session creation error');
       }
 
       const { url } = await paymentResponse.json();
@@ -406,7 +425,11 @@ export default function CheckoutStepConfirmation({
 
     try {
       const result = await createOrder();
-      if (!result) return;
+      if (!result) {
+        toast.error(t.checkout.configMissing, { id: 'creating-order' });
+        setIsProcessing(false);
+        return;
+      }
 
       const orderNumber = result.order?.orderNumber;
       const orderId = result.order?.id;
@@ -425,7 +448,8 @@ export default function CheckoutStepConfirmation({
       });
 
       if (!paymentResponse.ok) {
-        throw new Error('PayPal order creation error');
+        const errorData = await paymentResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || 'PayPal order creation error');
       }
 
       const { approvalUrl } = await paymentResponse.json();
@@ -629,7 +653,7 @@ export default function CheckoutStepConfirmation({
                 {formData.deliveryType === 'DINE_IN' && (
                   <p className="mt-2 font-medium">
                     {t.checkout.dineInNameReminder}
-                  </p>
+        </p>
                 )}
               </>
             )}

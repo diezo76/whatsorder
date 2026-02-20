@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { Phone, MapPin, Clock } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { isRestaurantOpen } from '@/lib/shared/pricing';
@@ -36,17 +37,21 @@ export default function RestaurantHeader({ restaurant }: RestaurantHeaderProps) 
     <div className="relative w-full">
       {/* Hero Section avec image de couverture */}
       <div
-        className={`relative h-64 md:h-80 w-full bg-cover bg-center ${
+        className={`relative h-64 md:h-80 w-full ${
           coverImage ? '' : 'bg-gradient-to-br from-primary to-primary/80'
         }`}
-        style={
-          coverImage
-            ? {
-                backgroundImage: `url(${coverImage})`,
-              }
-            : undefined
-        }
       >
+        {/* Image de couverture optimisée */}
+        {coverImage && (
+          <Image
+            src={coverImage}
+            alt={`${name} - couverture`}
+            fill
+            sizes="100vw"
+            className="object-cover"
+            priority
+          />
+        )}
         {/* Overlay gradient pour lisibilité */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-black/30" />
 
@@ -56,11 +61,14 @@ export default function RestaurantHeader({ restaurant }: RestaurantHeaderProps) 
             <div className="flex flex-col items-center text-center text-white">
               {/* Logo du restaurant */}
               {logo ? (
-                <div className="mb-4">
-                  <img
+                <div className="mb-4 relative w-24 h-24 md:w-32 md:h-32">
+                  <Image
                     src={logo}
                     alt={name}
-                    className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-white/20 shadow-lg"
+                    fill
+                    sizes="128px"
+                    className="rounded-full object-cover border-4 border-white/20 shadow-lg"
+                    priority
                   />
                 </div>
               ) : (

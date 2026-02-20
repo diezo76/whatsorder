@@ -95,6 +95,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 🔒 SÉCURITÉ : Vérifier que le montant correspond au total de la commande (en piastres)
+    const expectedAmount = Math.round(order.total * 100);
+    if (Math.abs(amount - expectedAmount) > 1) {
+      console.error(`🔒 Tentative de manipulation du montant Stripe: reçu ${amount}, attendu ${expectedAmount}`);
+      return NextResponse.json(
+        { error: 'Montant invalide' },
+        { status: 400 }
+      );
+    }
+
     // Vérifier que le restaurant a connecté Stripe
     if (!restaurant.stripeAccountId || !restaurant.stripeOnboardingComplete) {
       return NextResponse.json(

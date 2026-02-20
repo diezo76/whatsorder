@@ -34,6 +34,8 @@ interface RestaurantFormData {
   whatsappNumber: string;
   whatsappApiToken: string;
   whatsappBusinessId: string;
+  busyTitle: string;
+  busyMessage: string;
 }
 
 interface Restaurant {
@@ -54,6 +56,8 @@ interface Restaurant {
   whatsappNumber: string | null;
   whatsappApiToken: string | null;
   whatsappBusinessId: string | null;
+  busyTitle: string | null;
+  busyMessage: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -125,6 +129,8 @@ export default function SettingsPage() {
     whatsappNumber: '',
     whatsappApiToken: '',
     whatsappBusinessId: '',
+    busyTitle: '',
+    busyMessage: '',
   });
   const [selectedTab, setSelectedTab] = useState<TabType>('general');
   const [loading, setLoading] = useState<boolean>(true);
@@ -153,6 +159,8 @@ export default function SettingsPage() {
       whatsappNumber: restaurant.whatsappNumber || '',
       whatsappApiToken: restaurant.whatsappApiToken || '',
       whatsappBusinessId: restaurant.whatsappBusinessId || '',
+      busyTitle: restaurant.busyTitle || '',
+      busyMessage: restaurant.busyMessage || '',
     };
 
     // Comparaison profonde pour détecter les changements
@@ -196,6 +204,8 @@ export default function SettingsPage() {
           whatsappBusinessId: data.whatsappBusinessId ?? null,
           openingHours: data.openingHours ?? null,
           deliveryZones: data.deliveryZones ?? null,
+          busyTitle: data.busyTitle ?? null,
+          busyMessage: data.busyMessage ?? null,
         };
         
         setRestaurant(restaurantData);
@@ -215,6 +225,8 @@ export default function SettingsPage() {
           whatsappNumber: restaurantData.whatsappNumber || '',
           whatsappApiToken: restaurantData.whatsappApiToken || '',
           whatsappBusinessId: restaurantData.whatsappBusinessId || '',
+          busyTitle: restaurantData.busyTitle || '',
+          busyMessage: restaurantData.busyMessage || '',
         });
       } catch (error: any) {
         console.error('Erreur lors du chargement des paramètres:', error);
@@ -288,6 +300,12 @@ export default function SettingsPage() {
       if (formData.whatsappBusinessId !== (restaurant?.whatsappBusinessId || '')) {
         updateData.whatsappBusinessId = formData.whatsappBusinessId || null;
       }
+      if (formData.busyTitle !== (restaurant?.busyTitle || '')) {
+        updateData.busyTitle = formData.busyTitle || null;
+      }
+      if (formData.busyMessage !== (restaurant?.busyMessage || '')) {
+        updateData.busyMessage = formData.busyMessage || null;
+      }
 
       const response = await api.put<{ success: boolean; restaurant: Restaurant }>('/restaurant', updateData);
       const data = response.data.restaurant || response.data;
@@ -312,6 +330,8 @@ export default function SettingsPage() {
         whatsappBusinessId: data.whatsappBusinessId ?? null,
         openingHours: restaurantOpeningHours,
         deliveryZones: data.deliveryZones ?? null,
+        busyTitle: data.busyTitle ?? null,
+        busyMessage: data.busyMessage ?? null,
       };
 
       // Mettre à jour le state restaurant AVANT de mettre à jour formData
@@ -334,6 +354,8 @@ export default function SettingsPage() {
         whatsappNumber: updatedRestaurant.whatsappNumber || '',
         whatsappApiToken: updatedRestaurant.whatsappApiToken || '',
         whatsappBusinessId: updatedRestaurant.whatsappBusinessId || '',
+        busyTitle: updatedRestaurant.busyTitle || '',
+        busyMessage: updatedRestaurant.busyMessage || '',
       };
       
       setFormData(updatedFormData);

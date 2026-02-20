@@ -38,6 +38,8 @@ export async function GET(request: Request) {
         whatsappBusinessId: restaurant.whatsappBusinessId ?? null,
         openingHours: restaurant.openingHours ?? null,
         deliveryZones: restaurant.deliveryZones ?? null,
+        busyTitle: restaurant.busyTitle ?? null,
+        busyMessage: restaurant.busyMessage ?? null,
       };
 
       return NextResponse.json({
@@ -85,6 +87,8 @@ export async function PUT(request: Request) {
       const updateData: any = {};
       
       if (body.isBusy !== undefined) updateData.isBusy = body.isBusy;
+      if (body.busyTitle !== undefined) updateData.busyTitle = body.busyTitle || null;
+      if (body.busyMessage !== undefined) updateData.busyMessage = body.busyMessage || null;
       if (name !== undefined) updateData.name = name;
       if (description !== undefined) updateData.description = description || null;
       if (phone !== undefined) updateData.phone = phone;
@@ -100,6 +104,12 @@ export async function PUT(request: Request) {
       if (whatsappNumber !== undefined) updateData.whatsappNumber = whatsappNumber || null;
       if (whatsappApiToken !== undefined) updateData.whatsappApiToken = whatsappApiToken || null;
       if (whatsappBusinessId !== undefined) updateData.whatsappBusinessId = whatsappBusinessId || null;
+
+      // Options de paiement
+      if (body.enableCashPayment !== undefined) updateData.enableCashPayment = body.enableCashPayment;
+      if (body.enableCardPayment !== undefined) updateData.enableCardPayment = body.enableCardPayment;
+      if (body.enableStripePayment !== undefined) updateData.enableStripePayment = body.enableStripePayment;
+      if (body.enablePaypalPayment !== undefined) updateData.enablePaypalPayment = body.enablePaypalPayment;
 
       const restaurant = await prisma.restaurant.update({
         where: { id: req.user!.restaurantId },
@@ -121,6 +131,8 @@ export async function PUT(request: Request) {
         whatsappBusinessId: restaurant.whatsappBusinessId ?? null,
         openingHours: restaurant.openingHours ?? null,
         deliveryZones: restaurant.deliveryZones ?? null,
+        busyTitle: restaurant.busyTitle ?? null,
+        busyMessage: restaurant.busyMessage ?? null,
       };
 
       return NextResponse.json({

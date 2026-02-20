@@ -43,6 +43,8 @@ export default function SettingsPaymentsTab() {
   const [loading, setLoading] = useState(true);
   const [connectingStripe, setConnectingStripe] = useState(false);
   const [connectingPaypal, setConnectingPaypal] = useState(false);
+  const [paypalEmail, setPaypalEmail] = useState('');
+  const [showPaypalForm, setShowPaypalForm] = useState(false);
 
   // Charger les statuts au mount
   useEffect(() => {
@@ -110,18 +112,24 @@ export default function SettingsPaymentsTab() {
     }
   };
 
-  // Connecter PayPal
+  // Connecter PayPal (saisie de l'email)
   const handleConnectPaypal = async () => {
+    if (!paypalEmail || !paypalEmail.includes('@')) {
+      toast.error('Veuillez entrer une adresse email PayPal valide');
+      return;
+    }
+
     try {
       setConnectingPaypal(true);
-      const response = await api.post('/connect/paypal/onboard');
-      
-      if (response.data.url) {
-        window.location.href = response.data.url;
-      }
+      await api.post('/connect/paypal/onboard', { email: paypalEmail });
+      toast.success('Compte PayPal connecté avec succès !');
+      setShowPaypalForm(false);
+      setPaypalEmail('');
+      await loadStatuses();
     } catch (error: any) {
       console.error('Erreur connexion PayPal:', error);
       toast.error(error.response?.data?.error || 'Erreur lors de la connexion PayPal');
+    } finally {
       setConnectingPaypal(false);
     }
   };
@@ -378,18 +386,15 @@ export default function SettingsPaymentsTab() {
           <div className="bg-gray-50 rounded-lg p-4 mb-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <p className="text-gray-500">Merchant ID</p>
-                <p className="font-medium text-gray-900">{paypalStatus.merchantId || '-'}</p>
+                <p className="text-gray-500">Email PayPal</p>
+                <p className="font-medium text-gray-900">{paypalStatus.email || '-'}</p>
               </div>
-              <div>
-                <p className="text-gray-500">Connecté le</p>
-                <p className="font-medium text-gray-900">
-                  {paypalStatus.connectedAt 
-                    ? new Date(paypalStatus.connectedAt).toLocaleDateString('fr-FR')
-                    : '-'
-                  }
-                </p>
-              </div>
+              {paypalStatus.merchantId && (
+                <div>
+                  <p className="text-gray-500">Merchant ID</p>
+                  <p className="font-medium text-gray-900">{paypalStatus.merchantId}</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -416,30 +421,66 @@ export default function SettingsPaymentsTab() {
           </div>
         )}
 
-        {/* Boutons d'action */}
-        <div className="flex gap-3">
-          {!paypalStatus?.connected ? (
-            <button
-              onClick={handleConnectPaypal}
-              disabled={connectingPaypal}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
-            >
-              {connectingPaypal ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <ExternalLink className="w-4 h-4" />
-              )}
-              Connecter PayPal
-            </button>
-          ) : (
+        {/* Formulaire de connexion ou boutons d'action */}
+        {!paypalStatus?.connected ? (
+          <div className="space-y-3">
+            {!showPaypalForm ? (
+              <button
+                onClick={() => setShowPaypalForm(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              >
+                <Wallet className="w-4 h-4" />
+                Connecter PayPal
+              </button>
+            ) : (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                <p className="text-sm text-blue-800 font-medium">
+                  Entrez l&apos;adresse email associée à votre compte PayPal Business :
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={paypalEmail}
+                    onChange={(e) => setPaypalEmail(e.target.value)}
+                    placeholder="votre-email@paypal.com"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    onKeyDown={(e) => e.key === 'Enter' && handleConnectPaypal()}
+                  />
+                  <button
+                    onClick={handleConnectPaypal}
+                    disabled={connectingPaypal || !paypalEmail}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    {connectingPaypal ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-4 h-4" />
+                    )}
+                    Valider
+                  </button>
+                  <button
+                    onClick={() => { setShowPaypalForm(false); setPaypalEmail(''); }}
+                    className="px-3 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Annuler
+                  </button>
+                </div>
+                <p className="text-xs text-blue-600">
+                  Les paiements de vos clients seront envoyés directement à cette adresse PayPal.
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex gap-3">
             <button
               onClick={handleDisconnectPaypal}
               className="flex items-center gap-2 px-4 py-2 text-red-600 border border-red-200 rounded-lg font-medium hover:bg-red-50 transition-colors"
             >
               Déconnecter
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Info */}

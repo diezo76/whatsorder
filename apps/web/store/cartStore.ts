@@ -69,12 +69,19 @@ export const useCartStore = create<CartStore>()(
         let newItems: CartItem[];
 
         if (existingItemIndex >= 0) {
-          // Item identique déjà présent : incrémenter la quantité
-          newItems = currentItems.map((cartItem, index) =>
-            index === existingItemIndex
-              ? { ...cartItem, quantity: cartItem.quantity + item.quantity }
-              : cartItem
-          );
+          // Item identique déjà présent : incrémenter la quantité ET recalculer totalPrice
+          newItems = currentItems.map((cartItem, index) => {
+            if (index === existingItemIndex) {
+              const newQuantity = cartItem.quantity + item.quantity;
+              const optionsPrice = cartItem.selectedOptions.reduce(
+                (sum, opt) => sum + opt.priceModifier,
+                0
+              );
+              const newTotalPrice = (cartItem.basePrice + optionsPrice) * newQuantity;
+              return { ...cartItem, quantity: newQuantity, totalPrice: newTotalPrice };
+            }
+            return cartItem;
+          });
         } else {
           // Nouvel item : ajouter tel quel
           newItems = [...currentItems, item];

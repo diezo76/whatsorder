@@ -917,7 +917,7 @@ export default function ItemModal({
                     
                     {/* Options individuelles (pour compatibilité avec l'ancien système) */}
                     <div className="border-t pt-6">
-                      <OptionManager menuItemId={item.id} />
+                    <OptionManager menuItemId={item.id} />
                     </div>
                   </div>
                 </div>

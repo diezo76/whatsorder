@@ -23,9 +23,20 @@ export async function POST(request: Request) {
       );
     }
 
-    if (password.length < 6) {
+    if (password.length < 8) {
       return NextResponse.json(
-        { success: false, error: 'Le mot de passe doit contenir au moins 6 caractères' },
+        { success: false, error: 'Le mot de passe doit contenir au moins 8 caractères' },
+        { status: 400 }
+      );
+    }
+
+    // Vérifier la complexité du mot de passe
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    if (!hasUpperCase || !hasLowerCase || !hasNumber) {
+      return NextResponse.json(
+        { success: false, error: 'Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre' },
         { status: 400 }
       );
     }

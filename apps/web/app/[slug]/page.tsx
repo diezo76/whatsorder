@@ -127,27 +127,33 @@ function RestaurantPageContent() {
   };
 
   // Fonction pour mapper les items du menu vers le format attendu par MenuItemCard
-  const mapMenuItem = (item: MenuItem) => ({
-    id: item.id,
-    name: getLocalizedName(item.name, item.nameAr),
-    nameAr: item.nameAr,
-    description: getLocalizedDescription(item.description, item.descriptionAr),
-    descriptionAr: item.descriptionAr,
-    price: item.price || 0,
-    image: item.image,
-    hasVariants: item.hasVariants || false,
-    variants: item.variants || [],
-    options: item.options || [],
-    optionGroups: item.optionGroups || [], // Groupes d'options avec quota inclus
-    categoryId: item.categoryId || '',
-    isActive: item.isActive !== undefined ? item.isActive : true,
-    isAvailable: item.isAvailable !== undefined ? item.isAvailable : true,
-    category: {
-      id: item.categoryId || '',
-      name: '',
-      nameAr: '',
-    },
-  });
+  const mapMenuItem = (item: MenuItem, categoryId?: string) => {
+    const optionGroups = (item.optionGroups ?? []).map((g: any) => ({
+      ...g,
+      options: Array.isArray(g?.options) ? g.options : [],
+    }));
+    return {
+      id: item.id,
+      name: getLocalizedName(item.name, item.nameAr),
+      nameAr: item.nameAr,
+      description: getLocalizedDescription(item.description, item.descriptionAr),
+      descriptionAr: item.descriptionAr,
+      price: item.price || 0,
+      image: item.image,
+      hasVariants: item.hasVariants || false,
+      variants: item.variants || [],
+      options: item.options || [],
+      optionGroups,
+      categoryId: item.categoryId || categoryId || '',
+      isActive: item.isActive !== undefined ? item.isActive : true,
+      isAvailable: item.isAvailable !== undefined ? item.isAvailable : true,
+      category: {
+        id: item.categoryId || categoryId || '',
+        name: '',
+        nameAr: '',
+      },
+    };
+  };
 
   // Fonction pour mapper les catégories vers le format attendu par MenuCategory
   const mapCategory = (category: Category) => ({
@@ -155,7 +161,7 @@ function RestaurantPageContent() {
     name: getLocalizedName(category.name, category.nameAr),
     nameAr: category.nameAr,
     description: getLocalizedDescription(category.description),
-    items: category.items.map(mapMenuItem),
+    items: category.items.map((item) => mapMenuItem(item, category.id)),
   });
 
   // Loading state avec skeleton loader
@@ -299,8 +305,8 @@ function RestaurantPageContent() {
           <div className="max-w-7xl mx-auto flex items-center justify-center gap-3">
             <Ban className="w-6 h-6 flex-shrink-0" />
             <div className="text-center">
-              <p className="font-bold text-lg">{t.menu.restaurantBusy || 'Restaurant temporairement indisponible'}</p>
-              <p className="text-sm text-red-100">{t.menu.restaurantBusyDesc || 'Trop de commandes en cours. Veuillez reessayer plus tard.'}</p>
+              <p className="font-bold text-lg">{restaurant.busyTitle || t.menu.restaurantBusy || 'Restaurant temporairement indisponible'}</p>
+              <p className="text-sm text-red-100">{restaurant.busyMessage || t.menu.restaurantBusyDesc || 'Trop de commandes en cours. Veuillez reessayer plus tard.'}</p>
             </div>
           </div>
         </div>
@@ -389,31 +395,32 @@ function RestaurantPageContent() {
 
       {/* Bouton flottant panier (masque si busy) */}
       {!restaurant?.isBusy && (
-        <FloatingCartButton onClick={() => setIsCartOpen(true)} />
+      <FloatingCartButton onClick={() => setIsCartOpen(true)} />
       )}
 
       {/* Drawer panier (masque si busy) */}
       {!restaurant?.isBusy && (
-        <CartDrawer
-          isOpen={isCartOpen}
-          onClose={() => setIsCartOpen(false)}
-          restaurant={
-            restaurant
-              ? {
-                  id: restaurant.id,
-                  slug: restaurant.slug,
-                  name: restaurant.name,
-                  phone: restaurant.phone,
+      <CartDrawer
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        restaurant={
+          restaurant
+            ? {
+                id: restaurant.id,
+                slug: restaurant.slug,
+                name: restaurant.name,
+                phone: restaurant.phone,
                   whatsappNumber: restaurant.whatsappNumber || undefined,
                   enableCashPayment: restaurant.enableCashPayment ?? true,
                   enableCardPayment: restaurant.enableCardPayment ?? true,
                   enableStripePayment: restaurant.enableStripePayment ?? false,
                   enablePaypalPayment: restaurant.enablePaypalPayment ?? false,
                   deliveryZones: restaurant.deliveryZones as Array<{ name: string; fee: number }> | undefined,
-                }
-              : undefined
-          }
-        />
+                  openingHours: restaurant.openingHours ?? undefined,
+              }
+            : undefined
+        }
+      />
       )}
     </div>
   );

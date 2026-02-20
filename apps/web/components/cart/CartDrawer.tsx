@@ -192,9 +192,6 @@ export default function CartDrawer({ isOpen, onClose, restaurant }: CartDrawerPr
                         )}
                         <div className="text-sm font-medium text-primary mt-1">
                           <p>{formatPrice(item.basePrice)}</p>
-                          {item.variantName && (
-                            <p className="text-xs text-gray-500">{item.variantName}</p>
-                          )}
                           {item.selectedOptions && item.selectedOptions.length > 0 && (
                             <div className="text-xs text-gray-500 mt-1">
                               {item.selectedOptions.map((opt, idx) => (

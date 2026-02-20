@@ -124,7 +124,7 @@ export default function CheckoutModal({
         deliveryZone: formData.deliveryZone,
         scheduledTime: formData.scheduledTime,
         notes: formData.notes,
-      });
+      }, restaurant.openingHours ?? undefined);
     } else if (currentStep === 3) {
       return validatePaymentInfo({
         paymentMethod: formData.paymentMethod,
@@ -150,7 +150,7 @@ export default function CheckoutModal({
         deliveryZone: formData.deliveryZone,
         scheduledTime: formData.scheduledTime,
         notes: formData.notes,
-      })) {
+      }, restaurant.openingHours ?? undefined)) {
         return;
       }
     } else if (currentStep === 3) {
@@ -255,6 +255,7 @@ export default function CheckoutModal({
             onPrev={prevStep}
             isValid={currentStep === 2 ? isStepValid : undefined}
             restaurantDeliveryZones={restaurant.deliveryZones ?? undefined}
+            openingHours={restaurant.openingHours ?? undefined}
           />
         );
       case 3:

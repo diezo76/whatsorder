@@ -15,17 +15,18 @@ export async function GET(
       );
     }
 
-    // Vérifier que le restaurant existe
+    // Vérifier que le restaurant existe et est approuvé
     const restaurant = await prisma.restaurant.findUnique({
       where: { 
         slug,
       },
       select: {
         id: true,
+        isApproved: true,
       },
     });
 
-    if (!restaurant) {
+    if (!restaurant || !restaurant.isApproved) {
       return NextResponse.json(
         { error: 'Restaurant not found' },
         { status: 404 }
@@ -75,15 +76,25 @@ export async function GET(
       },
     });
 
+    // Helper : détecter si un groupe est Sauce ou Boisson
+    const hasSauceGroup = (groups: any[]) =>
+      groups.some((g: any) => (g?.name || '').toLowerCase().includes('sauce'));
+    const hasBoissonGroup = (groups: any[]) =>
+      groups.some((g: any) => {
+        const n = (g?.name || '').toLowerCase();
+        return n.includes('boisson') || n.includes('boissons') || n.includes('drink');
+      });
+    const findSauceGroup = (groups: any[]) =>
+      groups.find((g: any) => (g?.name || '').toLowerCase().includes('sauce'));
+    const findBoissonGroup = (groups: any[]) =>
+      groups.find((g: any) => {
+        const n = (g?.name || '').toLowerCase();
+        return n.includes('boisson') || n.includes('boissons') || n.includes('drink');
+      });
+
     // Formater la réponse
-    const formattedCategories = categories.map((category: any) => ({
-      id: category.id,
-      name: category.name,
-      nameAr: category.nameAr,
-      slug: category.slug,
-      description: category.description,
-      sortOrder: category.sortOrder,
-      items: category.items.map((item: any) => ({
+    const formattedCategories = categories.map((category: any) => {
+      const formatItem = (item: any) => ({
         id: item.id,
         name: item.name,
         nameAr: item.nameAr,
@@ -104,7 +115,6 @@ export async function GET(
           lowStockAlert: v.lowStockAlert,
           isActive: v.isActive,
         })),
-        // Options individuelles (sans groupe)
         options: item.options
           .filter((o: any) => !o.optionGroupId)
           .map((o: any) => ({
@@ -118,7 +128,6 @@ export async function GET(
             maxSelections: o.maxSelections,
             isActive: o.isActive,
           })),
-        // Groupes d'options avec quota inclus
         optionGroups: (item.optionGroups || []).map((g: any) => ({
           id: g.id,
           name: g.name,
@@ -129,7 +138,7 @@ export async function GET(
           isRequired: g.isRequired,
           isActive: g.isActive,
           sortOrder: g.sortOrder,
-          options: g.options.map((o: any) => ({
+          options: (g.options || []).map((o: any) => ({
             id: o.id,
             name: o.name,
             nameAr: o.nameAr,
@@ -142,8 +151,45 @@ export async function GET(
         })),
         isAvailable: item.isAvailable,
         sortOrder: item.sortOrder,
-      })),
-    }));
+      });
+
+      const formattedItems = category.items.map(formatItem);
+
+      // Héritage Sauce/Boisson : items sans ces groupes les héritent d'un frère de la même catégorie
+      const sourceItem = formattedItems.find(
+        (it: any) =>
+          hasSauceGroup(it.optionGroups || []) && hasBoissonGroup(it.optionGroups || [])
+      );
+
+      if (sourceItem && sourceItem.optionGroups?.length) {
+        const sauceFromSource = findSauceGroup(sourceItem.optionGroups);
+        const boissonFromSource = findBoissonGroup(sourceItem.optionGroups);
+
+        formattedItems.forEach((it: any) => {
+          if (it.id === sourceItem.id) return;
+          const groups = it.optionGroups || [];
+          const needsSauce = it.hasVariants && (it.variants?.length ?? 0) > 0 && !hasSauceGroup(groups);
+          const needsBoisson = it.hasVariants && (it.variants?.length ?? 0) > 0 && !hasBoissonGroup(groups);
+
+          if (needsSauce || needsBoisson) {
+            const merged = [...groups];
+            if (needsSauce && sauceFromSource) merged.push(sauceFromSource);
+            if (needsBoisson && boissonFromSource) merged.push(boissonFromSource);
+            it.optionGroups = merged;
+          }
+        });
+      }
+
+      return {
+        id: category.id,
+        name: category.name,
+        nameAr: category.nameAr,
+        slug: category.slug,
+        description: category.description,
+        sortOrder: category.sortOrder,
+        items: formattedItems,
+      };
+    });
 
     return NextResponse.json({
       restaurantId: restaurant.id,

@@ -77,11 +77,17 @@ export async function PUT(
         throw new AppError('Catégorie non trouvée', 404);
       }
 
-      // Mettre à jour
+      // Mettre à jour (+ regenerer le slug si le nom change)
+      const updatedName = name ? name.trim() : undefined;
+      const newSlug = updatedName
+        ? updatedName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+        : undefined;
+
       const category = await prisma.category.update({
         where: { id: params.id },
         data: {
-          ...(name && { name: name.trim() }),
+          ...(updatedName && { name: updatedName }),
+          ...(newSlug && { slug: newSlug }),
           ...(nameAr !== undefined && { nameAr: nameAr?.trim() || null }),
           ...(description !== undefined && { description: description?.trim() || null }),
           ...(sortOrder !== undefined && { sortOrder }),
