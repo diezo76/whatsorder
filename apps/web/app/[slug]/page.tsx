@@ -220,21 +220,11 @@ function RestaurantPageContent() {
 
   return (
     <div className={`min-h-screen bg-white ${language === 'ar' ? 'rtl' : 'ltr'}`} dir={language === 'ar' ? 'rtl' : 'ltr'}>
-      {/* Language selector + Category nav (sticky) */}
+      {/* Language selector (sticky) */}
       <div className="bg-white border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4">
-          <div className="flex items-center justify-between py-2.5 gap-4">
-            {/* Category nav */}
-            <div className="flex-1 min-w-0 overflow-hidden">
-              {mappedCategories.length > 0 && (
-                <CategoryNav
-                  categories={mappedCategories.map((c) => ({ id: c.id, name: c.name }))}
-                />
-              )}
-            </div>
-
-            {/* Language */}
-            <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="flex items-center justify-end py-2.5">
+            <div className="flex items-center gap-1">
               <Globe className="w-3.5 h-3.5 text-gray-400" />
               {(['fr', 'ar', 'en'] as const).map((lang) => (
                 <button
