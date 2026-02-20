@@ -37,7 +37,7 @@ export default function HeroSection() {
           {/* Badge */}
           <motion.div variants={item} className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-primary-50 border border-primary-200 rounded-full text-sm font-medium text-primary-700">
             <Sparkles className="w-4 h-4" />
-            Nouveau : IA Claude integree
+            Propulse par Whataybo
           </motion.div>
 
           {/* Title */}
