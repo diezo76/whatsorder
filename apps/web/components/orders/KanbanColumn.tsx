@@ -20,39 +20,17 @@ interface KanbanColumnProps {
   newOrders?: Set<string>;
 }
 
-// Helper functions pour les couleurs
-const getBorderColor = (color: string) => {
-  const colors: Record<string, string> = {
-    gray: 'border-gray-300',
-    blue: 'border-blue-300',
-    yellow: 'border-yellow-300',
-    green: 'border-green-300',
-    purple: 'border-purple-300',
-    red: 'border-red-300',
+const getColumnStyle = (color: string, isOver: boolean) => {
+  const styles: Record<string, { header: string; border: string; count: string }> = {
+    gray: { header: 'text-[#737373]', border: 'border-[#e5e5e5]', count: 'bg-[#f5f5f5] text-[#737373]' },
+    blue: { header: 'text-blue-600', border: 'border-blue-100', count: 'bg-blue-50 text-blue-600' },
+    yellow: { header: 'text-amber-600', border: 'border-amber-100', count: 'bg-amber-50 text-amber-600' },
+    green: { header: 'text-emerald-600', border: 'border-emerald-100', count: 'bg-emerald-50 text-emerald-600' },
+    purple: { header: 'text-purple-600', border: 'border-purple-100', count: 'bg-purple-50 text-purple-600' },
+    red: { header: 'text-red-600', border: 'border-red-100', count: 'bg-red-50 text-red-600' },
   };
-  return colors[color] || 'border-gray-300';
+  return styles[color] || styles.gray;
 };
-
-const getCountBadgeColor = (color: string) => {
-  const colors: Record<string, string> = {
-    gray: 'bg-gray-100 text-gray-700',
-    blue: 'bg-blue-100 text-blue-700',
-    yellow: 'bg-yellow-100 text-yellow-700',
-    green: 'bg-green-100 text-green-700',
-    purple: 'bg-purple-100 text-purple-700',
-    red: 'bg-red-100 text-red-700',
-  };
-  return colors[color] || 'bg-gray-100 text-gray-700';
-};
-
-// Empty State Component
-const EmptyState = () => (
-  <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-    <Package className="w-12 h-12 mb-2" />
-    <p className="text-sm">Aucune commande</p>
-  </div>
-);
-
 
 export default function KanbanColumn({
   column,
@@ -61,52 +39,44 @@ export default function KanbanColumn({
   animatingOrders = new Set(),
   newOrders = new Set(),
 }: KanbanColumnProps) {
-  const { setNodeRef, isOver } = useDroppable({
-    id: column.id,
-  });
+  const { setNodeRef, isOver } = useDroppable({ id: column.id });
+  const style = getColumnStyle(column.color, isOver);
 
   return (
     <div
       ref={setNodeRef}
       className={`
-        bg-white rounded-lg shadow-sm border-2 
-        ${getBorderColor(column.color)}
-        ${isOver ? 'ring-2 ring-orange-400 ring-offset-2' : ''}
-        hover:shadow-md transition-all
+        bg-[#fafafa] rounded-xl border transition-all duration-200
+        ${isOver ? 'border-[#3b82f6] bg-blue-50/30 ring-1 ring-[#3b82f6]/20' : 'border-[#e5e5e5]'}
         w-72 md:w-80 flex-shrink-0
       `}
     >
       {/* Header */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="px-4 py-3 border-b border-[#e5e5e5]">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900 text-sm">
+          <h3 className={`text-[13px] font-semibold ${style.header}`}>
             {column.title}
           </h3>
-          <span
-            className={`
-              px-2 py-1 rounded-full text-xs font-medium
-              ${getCountBadgeColor(column.color)}
-            `}
-          >
+          <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${style.count}`}>
             {orders.length}
           </span>
         </div>
       </div>
 
-      {/* Body scrollable */}
+      {/* Cards */}
       <div
-        className="p-3 space-y-3 max-h-[calc(100vh-280px)] overflow-y-auto kanban-column"
-        style={{
-          scrollbarWidth: 'thin',
-          scrollbarColor: '#d1d5db #f3f4f6',
-        }}
+        className="p-2.5 space-y-2.5 max-h-[calc(100vh-260px)] overflow-y-auto"
+        style={{ scrollbarWidth: 'thin', scrollbarColor: '#d4d4d4 transparent' }}
       >
         <SortableContext
           items={orders.map((o) => o.id)}
           strategy={verticalListSortingStrategy}
         >
           {orders.length === 0 ? (
-            <EmptyState />
+            <div className="flex flex-col items-center justify-center py-10 text-[#d4d4d4]">
+              <Package className="w-8 h-8 mb-2" />
+              <p className="text-[12px]">Aucune commande</p>
+            </div>
           ) : (
             orders.map((order) => (
               <SortableOrderCard
@@ -120,24 +90,6 @@ export default function KanbanColumn({
           )}
         </SortableContext>
       </div>
-
-      {/* Custom scrollbar styles */}
-      <style jsx>{`
-        .kanban-column::-webkit-scrollbar {
-          width: 6px;
-        }
-        .kanban-column::-webkit-scrollbar-track {
-          background: #f3f4f6;
-          border-radius: 3px;
-        }
-        .kanban-column::-webkit-scrollbar-thumb {
-          background: #d1d5db;
-          border-radius: 3px;
-        }
-        .kanban-column::-webkit-scrollbar-thumb:hover {
-          background: #9ca3af;
-        }
-      `}</style>
     </div>
   );
 }

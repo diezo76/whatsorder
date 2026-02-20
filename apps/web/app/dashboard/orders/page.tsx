@@ -481,147 +481,110 @@ export default function OrdersPage() {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header avec filtres */}
-      <div className="p-4 md:p-6 bg-white border-b">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-          <h1 className="text-xl md:text-2xl font-bold">Commandes</h1>
-
+    <div className="flex flex-col h-full -m-4 md:-m-6">
+      {/* Header */}
+      <div className="px-5 py-4 bg-white border-b border-[#e5e5e5]">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
           <div className="flex items-center gap-3">
-            {/* Indicateur connexion Realtime */}
-            <div className="flex items-center gap-2 text-xs">
-              <div
-                className={`w-2 h-2 rounded-full ${
-                  socketConnected || isConnected ? 'bg-green-500 animate-pulse' : 'bg-blue-500'
-                }`}
-              />
-              <span className="text-gray-600">
-                {socketConnected || isConnected ? 'Temps réel actif' : 'Mode REST'}
+            <h1 className="text-[18px] font-semibold text-[#0a0a0a] tracking-tight">Commandes</h1>
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#f5f5f5] text-[#737373]">
+              {orders.length}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <div className={`w-1.5 h-1.5 rounded-full ${socketConnected || isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-[#d4d4d4]'}`} />
+              <span className="text-[11px] text-[#a3a3a3]">
+                {socketConnected || isConnected ? 'Temps reel' : 'REST'}
               </span>
             </div>
+          </div>
 
-            {/* Badge total commandes */}
-            <div className="text-sm text-gray-600">
-              {orders.length} commande{orders.length > 1 ? 's' : ''}
-            </div>
-
-            {/* Bouton toggle busy */}
+          <div className="flex items-center gap-2">
+            {/* Busy toggle */}
             <button
               onClick={toggleBusy}
               disabled={togglingBusy}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium border transition-all ${
                 isBusy
-                  ? 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300'
-                  : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-300'
-              } ${togglingBusy ? 'opacity-50 cursor-not-allowed' : ''}`}
-              title={isBusy ? 'Cliquer pour rouvrir aux commandes' : 'Cliquer pour passer en mode occupe'}
+                  ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
+                  : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
+              } ${togglingBusy ? 'opacity-50' : ''}`}
             >
-              {isBusy ? (
-                <>
-                  <AlertTriangle className="w-4 h-4" />
-                  <span className="hidden sm:inline">Occupe</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="w-4 h-4" />
-                  <span className="hidden sm:inline">Ouvert</span>
-                </>
-              )}
+              {isBusy ? <AlertTriangle className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{isBusy ? 'Occupe' : 'Ouvert'}</span>
             </button>
 
-            {/* Toggle Kanban / Liste */}
-            <div className="flex items-center border rounded-lg overflow-hidden">
+            {/* View toggle */}
+            <div className="flex items-center bg-[#f5f5f5] rounded-md p-0.5">
               <button
                 type="button"
                 onClick={() => setViewMode('kanban')}
-                className={`p-2 transition-colors ${
-                  viewMode === 'kanban'
-                    ? 'bg-orange-100 text-orange-700'
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                className={`p-1.5 rounded transition-all ${
+                  viewMode === 'kanban' ? 'bg-white text-[#0a0a0a] shadow-sm' : 'text-[#a3a3a3] hover:text-[#737373]'
                 }`}
                 title="Vue Kanban"
               >
-                <LayoutGrid className="w-5 h-5" />
+                <LayoutGrid className="w-4 h-4" />
               </button>
               <button
                 type="button"
                 onClick={() => setViewMode('list')}
-                className={`p-2 transition-colors ${
-                  viewMode === 'list'
-                    ? 'bg-orange-100 text-orange-700'
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                className={`p-1.5 rounded transition-all ${
+                  viewMode === 'list' ? 'bg-white text-[#0a0a0a] shadow-sm' : 'text-[#a3a3a3] hover:text-[#737373]'
                 }`}
                 title="Vue Liste"
               >
-                <List className="w-5 h-5" />
+                <List className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Bouton rafraîchir */}
+            {/* Refresh */}
             <button
               onClick={loadOrders}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-1.5 rounded-md hover:bg-[#f5f5f5] transition-colors text-[#737373] hover:text-[#0a0a0a]"
               disabled={loading}
-              title="Rafraîchir"
             >
-              <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
 
-        {/* Filtres */}
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Filtre date */}
+        {/* Filters */}
+        <div className="flex items-center gap-2 flex-wrap">
           <select
             value={filters.date}
             onChange={(e) => setFilters({ ...filters, date: e.target.value })}
-            className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-[#e5e5e5] rounded-md px-2.5 py-1.5 text-[12px] bg-white text-[#0a0a0a] focus:outline-none focus:ring-1 focus:ring-[#3b82f6] focus:border-[#3b82f6]"
           >
-            <option value="today">Aujourd'hui</option>
+            <option value="today">Aujourd&apos;hui</option>
             <option value="yesterday">Hier</option>
             <option value="week">Cette semaine</option>
             <option value="month">Ce mois</option>
             <option value="all">Toutes</option>
           </select>
 
-          {/* Filtre staff */}
           <select
             value={filters.assignedTo}
-            onChange={(e) =>
-              setFilters({ ...filters, assignedTo: e.target.value })
-            }
-            className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onChange={(e) => setFilters({ ...filters, assignedTo: e.target.value })}
+            className="border border-[#e5e5e5] rounded-md px-2.5 py-1.5 text-[12px] bg-white text-[#0a0a0a] focus:outline-none focus:ring-1 focus:ring-[#3b82f6] focus:border-[#3b82f6]"
           >
             <option value="all">Tous les staffs</option>
-            {/* TODO: Charger la liste des users du restaurant */}
           </select>
 
-          {/* Recherche */}
           <input
             type="text"
-            placeholder="Rechercher (N° commande, client...)"
+            placeholder="Rechercher..."
             value={filters.search}
-            onChange={(e) =>
-              setFilters({ ...filters, search: e.target.value })
-            }
-            className="border rounded-lg px-3 py-2 text-sm flex-1 w-full md:max-w-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+            className="border border-[#e5e5e5] rounded-md px-2.5 py-1.5 text-[12px] bg-white text-[#0a0a0a] placeholder-[#a3a3a3] flex-1 w-full md:max-w-xs focus:outline-none focus:ring-1 focus:ring-[#3b82f6] focus:border-[#3b82f6]"
           />
         </div>
       </div>
 
-      {/* Board Kanban */}
-      <div className="flex-1 overflow-x-auto p-4 md:p-6 bg-gray-50">
-        {/* Indicateur de connexion Realtime */}
-        <div className="mb-4 flex items-center gap-2 px-4 py-2 bg-white rounded-lg border">
-          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-blue-500'}`} />
-          <span className="text-sm text-gray-600">
-            {isConnected ? 'Temps réel actif' : 'Déconnecté'}
-          </span>
-        </div>
-
+      {/* Board */}
+      <div className="flex-1 overflow-x-auto p-4 md:p-5 bg-[#fafafa]">
         {loading ? (
           <div className="flex justify-center items-center h-64">
-            <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+            <div className="w-6 h-6 border-2 border-[#0a0a0a] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : viewMode === 'list' ? (
           <OrdersListView
@@ -631,12 +594,8 @@ export default function OrdersPage() {
             animatingOrders={animatingOrders}
           />
         ) : (
-          <DndContext
-            sensors={sensors}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-          >
-            <div className="flex gap-4 min-w-max">
+          <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            <div className="flex gap-3 min-w-max">
               {columns.map((column) => (
                 <KanbanColumn
                   key={column.id}
@@ -649,10 +608,9 @@ export default function OrdersPage() {
               ))}
             </div>
 
-            {/* Overlay pour visualiser le drag */}
             <DragOverlay>
               {activeOrder && (
-                <div className="opacity-80 rotate-3">
+                <div className="opacity-90 rotate-2 scale-105">
                   <OrderCard order={activeOrder} onClick={() => {}} />
                 </div>
               )}
@@ -661,7 +619,6 @@ export default function OrdersPage() {
         )}
       </div>
 
-      {/* Modal OrderDetails */}
       {selectedOrder && (
         <OrderDetailsModal
           order={selectedOrder}
