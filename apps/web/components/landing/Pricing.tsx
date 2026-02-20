@@ -49,8 +49,8 @@ const plans = [
       'API & Webhooks',
       'SLA garanti',
     ],
-    cta: 'Nous contacter',
-    href: 'mailto:contact@whataybo.com',
+    cta: 'Contactez-nous sur WhatsApp',
+    href: 'https://wa.me/201276921081',
     popular: false,
   },
 ];
