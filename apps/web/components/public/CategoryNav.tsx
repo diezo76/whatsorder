@@ -43,9 +43,14 @@ export default function CategoryNav({ categories }: CategoryNavProps) {
 
   useEffect(() => {
     if (!navRef.current || !activeId) return;
-    const activeBtn = navRef.current.querySelector(`[data-cat="${activeId}"]`);
+    const activeBtn = navRef.current.querySelector(`[data-cat="${activeId}"]`) as HTMLElement;
     if (activeBtn) {
-      (activeBtn as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      const nav = navRef.current;
+      const btnLeft = activeBtn.offsetLeft;
+      const btnWidth = activeBtn.offsetWidth;
+      const navWidth = nav.offsetWidth;
+      const scrollTarget = btnLeft - navWidth / 2 + btnWidth / 2;
+      nav.scrollTo({ left: scrollTarget, behavior: 'smooth' });
     }
   }, [activeId]);
 
