@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { motion } from 'framer-motion';
 import MenuItemCard from './MenuItemCard';
 import { MenuItemWithVariantsAndOptions } from '@/types/menu';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -22,111 +23,54 @@ interface MenuCategoryProps {
 export default function MenuCategory({ category, onAddToCart }: MenuCategoryProps) {
   const { id, name, nameAr, description, items } = category;
   const { t } = useLanguage();
-  const [isVisible, setIsVisible] = useState(true);
   const [isExpanded, setIsExpanded] = useState(true);
-  const sectionRef = useRef<HTMLElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-
-  // Animation au scroll avec Intersection Observer
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setIsVisible(true);
-          }
-        });
-      },
-      {
-        threshold: 0.1,
-        rootMargin: '0px 0px -50px 0px',
-      }
-    );
-
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
-    }
-
-    return () => {
-      if (sectionRef.current) {
-        observer.unobserve(sectionRef.current);
-      }
-    };
-  }, []);
 
   return (
-    <section
-      ref={sectionRef}
-      id={`category-${id}`}
-      className={`pt-8 md:pt-12 mb-12 md:mb-16 transition-opacity duration-700 ${
-        isVisible ? 'opacity-100' : 'opacity-0'
-      }`}
-    >
-      {/* Header de catégorie - cliquable */}
+    <section id={`category-${id}`} className="scroll-mt-32">
+      {/* Header */}
       <button
         type="button"
         onClick={() => setIsExpanded((prev) => !prev)}
-        className="w-full text-left mb-6 border-b border-gray-200 pb-4 cursor-pointer group"
+        className="w-full text-left mb-6 group"
       >
         <div className="flex items-center justify-between gap-4">
-          <div className="flex flex-col gap-2 flex-1">
-          {/* Nom de la catégorie */}
-          <h2 className="text-2xl font-bold text-gray-900">{name}</h2>
-
-          {/* Nom arabe si disponible */}
-          {nameAr && (
-            <p className="text-lg text-gray-600" dir="rtl">
-              {nameAr}
-            </p>
-          )}
-
-          {/* Description si disponible */}
-          {description && (
-            <p className="text-gray-500 mt-2">{description}</p>
-          )}
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{name}</h2>
+            {nameAr && (
+              <p className="text-base text-gray-500 mt-0.5" dir="rtl">{nameAr}</p>
+            )}
+            {description && (
+              <p className="text-sm text-gray-400 mt-1">{description}</p>
+            )}
           </div>
-
-          {/* Chevron toggle */}
-          <div className="flex-shrink-0">
-            <ChevronDown
-              className={`w-6 h-6 text-gray-400 group-hover:text-orange-500 transition-transform duration-300 ${
-                isExpanded ? 'rotate-180' : 'rotate-0'
-              }`}
-            />
-          </div>
+          <ChevronDown
+            className={`w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-transform duration-300 flex-shrink-0 ${
+              isExpanded ? 'rotate-180' : ''
+            }`}
+          />
         </div>
-
-        {/* Divider décoratif */}
-        <div className="mt-4 border-t-2 border-orange-500 w-16" />
+        <div className="mt-3 h-px bg-gray-100" />
       </button>
 
-      {/* Contenu dépliable */}
-      <div
-        ref={contentRef}
-        className={`overflow-hidden transition-all duration-400 ease-in-out ${
-          isExpanded
-            ? 'max-h-[5000px] opacity-100'
-            : 'max-h-0 opacity-0'
-        }`}
-      >
-      {/* Grid d'items */}
-      {items && items.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {items.map((item) => (
-            <MenuItemCard
-              key={item.id}
-              item={item}
-              onAddToCart={onAddToCart}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-          <p className="text-gray-500 text-lg">
-              {t.menu.noItemsAvailable}
-          </p>
-        </div>
-      )}
+      {/* Content */}
+      <div className={`overflow-hidden transition-all duration-400 ease-in-out ${
+        isExpanded ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
+      }`}>
+        {items && items.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {items.map((item) => (
+              <MenuItemCard
+                key={item.id}
+                item={item}
+                onAddToCart={onAddToCart}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl border border-gray-100 p-8 text-center">
+            <p className="text-gray-400">{t.menu.noItemsAvailable}</p>
+          </div>
+        )}
       </div>
     </section>
   );

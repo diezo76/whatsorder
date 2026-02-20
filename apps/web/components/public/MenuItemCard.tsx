@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
-import { UtensilsCrossed, ShoppingCart } from 'lucide-react';
+import { UtensilsCrossed, Plus, Check } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useCartStore } from '@/store/cartStore';
 import { ProductModal } from './ProductModal';
 import { MenuItemWithVariantsAndOptions, CartItem } from '@/types/menu';
@@ -19,22 +20,23 @@ export default function MenuItemCard({ item }: MenuItemCardProps) {
   const addItem = useCartStore((state) => state.addItem);
   const { t } = useLanguage();
   const [showModal, setShowModal] = useState(false);
+  const [justAdded, setJustAdded] = useState(false);
 
   const handleAddToCart = (cartItem: CartItem) => {
     addItem(cartItem);
+    setJustAdded(true);
+    setTimeout(() => setJustAdded(false), 1200);
   };
 
-  // Détecter si c'est un Menu Enfant (nécessite le modal pour les choix)
   const isKidsMenu = name.toLowerCase().includes('menu enfant') || name.toLowerCase().includes('kids') || name.toLowerCase().includes('menu kid');
 
+  const needsModal = hasVariants || (options && options.length > 0) || (optionGroups && optionGroups.length > 0) || isKidsMenu;
+
   const handleButtonClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Empêcher la propagation
-    // Si l'item a des variants, options, ou est un menu enfant, ouvrir le modal
-    // Sinon, ajouter directement au panier
-    if (hasVariants || (options && options.length > 0) || (optionGroups && optionGroups.length > 0) || isKidsMenu) {
+    e.stopPropagation();
+    if (needsModal) {
       setShowModal(true);
     } else {
-      // Ajouter directement au panier pour les items simples
       const cartItem: CartItem = {
         id: `${id}-${Date.now()}`,
         menuItemId: id,
@@ -45,95 +47,86 @@ export default function MenuItemCard({ item }: MenuItemCardProps) {
         totalPrice: price || 0,
         image,
       };
-      addItem(cartItem);
+      handleAddToCart(cartItem);
     }
-  };
-
-  const handleCloseModal = () => {
-    setShowModal(false);
   };
 
   return (
     <>
-      <div className="bg-white rounded-lg shadow hover:shadow-lg transition-all duration-300 hover:scale-105 overflow-hidden flex flex-col">
-        {/* Image format carré */}
-        <div className="relative w-full aspect-square overflow-hidden bg-gray-100 rounded-t-lg">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-20px' }}
+        transition={{ duration: 0.35 }}
+        onClick={() => needsModal && setShowModal(true)}
+        className={`group bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 ${needsModal ? 'cursor-pointer' : ''}`}
+      >
+        {/* Image */}
+        <div className="relative w-full aspect-[4/3] overflow-hidden bg-gray-100">
           {image ? (
             <Image
               src={image}
               alt={name}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              className="object-cover"
+              className="object-cover group-hover:scale-105 transition-transform duration-500"
               loading="lazy"
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
-              <UtensilsCrossed className="w-16 h-16 text-gray-400" />
+            <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+              <UtensilsCrossed className="w-12 h-12 text-gray-300" />
             </div>
           )}
         </div>
 
-        {/* Contenu */}
+        {/* Content */}
         <div className="p-4 flex-1 flex flex-col">
-          {/* Nom du plat (bilingue) */}
-          <div className="mb-2">
-            <h3 className="text-lg font-semibold text-gray-900 leading-tight">
-              {name}
-            </h3>
+          <div className="mb-1">
+            <h3 className="text-base font-semibold text-gray-900 leading-snug line-clamp-1">{name}</h3>
             {nameAr && (
-              <p className="text-base text-gray-600 mt-1 leading-tight" dir="rtl">
-                {nameAr}
-              </p>
+              <p className="text-sm text-gray-500 mt-0.5 leading-snug" dir="rtl">{nameAr}</p>
             )}
           </div>
 
-          {/* Description (tronquée à 2 lignes) */}
           {(description || descriptionAr) && (
             <div className="mb-3 flex-1">
               {description && (
-                <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
-                  {description}
-                </p>
-              )}
-              {descriptionAr && (
-                <p
-                  className="text-sm text-gray-600 line-clamp-2 leading-relaxed mt-1"
-                  dir="rtl"
-                >
-                  {descriptionAr}
-                </p>
+                <p className="text-sm text-gray-400 line-clamp-2 leading-relaxed">{description}</p>
               )}
             </div>
           )}
 
-          {/* Prix et Bouton */}
-          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-            <div className="flex flex-col">
-              <span className="text-lg font-bold text-primary">
-                {hasVariants && variants && variants.length > 0 
-                  ? `${t.menu.startingFrom} ${variants[0]?.price || price || 0} EGP`
-                  : `${price || 0} EGP`}
-              </span>
-            </div>
+          {/* Price + Button */}
+          <div className="flex items-center justify-between pt-3 border-t border-gray-50">
+            <span className="text-base font-bold text-gray-900">
+              {hasVariants && variants && variants.length > 0
+                ? `${t.menu.startingFrom} ${variants[0]?.price || price || 0} EGP`
+                : `${price || 0} EGP`}
+            </span>
 
-            {/* Bouton Ajouter au panier */}
             <button
               onClick={handleButtonClick}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 bg-primary text-white hover:bg-primary/90 active:scale-95"
+              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 active:scale-90 ${
+                justAdded
+                  ? 'bg-green-500 text-white scale-110'
+                  : 'bg-gray-900 text-white hover:bg-gray-700'
+              }`}
+              aria-label={t.menu.add}
             >
-              <ShoppingCart className="w-4 h-4" />
-              <span>{t.menu.add}</span>
+              {justAdded ? (
+                <Check className="w-4 h-4" />
+              ) : (
+                <Plus className="w-4 h-4" />
+              )}
             </button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Modal rendu via portal pour éviter les problèmes de transform */}
       {showModal && typeof document !== 'undefined' && createPortal(
         <ProductModal
           product={item}
-          onClose={handleCloseModal}
+          onClose={() => setShowModal(false)}
           onAddToCart={handleAddToCart}
         />,
         document.body

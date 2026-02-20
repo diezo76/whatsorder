@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { Phone, MapPin, Clock } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { isRestaurantOpen } from '@/lib/shared/pricing';
 
@@ -19,7 +20,6 @@ interface RestaurantHeaderProps {
   restaurant: Restaurant;
 }
 
-// Fonction pour obtenir les initiales du restaurant
 const getInitials = (name: string): string => {
   return name
     .split(' ')
@@ -32,16 +32,16 @@ const getInitials = (name: string): string => {
 export default function RestaurantHeader({ restaurant }: RestaurantHeaderProps) {
   const { name, description, logo, coverImage, phone, address, openingHours } = restaurant;
   const { t } = useLanguage();
+  const open = isRestaurantOpen(openingHours);
 
   return (
     <div className="relative w-full">
-      {/* Hero Section avec image de couverture */}
+      {/* Hero */}
       <div
-        className={`relative h-64 md:h-80 w-full ${
-          coverImage ? '' : 'bg-gradient-to-br from-primary to-primary/80'
+        className={`relative h-56 sm:h-64 md:h-72 w-full ${
+          coverImage ? '' : 'bg-gradient-to-br from-gray-800 to-gray-900'
         }`}
       >
-        {/* Image de couverture optimisée */}
         {coverImage && (
           <Image
             src={coverImage}
@@ -52,108 +52,89 @@ export default function RestaurantHeader({ restaurant }: RestaurantHeaderProps) 
             priority
           />
         )}
-        {/* Overlay gradient pour lisibilité */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-black/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
 
-        {/* Container centré avec contenu */}
-        <div className="relative z-10 h-full flex items-center justify-center">
-          <div className="max-w-7xl mx-auto px-4 py-8 w-full">
-            <div className="flex flex-col items-center text-center text-white">
-              {/* Logo du restaurant */}
+        <div className="relative z-10 h-full flex items-end">
+          <div className="max-w-5xl mx-auto px-4 pb-6 w-full">
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: 'easeOut' as const }}
+              className="flex items-end gap-4"
+            >
+              {/* Logo */}
               {logo ? (
-                <div className="mb-4 relative w-24 h-24 md:w-32 md:h-32">
+                <div className="relative w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-2xl overflow-hidden border-2 border-white/30 shadow-xl bg-white">
                   <Image
                     src={logo}
                     alt={name}
                     fill
-                    sizes="128px"
-                    className="rounded-full object-cover border-4 border-white/20 shadow-lg"
+                    sizes="96px"
+                    className="object-cover"
                     priority
                   />
                 </div>
               ) : (
-                <div className="mb-4 w-24 h-24 md:w-32 md:h-32 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border-4 border-white/20 shadow-lg">
-                  <span className="text-3xl md:text-4xl font-bold text-white">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center border-2 border-white/30 shadow-xl">
+                  <span className="text-2xl sm:text-3xl font-bold text-white">
                     {getInitials(name)}
                   </span>
                 </div>
               )}
 
-              {/* Nom du restaurant */}
-              <h1 className="text-4xl md:text-5xl font-bold mb-3 drop-shadow-lg">{name}</h1>
-
-              {/* Description */}
-              {description && (
-                <p className="text-lg md:text-xl text-gray-100 max-w-2xl drop-shadow-md">
-                  {description}
-                </p>
-              )}
-            </div>
+              <div className="flex-1 min-w-0 pb-1">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white drop-shadow-lg truncate">
+                  {name}
+                </h1>
+                {description && (
+                  <p className="text-sm sm:text-base text-white/80 mt-1 line-clamp-2 drop-shadow">
+                    {description}
+                  </p>
+                )}
+              </div>
+            </motion.div>
           </div>
         </div>
       </div>
 
-      {/* Section infos pratiques */}
-      <div className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Téléphone */}
-            <div className="bg-white rounded-lg shadow p-4 flex items-start gap-3 hover:shadow-md transition-shadow">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Phone className="w-5 h-5 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                  {t.header.phone}
-                </h3>
-                <a
-                  href={`tel:${phone}`}
-                  className="text-gray-900 font-medium hover:text-primary transition-colors break-all"
-                >
-                  {phone}
-                </a>
-              </div>
+      {/* Info bar */}
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-5xl mx-auto px-4 py-4">
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.15 }}
+            className="flex flex-wrap items-center gap-4 sm:gap-6 text-sm"
+          >
+            {/* Status */}
+            <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-semibold text-xs ${
+              open
+                ? 'bg-green-50 text-green-700'
+                : 'bg-red-50 text-red-600'
+            }`}>
+              <span className={`w-2 h-2 rounded-full ${
+                open ? 'bg-green-500 animate-pulse' : 'bg-red-500'
+              }`} />
+              {open ? t.header.open : t.header.closed}
             </div>
 
-            {/* Adresse */}
-            <div className="bg-white rounded-lg shadow p-4 flex items-start gap-3 hover:shadow-md transition-shadow">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <MapPin className="w-5 h-5 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                  {t.header.address}
-                </h3>
-                <p className="text-gray-900 font-medium break-words">{address}</p>
-              </div>
-            </div>
+            {/* Phone */}
+            <a
+              href={`tel:${phone}`}
+              className="inline-flex items-center gap-1.5 text-gray-500 hover:text-gray-900 transition-colors"
+            >
+              <Phone className="w-4 h-4" />
+              <span>{phone}</span>
+            </a>
 
-            {/* Statut Ouvert/Fermé */}
-            <div className="bg-white rounded-lg shadow p-4 flex items-start gap-3 hover:shadow-md transition-shadow">
-              <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-                isRestaurantOpen(openingHours) ? 'bg-green-100' : 'bg-red-100'
-              }`}>
-                <Clock className={`w-5 h-5 ${
-                  isRestaurantOpen(openingHours) ? 'text-green-600' : 'text-red-600'
-                }`} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                  {t.header.status}
-                </h3>
-                <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
-                  isRestaurantOpen(openingHours)
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  <span className={`w-2 h-2 rounded-full mr-2 ${
-                    isRestaurantOpen(openingHours) ? 'bg-green-500 animate-pulse' : 'bg-red-500'
-                  }`}></span>
-                  {isRestaurantOpen(openingHours) ? t.header.open : t.header.closed}
-                </div>
-              </div>
-            </div>
-          </div>
+            {/* Address */}
+            {address && (
+              <span className="inline-flex items-center gap-1.5 text-gray-500">
+                <MapPin className="w-4 h-4" />
+                <span className="truncate max-w-[200px] sm:max-w-none">{address}</span>
+              </span>
+            )}
+          </motion.div>
         </div>
       </div>
     </div>

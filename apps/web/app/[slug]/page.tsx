@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { AlertCircle, UtensilsCrossed, Globe, Clock, Ban } from 'lucide-react';
 import { api } from '@/lib/api';
 import RestaurantHeader from '@/components/public/RestaurantHeader';
+import CategoryNav from '@/components/public/CategoryNav';
 import MenuCategory from '@/components/public/MenuCategory';
 import CartDrawer from '@/components/cart/CartDrawer';
 import FloatingCartButton from '@/components/cart/FloatingCartButton';
@@ -12,7 +13,6 @@ import { LanguageProvider, useLanguage } from '@/contexts/LanguageContext';
 
 import type { Restaurant } from '@/types/restaurant';
 
-// Types spécifiques au menu (page publique uniquement)
 interface MenuItem {
   id: string;
   name: string;
@@ -27,7 +27,7 @@ interface MenuItem {
   hasVariants?: boolean;
   variants?: any[];
   options?: any[];
-  optionGroups?: any[]; // Groupes d'options avec quota inclus
+  optionGroups?: any[];
   modifiers?: any;
   isAvailable: boolean;
   isFeatured?: boolean;
@@ -86,11 +86,9 @@ function RestaurantPageContent() {
       setLoading(true);
       setError(null);
 
-      // Fetch restaurant data
       const restaurantResponse = await api.get<Restaurant>(`/public/restaurants/${slug}`);
       setRestaurant(restaurantResponse.data);
 
-      // Fetch menu data
       const menuResponse = await api.get<MenuResponse>(`/public/restaurants/${slug}/menu`);
       setMenu(menuResponse.data);
     } catch (err: any) {
@@ -109,24 +107,18 @@ function RestaurantPageContent() {
     fetchData();
   }, [fetchData]);
 
-  // Callback pour ajouter au panier (optionnel, MenuItemCard utilise directement le store)
-  const handleAddToCart = (_item: any) => {
-    // MenuItemCard utilise directement useCartStore, cette fonction est conservée pour compatibilité
-  };
+  const handleAddToCart = (_item: any) => {};
 
-  // Fonction pour obtenir le nom selon la langue
   const getLocalizedName = (name: string, nameAr?: string): string => {
     if (language === 'ar' && nameAr) return nameAr;
-    return name; // FR et EN utilisent le nom français
+    return name;
   };
 
-  // Fonction pour obtenir la description selon la langue
   const getLocalizedDescription = (description?: string, descriptionAr?: string): string | undefined => {
     if (language === 'ar' && descriptionAr) return descriptionAr;
     return description;
   };
 
-  // Fonction pour mapper les items du menu vers le format attendu par MenuItemCard
   const mapMenuItem = (item: MenuItem, categoryId?: string) => {
     const optionGroups = (item.optionGroups ?? []).map((g: any) => ({
       ...g,
@@ -155,7 +147,6 @@ function RestaurantPageContent() {
     };
   };
 
-  // Fonction pour mapper les catégories vers le format attendu par MenuCategory
   const mapCategory = (category: Category) => ({
     id: category.id,
     name: getLocalizedName(category.name, category.nameAr),
@@ -164,53 +155,25 @@ function RestaurantPageContent() {
     items: category.items.map((item) => mapMenuItem(item, category.id)),
   });
 
-  // Loading state avec skeleton loader
+  // Loading
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        {/* Skeleton Header */}
-        <div className="relative w-full h-64 md:h-80 bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse">
-          <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/10" />
-          <div className="relative z-10 h-full flex items-center justify-center">
-            <div className="max-w-7xl mx-auto px-4 py-8 w-full">
-              <div className="flex flex-col items-center text-center">
-                <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-white/30 mb-4 animate-pulse" />
-                <div className="h-8 w-64 bg-white/30 rounded mb-3 animate-pulse" />
-                <div className="h-4 w-96 bg-white/20 rounded animate-pulse" />
-              </div>
-            </div>
+      <div className="min-h-screen bg-white">
+        <div className="relative w-full h-56 sm:h-64 md:h-72 bg-gray-100 animate-pulse" />
+        <div className="max-w-5xl mx-auto px-4 py-8">
+          <div className="flex gap-2 mb-8">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-9 w-24 bg-gray-100 rounded-full animate-pulse" />
+            ))}
           </div>
-        </div>
-
-        {/* Skeleton Infos */}
-        <div className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 py-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-gray-100 rounded-lg p-4 animate-pulse">
-                  <div className="h-4 w-24 bg-gray-200 rounded mb-2" />
-                  <div className="h-5 w-32 bg-gray-200 rounded" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Skeleton Cards */}
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="h-8 w-48 bg-gray-200 rounded mx-auto mb-12 animate-pulse" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white rounded-lg shadow overflow-hidden animate-pulse">
-                <div className="w-full h-48 bg-gray-200" />
-                <div className="p-4">
-                  <div className="h-5 w-3/4 bg-gray-200 rounded mb-2" />
-                  <div className="h-4 w-full bg-gray-200 rounded mb-2" />
-                  <div className="h-4 w-2/3 bg-gray-200 rounded mb-4" />
-                  <div className="flex justify-between items-center">
-                    <div className="h-6 w-20 bg-gray-200 rounded" />
-                    <div className="h-10 w-24 bg-gray-200 rounded" />
-                  </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
+                <div className="aspect-[4/3] bg-gray-100" />
+                <div className="p-4 space-y-2">
+                  <div className="h-4 w-3/4 bg-gray-100 rounded" />
+                  <div className="h-3 w-full bg-gray-50 rounded" />
+                  <div className="h-3 w-1/2 bg-gray-50 rounded" />
                 </div>
               </div>
             ))}
@@ -220,32 +183,27 @@ function RestaurantPageContent() {
     );
   }
 
-  // Error state avec icône et bouton réessayer
+  // Error
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="text-center max-w-md w-full">
-          <div className="bg-white border border-gray-200 rounded-lg p-8 shadow-sm">
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
-                <AlertCircle className="w-8 h-8 text-red-600" />
-              </div>
-            </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">{t.menu.error}</h2>
-            <p className="text-gray-600 mb-6">{error}</p>
-            <button
-              onClick={fetchData}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors"
-            >
-              {t.menu.retry}
-            </button>
+      <div className="min-h-screen bg-white flex items-center justify-center px-4">
+        <div className="text-center max-w-sm">
+          <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-7 h-7 text-red-500" />
           </div>
+          <h2 className="text-lg font-bold text-gray-900 mb-2">{t.menu.error}</h2>
+          <p className="text-gray-500 text-sm mb-6">{error}</p>
+          <button
+            onClick={fetchData}
+            className="px-6 py-2.5 bg-gray-900 text-white rounded-xl font-medium text-sm hover:bg-gray-800 transition-colors"
+          >
+            {t.menu.retry}
+          </button>
         </div>
       </div>
     );
   }
 
-  // Préparer les données pour RestaurantHeader (convertir null -> undefined pour compatibilité)
   const restaurantHeaderData = restaurant
     ? {
         name: restaurant.name,
@@ -258,130 +216,110 @@ function RestaurantPageContent() {
       }
     : null;
 
+  const mappedCategories = menu?.categories?.map(mapCategory) || [];
+
   return (
-    <div className={`min-h-screen bg-gray-50 ${language === 'ar' ? 'rtl' : 'ltr'}`} dir={language === 'ar' ? 'rtl' : 'ltr'}>
-      {/* Sélecteur de langue */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-2 flex justify-end items-center gap-2">
-          <Globe className="w-4 h-4 text-gray-500" />
-          <div className="flex gap-1">
-            <button
-              onClick={() => setLanguage('fr')}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                language === 'fr'
-                  ? 'bg-primary text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              FR
-            </button>
-            <button
-              onClick={() => setLanguage('ar')}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                language === 'ar'
-                  ? 'bg-primary text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              عربي
-            </button>
-            <button
-              onClick={() => setLanguage('en')}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                language === 'en'
-                  ? 'bg-primary text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              EN
-            </button>
+    <div className={`min-h-screen bg-white ${language === 'ar' ? 'rtl' : 'ltr'}`} dir={language === 'ar' ? 'rtl' : 'ltr'}>
+      {/* Language selector + Category nav (sticky) */}
+      <div className="bg-white border-b border-gray-100 sticky top-0 z-50">
+        <div className="max-w-5xl mx-auto px-4">
+          <div className="flex items-center justify-between py-2.5 gap-4">
+            {/* Category nav */}
+            <div className="flex-1 min-w-0 overflow-hidden">
+              {mappedCategories.length > 0 && (
+                <CategoryNav
+                  categories={mappedCategories.map((c) => ({ id: c.id, name: c.name }))}
+                />
+              )}
+            </div>
+
+            {/* Language */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <Globe className="w-3.5 h-3.5 text-gray-400" />
+              {(['fr', 'ar', 'en'] as const).map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => setLanguage(lang)}
+                  className={`px-2 py-1 text-xs rounded-md font-medium transition-colors ${
+                    language === lang
+                      ? 'bg-gray-900 text-white'
+                      : 'text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  {lang === 'fr' ? 'FR' : lang === 'ar' ? 'عربي' : 'EN'}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Banniere restaurant occupe */}
+      {/* Busy banner */}
       {restaurant?.isBusy && (
-        <div className="bg-red-600 text-white py-4 px-4">
-          <div className="max-w-7xl mx-auto flex items-center justify-center gap-3">
-            <Ban className="w-6 h-6 flex-shrink-0" />
+        <div className="bg-red-600 text-white py-3 px-4">
+          <div className="max-w-5xl mx-auto flex items-center justify-center gap-3">
+            <Ban className="w-5 h-5 flex-shrink-0" />
             <div className="text-center">
-              <p className="font-bold text-lg">{restaurant.busyTitle || t.menu.restaurantBusy || 'Restaurant temporairement indisponible'}</p>
+              <p className="font-bold">{restaurant.busyTitle || t.menu.restaurantBusy || 'Restaurant temporairement indisponible'}</p>
               <p className="text-sm text-red-100">{restaurant.busyMessage || t.menu.restaurantBusyDesc || 'Trop de commandes en cours. Veuillez reessayer plus tard.'}</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Restaurant Header */}
+      {/* Header */}
       {restaurantHeaderData && <RestaurantHeader restaurant={restaurantHeaderData} />}
 
       {/* Menu */}
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Titre section */}
-        <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">
-          {t.menu.ourMenu}
-        </h2>
-
-        {/* Navigation sticky des catégories (optionnel pour l'instant) */}
-        {/* TODO: Ajouter navigation sticky des catégories */}
-
-        {/* Catégories */}
-        {menu?.categories && menu.categories.length > 0 ? (
-          <div className="space-y-8 md:space-y-12">
-            {menu.categories.map((category) => (
+      <main className="max-w-5xl mx-auto px-4 py-8">
+        {mappedCategories.length > 0 ? (
+          <div className="space-y-12">
+            {mappedCategories.map((category) => (
               <MenuCategory
                 key={category.id}
-                category={mapCategory(category)}
+                category={category}
                 onAddToCart={handleAddToCart}
               />
             ))}
           </div>
         ) : (
-          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
-                <UtensilsCrossed className="w-8 h-8 text-gray-400" />
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  {t.menu.menuNotAvailable}
-                </h3>
-                <p className="text-gray-500">
-                  {t.menu.menuNotAvailableDesc}
-                </p>
-              </div>
+          <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+            <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+              <UtensilsCrossed className="w-7 h-7 text-gray-300" />
             </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">{t.menu.menuNotAvailable}</h3>
+            <p className="text-gray-400 text-sm">{t.menu.menuNotAvailableDesc}</p>
           </div>
         )}
       </main>
 
-      {/* Footer avec horaires détaillés */}
+      {/* Footer - Opening hours */}
       {restaurant?.openingHours && typeof restaurant.openingHours !== 'string' && (
-        <footer className="bg-gray-900 text-white py-12">
-          <div className="max-w-7xl mx-auto px-4">
+        <footer className="bg-gray-950 text-white py-10">
+          <div className="max-w-5xl mx-auto px-4">
             <div className="flex flex-col items-center">
-              <div className="flex items-center gap-3 mb-6">
-                <Clock className="w-6 h-6 text-primary" />
-                <h3 className="text-xl font-semibold">{t.hours.openingHours}</h3>
+              <div className="flex items-center gap-2 mb-6">
+                <Clock className="w-5 h-5 text-gray-400" />
+                <h3 className="text-base font-semibold">{t.hours.openingHours}</h3>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-3xl">
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2 w-full max-w-3xl">
                 {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const).map((day) => {
                   const hours = restaurant.openingHours?.[day];
                   const now = new Date();
                   const daysEn = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
                   const isToday = daysEn[now.getDay()] === day;
-                  
+
                   return (
                     <div
                       key={day}
-                      className={`text-center p-3 rounded-lg ${
-                        isToday ? 'bg-primary/20 ring-2 ring-primary' : 'bg-gray-800'
+                      className={`text-center p-3 rounded-xl ${
+                        isToday ? 'bg-white/10 ring-1 ring-white/20' : 'bg-white/5'
                       }`}
                     >
-                      <p className="font-semibold text-sm uppercase tracking-wide mb-1">
+                      <p className="font-semibold text-xs uppercase tracking-wider text-gray-400 mb-1">
                         {t.hours.days[day]}
                       </p>
-                      <p className={`text-sm ${hours?.closed ? 'text-gray-400' : 'text-gray-300'}`}>
+                      <p className={`text-xs ${hours?.closed ? 'text-gray-500' : 'text-gray-300'}`}>
                         {hours?.closed ? t.hours.closed : hours ? `${hours.open} - ${hours.close}` : t.hours.closed}
                       </p>
                     </div>
@@ -393,23 +331,23 @@ function RestaurantPageContent() {
         </footer>
       )}
 
-      {/* Bouton flottant panier (masque si busy) */}
+      {/* Floating cart button */}
       {!restaurant?.isBusy && (
-      <FloatingCartButton onClick={() => setIsCartOpen(true)} />
+        <FloatingCartButton onClick={() => setIsCartOpen(true)} />
       )}
 
-      {/* Drawer panier (masque si busy) */}
+      {/* Cart drawer */}
       {!restaurant?.isBusy && (
-      <CartDrawer
-        isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-        restaurant={
-          restaurant
-            ? {
-                id: restaurant.id,
-                slug: restaurant.slug,
-                name: restaurant.name,
-                phone: restaurant.phone,
+        <CartDrawer
+          isOpen={isCartOpen}
+          onClose={() => setIsCartOpen(false)}
+          restaurant={
+            restaurant
+              ? {
+                  id: restaurant.id,
+                  slug: restaurant.slug,
+                  name: restaurant.name,
+                  phone: restaurant.phone,
                   whatsappNumber: restaurant.whatsappNumber || undefined,
                   enableCashPayment: restaurant.enableCashPayment ?? true,
                   enableCardPayment: restaurant.enableCardPayment ?? true,
@@ -417,10 +355,10 @@ function RestaurantPageContent() {
                   enablePaypalPayment: restaurant.enablePaypalPayment ?? false,
                   deliveryZones: restaurant.deliveryZones as Array<{ name: string; fee: number }> | undefined,
                   openingHours: restaurant.openingHours ?? undefined,
-              }
-            : undefined
-        }
-      />
+                }
+              : undefined
+          }
+        />
       )}
     </div>
   );
